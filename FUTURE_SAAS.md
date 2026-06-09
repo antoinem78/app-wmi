@@ -16,3 +16,17 @@ don't build them early.
 
 Rule: a feature only leaves this file when productization is an explicit, validated
 decision — not "while we're at it."
+
+---
+
+## Deferred integrations & ops ideas (not SaaS-tier — just not now)
+
+These aren't multi-tenant SaaS features; they're future enhancements parked to
+protect current scope. Same rule: capture, don't build.
+
+- **Google Drive — client asset intake** (logos, creative). Low priority; Slack file
+  sharing covers it for now. NOTE: the onboarding *questionnaire* is a NATIVE wizard
+  step (answers → Supabase `onboarding_state.questionnaire_data`), NOT a Google Form —
+  so Drive is not needed for the questionnaire.
+- **Claude integrated into the PPC Mastery Slack workspace** — AI ops assistant for the
+  PPC-masters team. Fits the "AI agents later" operating model; revisit post-MaaS.

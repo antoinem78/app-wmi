@@ -1,22 +1,42 @@
-// Shell for the agency_admin area: a clean navy sidebar with the PPC Mastery
-// wordmark. Login protection gets added in the next chunk (Auth0); for now this
-// is the visual frame only.
+// Shell + security gate for the agency_admin area.
 //
-// The "(admin)" folder is a Next.js route group — it groups these pages under a
-// shared layout WITHOUT adding "/admin" to the URL.
-
+// Two checks run here, server-side, before anything renders:
+//   1. Not logged in        -> redirect to the Auth0 login.
+//   2. Logged in, no role    -> show a "no access" screen (with logout).
+// Only a logged-in agency_admin sees the navy sidebar + the actual pages.
+//
+// The "(admin)" folder is a Next.js route group — it shares this layout WITHOUT
+// adding "/admin" to the URL.
+import { redirect } from "next/navigation";
 import Link from "next/link";
+import { auth0 } from "@/lib/auth/auth0";
+import { isAgencyAdmin } from "@/lib/auth/roles";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/clients", label: "Clients" },
 ];
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth0.getSession();
+
+  // 1. No session at all → send them to log in.
+  if (!session) {
+    redirect("/auth/login");
+  }
+
+  const user = session.user as Record<string, unknown>;
+  const email = typeof user.email === "string" ? user.email : "";
+
+  // 2. Logged in but not an agency admin → no access.
+  if (!isAgencyAdmin(user)) {
+    return <NoAccess email={email} />;
+  }
+
   return (
     <div className="flex min-h-screen">
       <aside className="flex w-60 flex-col bg-[#0B1F3A] text-white">
@@ -35,9 +55,46 @@ export default function AdminLayout({
             </Link>
           ))}
         </nav>
-        <div className="px-6 py-4 text-xs text-white/40">Internal ops portal</div>
+        <div className="border-t border-white/10 px-6 py-4">
+          {email && (
+            <div className="mb-2 truncate text-xs text-white/50" title={email}>
+              {email}
+            </div>
+          )}
+          {/* Must be <a>, not <Link>: logout needs a full-page navigation. */}
+          <a
+            href="/auth/logout"
+            className="text-sm text-white/70 transition-colors hover:text-white"
+          >
+            Log out
+          </a>
+        </div>
       </aside>
       <main className="flex-1 bg-zinc-50">{children}</main>
+    </div>
+  );
+}
+
+function NoAccess({ email }: { email: string }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-8">
+      <div className="max-w-md rounded-xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
+        <div className="text-lg tracking-tight">
+          <span className="font-semibold text-[#0B1F3A]">PPC</span>{" "}
+          <span className="font-light text-zinc-500">mastery</span>
+        </div>
+        <h1 className="mt-4 text-xl font-semibold text-zinc-900">No access</h1>
+        <p className="mt-2 text-sm text-zinc-500">
+          You&rsquo;re signed in{email ? ` as ${email}` : ""}, but this account
+          doesn&rsquo;t have agency admin access.
+        </p>
+        <a
+          href="/auth/logout"
+          className="mt-6 inline-block rounded-md bg-[#0B1F3A] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0B1F3A]/90"
+        >
+          Log out
+        </a>
+      </div>
     </div>
   );
 }
