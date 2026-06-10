@@ -2,7 +2,7 @@
 // onboarding_state.current_step; each step's form advances to the next.
 import { notFound } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { getTier, upfrontTotal, type Tier } from "@/lib/tiers";
+import { getTier, type Tier } from "@/lib/tiers";
 import { formatMoney } from "@/lib/config";
 import { Wordmark } from "@/components/Wordmark";
 import {
@@ -214,7 +214,7 @@ function PaymentStep({ id, tier }: { id: string; tier: Tier | null }) {
     <>
       <h1 className="text-xl font-semibold text-zinc-900">Payment</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        3 months upfront, then monthly from month 4.
+        Monthly rolling subscription — cancel anytime with 30 days&rsquo; notice.
       </p>
 
       <QuoteSummary tier={tier} />
@@ -272,10 +272,13 @@ function QuoteSummary({ tier }: { tier: Tier | null }) {
         ))}
       </ul>
       <div className="mt-4 border-t border-zinc-100 pt-3 text-sm">
-        <span className="text-zinc-500">Due today (3 months upfront): </span>
+        <span className="text-zinc-500">Due today (first month): </span>
         <span className="font-semibold text-zinc-900">
-          {formatMoney(upfrontTotal(tier))}
+          {formatMoney(tier.monthlyPrice)}
         </span>
+        <div className="mt-1 text-xs text-zinc-400">
+          Monthly rolling — cancel anytime with 30 days&rsquo; notice.
+        </div>
       </div>
     </div>
   );

@@ -63,9 +63,6 @@ export function getTier(key: string | null | undefined): Tier | null {
   return null;
 }
 
-// Billing model (handover): 3 months upfront, then monthly from month 4.
-export const UPFRONT_MONTHS = 3;
-
-export function upfrontTotal(tier: Tier): number {
-  return tier.monthlyPrice * UPFRONT_MONTHS;
-}
+// Billing model (decided June 2026, supersedes the handover's 3-months-upfront):
+// 1-month rolling subscription, cancel with 30 days' notice — matching the
+// "No Long-Term Contracts" promise on ppcmastery.ai.

@@ -3,7 +3,7 @@
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { getTier, upfrontTotal } from "@/lib/tiers";
+import { getTier } from "@/lib/tiers";
 import { formatMoney } from "@/lib/config";
 import { CopyButton } from "@/components/CopyButton";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -73,10 +73,7 @@ export default async function ClientDetailPage({
             {tier && (
               <>
                 <Row label="Monthly" value={`${formatMoney(tier.monthlyPrice)}/mo`} />
-                <Row
-                  label="Upfront"
-                  value={`${formatMoney(upfrontTotal(tier))} (3 months)`}
-                />
+                <Row label="Billing" value="Monthly rolling (30-day notice)" />
               </>
             )}
           </dl>

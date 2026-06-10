@@ -77,8 +77,9 @@ export default function PrivacyPage() {
             <p>
               You may request access to, correction of, or deletion of your
               personal data at any time by contacting your account representative
-              or emailing us. We retain client records only as long as needed for
-              the service and our legal obligations.
+              or emailing us. We retain client records for the duration of the
+              engagement plus 12 months, unless a longer period is required by
+              law.
             </p>
           </section>
         </div>
