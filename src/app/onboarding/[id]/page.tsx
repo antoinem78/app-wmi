@@ -13,10 +13,19 @@ import { formatMoney } from "@/lib/config";
 import { Wordmark } from "@/components/Wordmark";
 import {
   submitQuestionnaire,
-  completeContract,
+  generateContract,
+  confirmContractSigned,
   startCheckout,
 } from "./actions";
 import { finalizeFromCheckoutSession } from "@/lib/integrations/stripe";
+import {
+  getDocumentStatus,
+  createSigningSession,
+  markContractSigned,
+} from "@/lib/integrations/pandadoc";
+
+// Contract generation polls PandaDoc for a few seconds; allow headroom.
+export const maxDuration = 60;
 
 export const dynamic = "force-dynamic";
 
@@ -39,18 +48,41 @@ export default async function OnboardingWizardPage({
 
   const { data: client } = await supabase
     .from("clients")
-    .select("id, company_name, service_tier")
+    .select("id, company_name, contact_email, service_tier")
     .eq("id", id)
     .single();
   if (!client) notFound();
 
   const { data: state } = await supabase
     .from("onboarding_state")
-    .select("current_step")
+    .select("current_step, pandadoc_document_id")
     .eq("client_id", id)
     .single();
 
   let step = state?.current_step ?? "questionnaire";
+
+  // Contract step with a generated document: check its real status with
+  // PandaDoc. Completed → advance (fallback for the webhook); otherwise mint a
+  // fresh embedded-signing session for the iframe.
+  let signingUrl: string | null = null;
+  if (step === "contract" && state?.pandadoc_document_id) {
+    try {
+      const status = await getDocumentStatus(state.pandadoc_document_id);
+      if (status === "document.completed") {
+        await markContractSigned(id, "contract-return");
+        step = "payment";
+      } else if (status === "document.sent" || status === "document.viewed") {
+        signingUrl = await createSigningSession(
+          state.pandadoc_document_id,
+          client.contact_email,
+        );
+      }
+      // document.draft (send failed midway) → signingUrl stays null and the
+      // generate button below acts as the retry.
+    } catch (e) {
+      console.error("Contract status check failed:", e);
+    }
+  }
 
   // Returning from Stripe Checkout: verify with Stripe (never trust the URL)
   // and finalize if paid. The webhook does the same thing — both are
@@ -79,7 +111,9 @@ export default async function OnboardingWizardPage({
 
         <div className="mt-8 rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
           {step === "questionnaire" && <QuestionnaireStep id={id} />}
-          {step === "contract" && <ContractStep id={id} tier={tier} />}
+          {step === "contract" && (
+            <ContractStep id={id} tier={tier} signingUrl={signingUrl} />
+          )}
           {step === "payment" && <PaymentStep id={id} tier={tier} />}
           {isComplete && <CompleteStep company={client.company_name} />}
         </div>
@@ -209,24 +243,52 @@ function QuestionnaireStep({ id }: { id: string }) {
   );
 }
 
-function ContractStep({ id, tier }: { id: string; tier: Tier | null }) {
+function ContractStep({
+  id,
+  tier,
+  signingUrl,
+}: {
+  id: string;
+  tier: Tier | null;
+  signingUrl: string | null;
+}) {
+  if (signingUrl) {
+    return (
+      <>
+        <h1 className="text-xl font-semibold text-zinc-900">
+          Review &amp; sign your agreement
+        </h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Read through the agreement below and sign where indicated.
+        </p>
+        <iframe
+          src={signingUrl}
+          className="mt-6 h-[700px] w-full rounded-md border border-zinc-200"
+          title="Service agreement"
+        />
+        <form action={confirmContractSigned.bind(null, id)} className="mt-4">
+          <SubmitButton>I&rsquo;ve signed — continue</SubmitButton>
+        </form>
+      </>
+    );
+  }
+
   return (
     <>
       <h1 className="text-xl font-semibold text-zinc-900">Your agreement</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Review your plan and continue to sign.
+        Review your plan, then generate your agreement to sign online.
       </p>
 
       <QuoteSummary tier={tier} />
 
-      <div className="mt-6 rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-500">
-        📄 The signable contract (PandaDoc) is added in the next phase. For now,
-        clicking continue stands in for signing.
-      </div>
-
-      <form action={completeContract.bind(null, id)} className="mt-6">
-        <SubmitButton>Continue to payment</SubmitButton>
+      <form action={generateContract.bind(null, id)} className="mt-6">
+        <SubmitButton>Generate &amp; sign your agreement</SubmitButton>
       </form>
+      <p className="mt-3 text-xs text-zinc-400">
+        Takes a few seconds — your agreement is prepared with your details and
+        opens here for signing.
+      </p>
     </>
   );
 }

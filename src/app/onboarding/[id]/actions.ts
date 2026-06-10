@@ -63,28 +63,75 @@ export async function submitQuestionnaire(
   revalidatePath(`/onboarding/${clientId}`);
 }
 
-export async function completeContract(clientId: string): Promise<void> {
-  const state = await getState(clientId);
+// Real PandaDoc contract: generate the document from the template, filled from
+// the client record. Signing happens in the embedded frame; completion is
+// recorded by the PandaDoc webhook or the page's status-check fallback.
+export async function generateContract(clientId: string): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  const { data: state } = await supabase
+    .from("onboarding_state")
+    .select("current_step, pandadoc_document_id")
+    .eq("client_id", clientId)
+    .single();
   if (!state) throw new Error("Onboarding not found.");
   if (state.current_step !== "contract") {
     revalidatePath(`/onboarding/${clientId}`);
     return;
   }
 
-  const supabase = createSupabaseAdminClient();
-  // Stub: Phase 2 replaces this with the real PandaDoc signature event.
-  const { error } = await supabase
-    .from("onboarding_state")
-    .update({ contract_status: "signed", current_step: "payment" })
-    .eq("client_id", clientId);
-  if (error) throw new Error(error.message);
+  const { createContractDocument, ensureDocumentSent } = await import(
+    "@/lib/integrations/pandadoc"
+  );
 
-  await logActivity({
-    clientId,
-    eventType: "contract_completed",
-    actor: "client",
-    payload: { stub: true },
-  });
+  if (state.pandadoc_document_id) {
+    // Retry path: document exists but may not have been sent.
+    await ensureDocumentSent(state.pandadoc_document_id);
+  } else {
+    const { data: client } = await supabase
+      .from("clients")
+      .select("id, company_name, contact_name, contact_email, service_tier")
+      .eq("id", clientId)
+      .single();
+    if (!client) throw new Error("Client not found.");
+    const { getTier } = await import("@/lib/tiers");
+    const tier = getTier(client.service_tier);
+    if (!tier) throw new Error("Client has no valid service tier configured.");
+
+    const documentId = await createContractDocument(client, tier);
+    const { error } = await supabase
+      .from("onboarding_state")
+      .update({ pandadoc_document_id: documentId })
+      .eq("client_id", clientId);
+    if (error) throw new Error(error.message);
+
+    await logActivity({
+      clientId,
+      eventType: "contract_generated",
+      actor: "client",
+      payload: { pandadoc_document_id: documentId },
+    });
+  }
+  revalidatePath(`/onboarding/${clientId}`);
+}
+
+// "I've signed" button: check the document status with PandaDoc and advance if
+// genuinely completed (fallback for when the webhook hasn't arrived yet).
+export async function confirmContractSigned(clientId: string): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  const { data: state } = await supabase
+    .from("onboarding_state")
+    .select("current_step, pandadoc_document_id")
+    .eq("client_id", clientId)
+    .single();
+  if (state?.current_step === "contract" && state.pandadoc_document_id) {
+    const { getDocumentStatus, markContractSigned } = await import(
+      "@/lib/integrations/pandadoc"
+    );
+    const status = await getDocumentStatus(state.pandadoc_document_id);
+    if (status === "document.completed") {
+      await markContractSigned(clientId, "contract-return");
+    }
+  }
   revalidatePath(`/onboarding/${clientId}`);
 }
 
