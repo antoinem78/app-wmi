@@ -5,7 +5,6 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity";
 import { entityConfig, formatMoney } from "@/lib/config";
-import { tierName, type Tier } from "@/lib/tiers";
 
 const API = "https://api.pandadoc.com/public/v1";
 
@@ -80,13 +79,16 @@ async function upsertContact(params: {
  * record, then send it (silently — no PandaDoc email; we embed instead).
  * Returns the document id.
  */
-export async function createContractDocument(client: {
-  id: string;
-  company_name: string;
-  contact_name: string | null;
-  contact_email: string;
-  custom_monthly_price?: number | null;
-}, tier: Tier): Promise<string> {
+export async function createContractDocument(
+  client: {
+    id: string;
+    company_name: string;
+    contact_name: string | null;
+    contact_email: string;
+  },
+  // What the client agreed to: band tier name or "Paid Search — custom plan".
+  quote: { name: string; price: number },
+): Promise<string> {
   const [firstName, ...rest] = (client.contact_name ?? "Client").trim().split(/\s+/);
   const today = new Date().toISOString().slice(0, 10);
 
@@ -115,11 +117,8 @@ export async function createContractDocument(client: {
         { name: "client.company_name", value: client.company_name },
         { name: "client.contact_name", value: client.contact_name ?? "" },
         { name: "client.contact_email", value: client.contact_email },
-        { name: "quote.tier_name", value: tierName(tier) },
-        {
-          name: "quote.monthly_price",
-          value: formatMoney(client.custom_monthly_price ?? tier.monthlyPrice),
-        },
+        { name: "quote.tier_name", value: quote.name },
+        { name: "quote.monthly_price", value: formatMoney(quote.price) },
         { name: "entity.legal_name", value: entityConfig.legalName },
         { name: "agreement.date", value: today },
       ],

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { requireAgencyAdmin } from "@/lib/auth/guard";
 import { logActivity } from "@/lib/activity";
-import { getTier } from "@/lib/tiers";
+import { getTier, CUSTOM_TIER_KEY } from "@/lib/tiers";
 
 // Create a client record + its onboarding state, then jump to the client page
 // (where the shareable onboarding link lives). Admin-only.
@@ -18,17 +18,22 @@ export async function createClient(formData: FormData): Promise<void> {
   const serviceTier = String(formData.get("service_tier") ?? "").trim();
   const customPriceRaw = String(formData.get("custom_monthly_price") ?? "").trim();
 
-  if (!companyName || !contactEmail || !getTier(serviceTier)) {
+  const isCustomPlan = serviceTier === CUSTOM_TIER_KEY;
+  if (!companyName || !contactEmail || (!getTier(serviceTier) && !isCustomPlan)) {
     throw new Error("Company name, contact email, and a valid tier are required.");
   }
 
-  // Optional negotiated price overriding the tier band (whole units).
+  // Negotiated price (whole units): required for the custom plan, optional
+  // override for band tiers.
   let customPrice: number | null = null;
   if (customPriceRaw) {
     customPrice = Math.round(Number(customPriceRaw));
     if (!Number.isFinite(customPrice) || customPrice <= 0) {
       throw new Error("Custom monthly price must be a positive number.");
     }
+  }
+  if (isCustomPlan && !customPrice) {
+    throw new Error("The custom plan requires a custom monthly price.");
   }
 
   const supabase = createSupabaseAdminClient();

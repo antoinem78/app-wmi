@@ -9,7 +9,7 @@ import Stripe from "stripe";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity";
 import { entityConfig } from "@/lib/config";
-import { getTier, tierName, type Tier } from "@/lib/tiers";
+import { getTier, tierName, CUSTOM_PLAN_NAME, type Tier } from "@/lib/tiers";
 
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -52,7 +52,9 @@ export async function createCheckoutSessionForClient(client: {
   custom_monthly_price?: number | null;
 }): Promise<string> {
   const tier = getTier(client.service_tier);
-  if (!tier) throw new Error("Client has no valid service tier configured.");
+  if (!tier && !client.custom_monthly_price) {
+    throw new Error("Client has no valid service tier or custom price configured.");
+  }
 
   const stripe = getStripe();
   const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
@@ -63,11 +65,11 @@ export async function createCheckoutSessionForClient(client: {
           currency: entityConfig.currency.toLowerCase(),
           unit_amount: client.custom_monthly_price * 100,
           recurring: { interval: "month" as const },
-          product_data: { name: `${tierName(tier)} — custom pricing` },
+          product_data: { name: CUSTOM_PLAN_NAME },
         },
         quantity: 1,
       }
-    : { price: await getPriceIdForTier(tier), quantity: 1 };
+    : { price: await getPriceIdForTier(tier!), quantity: 1 };
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",

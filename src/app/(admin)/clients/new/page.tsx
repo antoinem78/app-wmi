@@ -53,26 +53,30 @@ export default function NewClientPage() {
                 {tierName(t)} — {formatMoney(t.monthlyPrice)}/mo
               </option>
             ))}
+            <option value="custom">
+              Paid Search — custom plan (set the price below)
+            </option>
           </select>
           <p className="mt-2 text-xs text-zinc-400">
-            Ad spend above {formatMoney(20000)}/mo, services beyond Google &amp;
-            Microsoft ads, or clients requiring calls → bespoke quote via an
-            expert call — set the agreed amount below.
+            Use the custom plan for bespoke quotes: ad spend above{" "}
+            {formatMoney(20000)}/mo, services beyond Google &amp; Microsoft ads,
+            or negotiated pricing. The client only ever sees &ldquo;Paid Search —
+            custom plan&rdquo;.
           </p>
         </Field>
 
-        <Field label="Custom monthly price (optional)">
+        <Field label="Custom monthly price">
           <input
             name="custom_monthly_price"
             type="number"
             min="1"
             step="1"
-            placeholder="Overrides the tier price — e.g. 750"
+            placeholder="Required for the custom plan — e.g. 15000"
             className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#0B1F3A] focus:outline-none"
           />
           <p className="mt-1 text-xs text-zinc-400">
-            Use for negotiated/bespoke quotes. Quote, contract, and billing all
-            use this amount instead of the tier band price.
+            Required for the custom plan; optional override for a band tier.
+            Quote, contract, and billing all use this amount when set.
           </p>
         </Field>
 

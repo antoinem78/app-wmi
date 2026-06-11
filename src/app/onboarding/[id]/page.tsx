@@ -4,7 +4,13 @@
 // The step shown is driven by onboarding_state; each action advances it.
 import { notFound } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { getTier, tierName, TIER_BLURB, TIER_FEATURES, type Tier } from "@/lib/tiers";
+import {
+  getTier,
+  tierName,
+  CUSTOM_PLAN_NAME,
+  TIER_BLURB,
+  TIER_FEATURES,
+} from "@/lib/tiers";
 import { formatMoney } from "@/lib/config";
 import { Wordmark } from "@/components/Wordmark";
 import {
@@ -95,8 +101,16 @@ export default async function OnboardingWizardPage({
     }
   }
 
+  // Custom price (or the custom pseudo-tier) → the client only ever sees the
+  // neutral plan name, never the underlying band.
   const tier = getTier(client.service_tier);
   const price = client.custom_monthly_price ?? tier?.monthlyPrice ?? 0;
+  const planName = client.custom_monthly_price
+    ? CUSTOM_PLAN_NAME
+    : tier
+      ? tierName(tier)
+      : null;
+  const isCustom = !!client.custom_monthly_price;
   const isComplete = step === "complete" || step === "ad_linking";
   const displayStep = step === "contract" && !state?.details_confirmed ? "details" : step;
 
@@ -114,10 +128,16 @@ export default async function OnboardingWizardPage({
         <div className="mt-8 rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
           {displayStep === "details" && <DetailsStep id={id} client={client} />}
           {displayStep === "contract" && (
-            <ContractStep id={id} tier={tier} price={price} signingUrl={signingUrl} />
+            <ContractStep
+              id={id}
+              planName={planName}
+              price={price}
+              isCustom={isCustom}
+              signingUrl={signingUrl}
+            />
           )}
           {displayStep === "payment" && (
-            <PaymentStep id={id} tier={tier} price={price} />
+            <PaymentStep id={id} planName={planName} price={price} isCustom={isCustom} />
           )}
           {displayStep === "slack" && (
             <SlackStep id={id} defaultEmail={client.contact_email} />
@@ -218,13 +238,15 @@ function DetailsStep({
 
 function ContractStep({
   id,
-  tier,
+  planName,
   price,
+  isCustom,
   signingUrl,
 }: {
   id: string;
-  tier: Tier | null;
+  planName: string | null;
   price: number;
+  isCustom: boolean;
   signingUrl: string | null;
 }) {
   if (signingUrl) {
@@ -255,7 +277,7 @@ function ContractStep({
         Here&rsquo;s the plan we agreed — generate your agreement to sign online.
       </p>
 
-      <QuoteSummary tier={tier} price={price} />
+      <QuoteSummary planName={planName} price={price} isCustom={isCustom} />
 
       <form action={generateContract.bind(null, id)} className="mt-6">
         <SubmitButton>Generate &amp; sign your agreement</SubmitButton>
@@ -270,12 +292,14 @@ function ContractStep({
 
 function PaymentStep({
   id,
-  tier,
+  planName,
   price,
+  isCustom,
 }: {
   id: string;
-  tier: Tier | null;
+  planName: string | null;
   price: number;
+  isCustom: boolean;
 }) {
   return (
     <>
@@ -285,7 +309,7 @@ function PaymentStep({
         days&rsquo; notice.
       </p>
 
-      <QuoteSummary tier={tier} price={price} />
+      <QuoteSummary planName={planName} price={price} isCustom={isCustom} />
 
       <p className="mt-6 text-xs text-zinc-400">
         You&rsquo;ll be taken to Stripe&rsquo;s secure checkout to enter your
@@ -438,20 +462,27 @@ function CompleteStep({ company }: { company: string }) {
   );
 }
 
-function QuoteSummary({ tier, price }: { tier: Tier | null; price: number }) {
-  if (!tier) {
+function QuoteSummary({
+  planName,
+  price,
+  isCustom,
+}: {
+  planName: string | null;
+  price: number;
+  isCustom: boolean;
+}) {
+  if (!planName || !price) {
     return (
       <div className="mt-6 rounded-md bg-zinc-100 p-4 text-sm text-zinc-500">
         No plan configured.
       </div>
     );
   }
-  const isCustom = price !== tier.monthlyPrice;
   return (
     <div className="mt-6 rounded-lg border border-zinc-200 p-5">
       <div className="flex items-baseline justify-between gap-4">
         <span className="font-semibold text-zinc-900">
-          {tierName(tier)}
+          {planName}
           {isCustom && (
             <span className="ml-2 text-xs font-normal text-zinc-400">
               (agreed pricing)

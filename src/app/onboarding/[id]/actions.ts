@@ -91,11 +91,22 @@ export async function generateContract(clientId: string): Promise<void> {
       .eq("id", clientId)
       .single();
     if (!client) throw new Error("Client not found.");
-    const { getTier } = await import("@/lib/tiers");
-    const tier = getTier(client.service_tier);
-    if (!tier) throw new Error("Client has no valid service tier configured.");
 
-    const documentId = await createContractDocument(client, tier);
+    // Custom price (or custom plan) → client-facing name is the neutral
+    // "custom plan"; otherwise the band tier name + band price.
+    const { getTier, tierName, CUSTOM_PLAN_NAME } = await import("@/lib/tiers");
+    const tier = getTier(client.service_tier);
+    const price = client.custom_monthly_price ?? tier?.monthlyPrice;
+    const name = client.custom_monthly_price
+      ? CUSTOM_PLAN_NAME
+      : tier
+        ? tierName(tier)
+        : null;
+    if (!name || !price) {
+      throw new Error("Client has no valid plan/price configured.");
+    }
+
+    const documentId = await createContractDocument(client, { name, price });
     const { error } = await supabase
       .from("onboarding_state")
       .update({ pandadoc_document_id: documentId })

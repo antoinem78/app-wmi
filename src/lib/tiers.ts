@@ -62,8 +62,14 @@ export function tierName(tier: Tier): string {
   return `Paid Search — ad spend under ${formatMoney(tier.spendCapMonthly)}/mo`;
 }
 
+// Bespoke/negotiated deals: a pseudo-tier with no band — the price comes from
+// clients.custom_monthly_price. Clients only ever see the neutral plan name.
+export const CUSTOM_TIER_KEY = "custom";
+export const CUSTOM_PLAN_NAME = "Paid Search — custom plan";
+
 /** Display name straight from a stored key; null when unknown/unset. */
 export function tierNameFor(key: string | null | undefined): string | null {
+  if (key === CUSTOM_TIER_KEY) return CUSTOM_PLAN_NAME;
   const tier = getTier(key);
   return tier ? tierName(tier) : null;
 }
