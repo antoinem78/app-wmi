@@ -52,6 +52,13 @@ So the schema is genuinely simple: a `clients` table, an append-only activity/ev
 
 Payoff: the SaaS migration becomes **additive** — add an end-client auth tier, switch on RLS, add self-serve provisioning and plan management. Not a rewrite.
 
+> **Update (June 2026, dual-deployment model):** the app deploys once per entity
+> (V1 Baptiste Jenard PPC, V2 WMI UK, V3 WMI UAE — clones via env config, not
+> forks). The clones share the platform's **Google developer token** — the token
+> is application-level, not instance-level. Per-entity config covers Stripe,
+> PandaDoc, Slack, branding, and currency only. See `FUTURE_SAAS.md` for the
+> instance ladder and the V4 (external tenant) gate.
+
 ---
 
 ## 3. Tech stack (decided)
