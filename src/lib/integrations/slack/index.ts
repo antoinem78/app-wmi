@@ -78,32 +78,76 @@ export async function createClientChannel(companyName: string): Promise<string> 
  * "manual-invite-needed" so the ops team finishes it (guest invites for brand
  * new external users aren't available via API on most plans).
  */
+/** users.lookupByEmail only accepts the email as a query parameter. */
+async function lookupUserId(email: string): Promise<string | null> {
+  const token = process.env.SLACK_BOT_TOKEN;
+  const res = await fetch(
+    `${API}/users.lookupByEmail?email=${encodeURIComponent(email)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  const data = (await res.json()) as {
+    ok: boolean;
+    user?: { id: string };
+  };
+  return data.ok && data.user ? data.user.id : null;
+}
+
 export async function tryInviteByEmail(
   channelId: string,
   email: string,
 ): Promise<"invited" | "manual-invite-needed"> {
   try {
-    // users.lookupByEmail only accepts the email as a query parameter.
-    const token = process.env.SLACK_BOT_TOKEN;
-    const res = await fetch(
-      `${API}/users.lookupByEmail?email=${encodeURIComponent(email)}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    const data = (await res.json()) as {
-      ok: boolean;
-      user?: { id: string };
-      error?: string;
-    };
-    if (!data.ok || !data.user) return "manual-invite-needed";
-
-    await slack("conversations.invite", {
-      channel: channelId,
-      users: data.user.id,
-    });
+    const userId = await lookupUserId(email);
+    if (!userId) return "manual-invite-needed";
+    await slack("conversations.invite", { channel: channelId, users: userId });
     return "invited";
-  } catch {
+  } catch (e) {
+    // Already in the channel = effectively invited.
+    if (e instanceof Error && e.message.includes("already_in_channel")) {
+      return "invited";
+    }
     return "manual-invite-needed";
   }
+}
+
+/**
+ * Add the PPC Mastery team to a client channel (emails from SLACK_TEAM_EMAILS,
+ * comma-separated). Per-member failures don't break provisioning.
+ */
+export async function inviteTeam(
+  channelId: string,
+): Promise<{ invited: string[]; notFound: string[] }> {
+  const emails = (process.env.SLACK_TEAM_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+  const invited: string[] = [];
+  const notFound: string[] = [];
+  const ids: string[] = [];
+
+  for (const email of emails) {
+    const id = await lookupUserId(email);
+    if (id) {
+      ids.push(id);
+      invited.push(email);
+    } else {
+      notFound.push(email);
+    }
+  }
+  if (ids.length) {
+    try {
+      await slack("conversations.invite", {
+        channel: channelId,
+        users: ids.join(","),
+      });
+    } catch (e) {
+      // Some members may already be in the channel — not a failure.
+      if (!(e instanceof Error && e.message.includes("already_in_channel"))) {
+        throw e;
+      }
+    }
+  }
+  return { invited, notFound };
 }
 
 /** Drop a note in the channel (e.g. flag a manual guest invite for the team). */

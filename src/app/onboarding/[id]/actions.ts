@@ -199,12 +199,30 @@ export async function submitSlackEmail(
     .single();
 
   let slackStatus: "not_created" | "invited" = "not_created";
-  const { isSlackConfigured, createClientChannel, tryInviteByEmail, postMessage } =
-    await import("@/lib/integrations/slack");
+  const {
+    isSlackConfigured,
+    createClientChannel,
+    tryInviteByEmail,
+    inviteTeam,
+    postMessage,
+  } = await import("@/lib/integrations/slack");
 
   if (isSlackConfigured() && client) {
     try {
       const channelId = await createClientChannel(client.company_name);
+      // PPC Mastery team joins every client channel.
+      const team = await inviteTeam(channelId).catch((e) => {
+        console.error("Team invite failed (continuing):", e);
+        return { invited: [], notFound: [] };
+      });
+      if (team.notFound.length) {
+        await logActivity({
+          clientId,
+          eventType: "slack_team_member_missing",
+          actor: "system:slack",
+          payload: { emails: team.notFound },
+        });
+      }
       const invite = await tryInviteByEmail(channelId, slackEmail);
       if (invite === "invited") {
         slackStatus = "invited";
