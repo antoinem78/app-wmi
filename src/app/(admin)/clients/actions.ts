@@ -143,3 +143,66 @@ export async function approveGoogleAdsLink(clientId: string): Promise<void> {
   revalidatePath(`/clients/${clientId}`);
   revalidatePath(`/onboarding/${clientId}`);
 }
+
+// Re-check the MCC->client link status with Google and advance our state.
+// No webhooks exist for link status — v1 is this manual refresh (a daily cron
+// joins in chunk 4). Transitions are logged; the client's card flips to
+// "connected" only on ACTIVE.
+export async function refreshGoogleAdsLinkStatus(clientId: string): Promise<void> {
+  const { email: adminEmail } = await requireAgencyAdmin();
+
+  const supabase = createSupabaseAdminClient();
+  const { data: state } = await supabase
+    .from("onboarding_state")
+    .select("ad_link_status, google_ads_customer_id")
+    .eq("client_id", clientId)
+    .single();
+  if (!state?.google_ads_customer_id || state.ad_link_status !== "invited") {
+    revalidatePath(`/clients/${clientId}`);
+    return;
+  }
+
+  const { getLinkStatus } = await import("@/lib/integrations/google-ads");
+  const googleStatus = await getLinkStatus(state.google_ads_customer_id);
+
+  // Google: PENDING | ACTIVE | REFUSED | CANCELED | INACTIVE → our enum.
+  const map: Record<string, "approved" | "refused" | "cancelled"> = {
+    ACTIVE: "approved",
+    REFUSED: "refused",
+    CANCELED: "cancelled",
+    CANCELLED: "cancelled",
+    INACTIVE: "cancelled",
+  };
+  const next = googleStatus ? map[googleStatus] : undefined;
+
+  if (next) {
+    const { error } = await supabase
+      .from("onboarding_state")
+      .update({ ad_link_status: next })
+      .eq("client_id", clientId);
+    if (error) throw new Error(error.message);
+
+    await logActivity({
+      clientId,
+      eventType: `ad_link_${next}`,
+      actor: `admin:${adminEmail}`,
+      payload: {
+        customer_id: state.google_ads_customer_id,
+        google_status: googleStatus,
+      },
+    });
+  } else {
+    await logActivity({
+      clientId,
+      eventType: "ad_link_status_checked",
+      actor: `admin:${adminEmail}`,
+      payload: {
+        customer_id: state.google_ads_customer_id,
+        google_status: googleStatus ?? "no link found",
+        result: "still pending",
+      },
+    });
+  }
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath(`/onboarding/${clientId}`);
+}

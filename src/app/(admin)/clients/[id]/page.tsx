@@ -7,7 +7,7 @@ import { getTier, tierNameFor } from "@/lib/tiers";
 import { formatMoney } from "@/lib/config";
 import { CopyButton } from "@/components/CopyButton";
 import { StatusBadge } from "@/components/StatusBadge";
-import { approveGoogleAdsLink } from "../actions";
+import { approveGoogleAdsLink, refreshGoogleAdsLinkStatus } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -224,9 +224,37 @@ export default async function ClientDetailPage({
           )}
 
           {state.ad_link_status === "invited" && (
-            <p className="mt-3 text-sm text-zinc-500">
-              Invitation sent — waiting for the client to approve inside Google
-              Ads. (Status refresh arrives in the next build chunk.)
+            <>
+              <p className="mt-3 text-sm text-zinc-500">
+                Invitation sent — waiting for the client to approve inside
+                Google Ads.
+              </p>
+              <form
+                action={refreshGoogleAdsLinkStatus.bind(null, id)}
+                className="mt-3"
+              >
+                <button
+                  type="submit"
+                  className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                >
+                  Refresh status
+                </button>
+              </form>
+            </>
+          )}
+
+          {state.ad_link_status === "approved" && (
+            <p className="mt-3 text-sm text-emerald-600">
+              Link active — this account is now managed under the PPC Mastery
+              MCC.
+            </p>
+          )}
+
+          {(state.ad_link_status === "refused" ||
+            state.ad_link_status === "cancelled") && (
+            <p className="mt-3 text-sm text-red-600">
+              The link was {state.ad_link_status} on Google&rsquo;s side — follow
+              up with the client in Slack.
             </p>
           )}
         </section>
