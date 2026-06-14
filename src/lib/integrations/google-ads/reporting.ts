@@ -316,6 +316,54 @@ async function buildDashboard(
   };
 }
 
+/**
+ * Generate the weekly report for one account: the verified weekly numbers, plus
+ * a plain-text rendering for Slack (template — words only, never figures).
+ */
+export async function generateWeeklyReport(customerId: string): Promise<{
+  currency: string;
+  timeZone: string;
+  weekly: WeeklySummary;
+  text: string;
+}> {
+  const metaRows = await gaqlSearch(
+    customerId,
+    "SELECT customer.currency_code, customer.time_zone FROM customer LIMIT 1",
+  );
+  const cust = (metaRows[0]?.customer ?? {}) as {
+    currencyCode?: string;
+    timeZone?: string;
+  };
+  const currency = cust.currencyCode ?? "USD";
+  const timeZone = cust.timeZone ?? "Etc/UTC";
+  const weekly = await buildWeekly(customerId, timeZone);
+
+  const money = (n: number) =>
+    new Intl.NumberFormat("en", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(n);
+  const dec1 = (n: number) =>
+    new Intl.NumberFormat("en", { maximumFractionDigits: 1 }).format(n);
+  const delta = (k: Kpi) =>
+    k.deltaPct == null
+      ? ""
+      : ` (${k.deltaPct >= 0 ? "▲" : "▼"}${Math.abs(k.deltaPct).toFixed(0)}% vs prior week)`;
+  const changes = weekly.changeLines.length
+    ? `Changes this week: ${weekly.changeLines.join(", ")}.`
+    : "No account changes this week.";
+
+  const text = [
+    `📈 *Weekly update* (${weekly.start} → ${weekly.end})`,
+    `• Spend: ${money(weekly.spend.value)}${delta(weekly.spend)}`,
+    `• Conversions: ${dec1(weekly.conversions.value)}${delta(weekly.conversions)}`,
+    `• ${changes}`,
+  ].join("\n");
+
+  return { currency, timeZone, weekly, text };
+}
+
 function prettyDevice(d: string): string {
   const map: Record<string, string> = {
     MOBILE: "Mobile",
