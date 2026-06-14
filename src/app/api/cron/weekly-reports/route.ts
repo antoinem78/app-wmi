@@ -5,7 +5,8 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity";
-import { generateWeeklyReport } from "@/lib/integrations/google-ads/reporting";
+import { generateWeeklyReport, getDashboard } from "@/lib/integrations/google-ads/reporting";
+import { generateNarrative } from "@/lib/integrations/anthropic/narrative";
 
 export const maxDuration = 300;
 
@@ -21,7 +22,9 @@ export async function GET(request: Request) {
   const supabase = createSupabaseAdminClient();
   const { data: rows } = await supabase
     .from("onboarding_state")
-    .select("client_id, google_ads_customer_id, clients(company_name)")
+    .select(
+      "client_id, google_ads_customer_id, google_ads_reporting_customer_id, clients(company_name)",
+    )
     .eq("ad_link_status", "approved")
     .not("google_ads_customer_id", "is", null);
 
@@ -31,11 +34,26 @@ export async function GET(request: Request) {
   for (const row of rows ?? []) {
     const clientId = row.client_id as string;
     const customerId = row.google_ads_customer_id as string;
+    // Report on the leaf account (the linked id may be a manager/MCC).
+    const reportingId =
+      (row.google_ads_reporting_customer_id as string | null) ?? customerId;
     const companyName =
       (row.clients as unknown as { company_name?: string } | null)?.company_name ?? "";
 
     try {
-      const report = await generateWeeklyReport(customerId);
+      const report = await generateWeeklyReport(reportingId);
+
+      // Richer prose narrative (LLM, words only). Needs the fuller weekly
+      // dashboard for material; falls back to the bulleted template if the
+      // dashboard or the Anthropic key is unavailable.
+      let narrative: string | null = null;
+      try {
+        const dash = await getDashboard(clientId, reportingId, 7);
+        narrative = await generateNarrative(dash, companyName);
+      } catch (e) {
+        console.error(`Narrative skipped for ${clientId}:`, e);
+      }
+      const body = narrative ?? report.text;
 
       // Post a DRAFT to the internal review channel (not the client's channel) —
       // the team reviews + edits before it goes to the client. Includes a link
@@ -46,9 +64,9 @@ export async function GET(request: Request) {
           const { postMessage } = await import("@/lib/integrations/slack");
           const base = process.env.APP_BASE_URL ?? "https://ppcmastery.vercel.app";
           const draft = [
-            `📊 *Weekly report draft — ${companyName}*`,
+            `📊 *Weekly report draft — ${companyName}* (${report.weekly.start} → ${report.weekly.end})`,
             "",
-            report.text,
+            body,
             "",
             `👉 Client dashboard: ${base}/onboarding/${clientId}`,
             "_Draft for review — not yet sent to the client._",
@@ -65,7 +83,7 @@ export async function GET(request: Request) {
           client_id: clientId,
           period_start: report.weekly.start,
           period_end: report.weekly.end,
-          payload: report.weekly,
+          payload: { ...report.weekly, narrative },
         });
       } catch {
         /* table may not exist yet */
