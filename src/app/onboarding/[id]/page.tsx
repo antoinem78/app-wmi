@@ -77,23 +77,6 @@ export default async function OnboardingPage({
     .single();
   if (!client) notFound();
 
-  // Reporting-only clients have no onboarding funnel — never show the wizard.
-  if (client.source === "reporting_only") {
-    return (
-      <Shell>
-        <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
-          <h1 className="text-xl font-semibold text-zinc-900">
-            {client.company_name}
-          </h1>
-          <p className="mt-2 text-sm text-zinc-500">
-            Your account is managed by PPC Mastery — there&rsquo;s nothing to set
-            up here. Your team will share performance updates in Slack.
-          </p>
-        </div>
-      </Shell>
-    );
-  }
-
   const { data: state } = await supabase
     .from("onboarding_state")
     .select(
@@ -101,6 +84,38 @@ export default async function OnboardingPage({
     )
     .eq("client_id", id)
     .single();
+
+  // Reporting-only clients (existing accounts moved under our MCC): no funnel —
+  // their link IS their performance dashboard.
+  if (client.source === "reporting_only") {
+    let dashboard: DashboardPayload | null = null;
+    const reportingId =
+      state?.google_ads_reporting_customer_id ?? state?.google_ads_customer_id;
+    if (state?.ad_link_status === "approved" && reportingId) {
+      try {
+        dashboard = await getDashboard(id, reportingId, range);
+      } catch (e) {
+        console.error("Reporting-client dashboard fetch failed:", e);
+      }
+    }
+    return (
+      <Shell>
+        <h1 className="text-2xl font-semibold text-zinc-900">
+          {client.company_name}
+        </h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Your campaign performance, managed by PPC Mastery.
+        </p>
+        <div className="mt-6">
+          <AdsDashboard
+            payload={dashboard}
+            basePath={`/onboarding/${id}`}
+            range={range}
+          />
+        </div>
+      </Shell>
+    );
+  }
 
   let paymentDone = state?.payment_status === "paid";
 
