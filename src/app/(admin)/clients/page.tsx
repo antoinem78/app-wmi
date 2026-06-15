@@ -20,6 +20,12 @@ export default async function ClientsPage() {
         <h1 className="text-2xl font-semibold text-zinc-900">Clients</h1>
         <div className="flex gap-2">
           <Link
+            href="/clients/import"
+            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+          >
+            Import from MCC
+          </Link>
+          <Link
             href="/clients/reporting"
             className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
           >

@@ -313,3 +313,71 @@ export async function addReportingClient(formData: FormData): Promise<void> {
   revalidatePath("/clients");
   redirect(`/clients/${client.id}`);
 }
+
+// Bulk-import managed accounts: the admin ticks accounts already sitting under
+// our MCC (enumerated by listManagedAccounts) and we stand them all up as
+// reporting-only clients in one pass. Leaves are reachable by definition, so no
+// per-account verify; already-imported accounts are skipped. Built for the MCC
+// Command Center clone (BJ main MCC, ~129 accounts).
+export async function addReportingClientsBulk(formData: FormData): Promise<void> {
+  const { email: adminEmail } = await requireAgencyAdmin();
+
+  const selectedIds = new Set(formData.getAll("account_ids").map(String));
+  if (selectedIds.size === 0) {
+    throw new Error("Select at least one account to import.");
+  }
+
+  const { listManagedAccounts } = await import("@/lib/integrations/google-ads");
+  const leaves = await listManagedAccounts();
+  const supabase = createSupabaseAdminClient();
+
+  // Skip accounts already imported (dedupe by Google Ads customer id).
+  const { data: existing } = await supabase
+    .from("onboarding_state")
+    .select("google_ads_customer_id");
+  const have = new Set(
+    (existing ?? []).map((r) => r.google_ads_customer_id).filter(Boolean) as string[],
+  );
+
+  const toAdd = leaves.filter((l) => selectedIds.has(l.id) && !have.has(l.id));
+  if (toAdd.length === 0) {
+    revalidatePath("/clients");
+    redirect("/clients");
+  }
+
+  // Batch insert clients, then their onboarding state (RETURNING preserves the
+  // input order, so we can zip the new ids back to the leaves).
+  const { data: created, error } = await supabase
+    .from("clients")
+    .insert(
+      toAdd.map((l) => ({
+        company_name: l.name || `Account ${l.id}`,
+        contact_email: adminEmail,
+        status: "active",
+        source: "reporting_only",
+      })),
+    )
+    .select("id");
+  if (error || !created) throw new Error(error?.message ?? "Failed to create clients.");
+
+  const { error: stateErr } = await supabase.from("onboarding_state").insert(
+    created.map((c, i) => ({
+      client_id: c.id,
+      current_step: "complete",
+      ad_link_status: "approved",
+      google_ads_customer_id: toAdd[i].id,
+      google_ads_reporting_customer_id: toAdd[i].id,
+    })),
+  );
+  if (stateErr) throw new Error(stateErr.message);
+
+  await logActivity({
+    clientId: created[0].id,
+    eventType: "reporting_clients_bulk_added",
+    actor: `admin:${adminEmail}`,
+    payload: { count: toAdd.length, customer_ids: toAdd.map((l) => l.id) },
+  });
+
+  revalidatePath("/clients");
+  redirect("/clients");
+}

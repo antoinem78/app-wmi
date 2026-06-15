@@ -171,6 +171,48 @@ export async function resolveReportingCustomerId(linkedCustomerId: string): Prom
   return { reportingId: null, leaves, multi: leaves.length > 1 };
 }
 
+export interface ManagedLeaf {
+  id: string;
+  name: string;
+  currency: string;
+  level: number;
+}
+
+/**
+ * Enumerate every leaf (non-manager) ad account under THIS deployment's MCC
+ * (login-customer-id). Used by the bulk "import from MCC" flow — e.g. the MCC
+ * Command Center clone pointed at the BJ main MCC, which has ~129 leaves.
+ * Managers are excluded (they have no campaigns to report on).
+ */
+export async function listManagedAccounts(): Promise<ManagedLeaf[]> {
+  const mcc = requireEnv("GOOGLE_ADS_LOGIN_CUSTOMER_ID");
+  const rows = await gaqlSearch(
+    mcc,
+    `SELECT customer_client.id, customer_client.descriptive_name,
+            customer_client.currency_code, customer_client.manager, customer_client.level
+     FROM customer_client WHERE customer_client.status = 'ENABLED'`,
+  );
+  return rows
+    .map(
+      (r) =>
+        (r.customerClient ?? {}) as {
+          id?: string | number;
+          descriptiveName?: string;
+          currencyCode?: string;
+          manager?: boolean;
+          level?: string | number;
+        },
+    )
+    .filter((c) => c.manager === false && c.id != null && String(c.id) !== mcc)
+    .map((c) => ({
+      id: String(c.id),
+      name: c.descriptiveName ?? "",
+      currency: c.currencyCode ?? "",
+      level: Number(c.level ?? 0),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /** Map Google's link status to our ad_link_status enum (null = no change). */
 export function portalStatusFor(
   googleStatus: string | null,
