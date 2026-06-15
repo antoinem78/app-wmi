@@ -282,6 +282,20 @@ export async function addReportingClient(formData: FormData): Promise<void> {
   }
 
   const supabase = createSupabaseAdminClient();
+
+  // Don't create a duplicate if this account (or its leaf) is already a client.
+  const { data: dupes } = await supabase
+    .from("onboarding_state")
+    .select("google_ads_customer_id, google_ads_reporting_customer_id");
+  const taken = new Set(
+    (dupes ?? []).flatMap((r) =>
+      [r.google_ads_customer_id, r.google_ads_reporting_customer_id].filter(Boolean),
+    ) as string[],
+  );
+  if (taken.has(customerId) || taken.has(reportingId)) {
+    throw new Error("That account is already a client.");
+  }
+
   const { data: client, error } = await supabase
     .from("clients")
     .insert({
