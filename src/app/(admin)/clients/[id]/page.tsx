@@ -181,6 +181,9 @@ export default async function ClientDetailPage({
                   value={`${state.google_ads_reporting_customer_id} (under MCC ${state.google_ads_customer_id})`}
                 />
               )}
+            {state?.microsoft_ads_account_id && (
+              <Row label="Microsoft Ads account" value={state.microsoft_ads_account_id} />
+            )}
             {state?.assets_drive_link && (
               <Row label="Assets link" value={state.assets_drive_link} />
             )}

@@ -24,11 +24,12 @@ import {
   submitGoogleAdsCustomerId,
   toggleChecklistTask,
   submitAssetsLink,
+  submitMicrosoftAdsAccount,
 } from "./actions";
 import {
   ACCESS_TASKS,
   isAccessTaskKey,
-  getGrantEmails,
+  accessGrantTargets,
   type AccessTaskKey,
 } from "@/lib/access-tasks";
 import { getDashboard, type DashboardPayload, type ReportWindow } from "@/lib/integrations/google-ads/reporting";
@@ -80,7 +81,7 @@ export default async function OnboardingPage({
   const { data: state } = await supabase
     .from("onboarding_state")
     .select(
-      "current_step, details_confirmed, pandadoc_document_id, payment_status, ad_link_status, google_ads_customer_id, google_ads_reporting_customer_id, slack_invite_email, questionnaire_data, checklist, assets_drive_link",
+      "current_step, details_confirmed, pandadoc_document_id, payment_status, ad_link_status, google_ads_customer_id, google_ads_reporting_customer_id, slack_invite_email, questionnaire_data, checklist, assets_drive_link, microsoft_ads_account_id",
     )
     .eq("client_id", id)
     .single();
@@ -164,6 +165,7 @@ export default async function OnboardingPage({
           }
           checklist={(state?.checklist as Record<string, boolean> | null) ?? {}}
           assetsLink={state?.assets_drive_link ?? null}
+          msAdsAccount={state?.microsoft_ads_account_id ?? null}
           dashboard={adApproved ? dashboard : undefined}
           dashboardRange={range}
           dashboardBasePath={`/onboarding/${id}`}
@@ -259,6 +261,7 @@ function ClientHome({
   accessTasks,
   checklist,
   assetsLink,
+  msAdsAccount,
   dashboard,
   dashboardRange,
   dashboardBasePath,
@@ -273,6 +276,7 @@ function ClientHome({
   accessTasks: AccessTaskKey[];
   checklist: Record<string, boolean>;
   assetsLink: string | null;
+  msAdsAccount: string | null;
   dashboard?: DashboardPayload | null;
   dashboardRange: number;
   dashboardBasePath: string;
@@ -281,12 +285,13 @@ function ClientHome({
   const slackDone = !!slackEmail;
   const adDone = adLinkStatus === "approved";
   const assetsDone = !!assetsLink || checklist.assets === true;
-  const grantEmails = getGrantEmails();
+  const msAdsDone = !!msAdsAccount || checklist.msads === true;
 
   const done = [
     questionnaireDone,
     adDone,
     ...accessTasks.map((k) => checklist[k] === true),
+    msAdsDone,
     assetsDone,
     slackDone,
   ];
@@ -331,14 +336,13 @@ function ClientHome({
 
         {accessTasks.map((k) => (
           <TaskCard key={k} title={ACCESS_TASKS[k].label} done={checklist[k] === true}>
-            <AccessTaskContent
-              id={id}
-              taskKey={k}
-              emails={grantEmails}
-              done={checklist[k] === true}
-            />
+            <AccessTaskContent id={id} taskKey={k} done={checklist[k] === true} />
           </TaskCard>
         ))}
+
+        <TaskCard title="Connect your Microsoft Ads account" done={msAdsDone}>
+          <MsAdsContent id={id} account={msAdsAccount} done={msAdsDone} />
+        </TaskCard>
 
         <TaskCard title="Share your creative assets" done={assetsDone}>
           <AssetsContent id={id} link={assetsLink} done={assetsDone} />
@@ -371,15 +375,14 @@ function ClientHome({
 function AccessTaskContent({
   id,
   taskKey,
-  emails,
   done,
 }: {
   id: string;
   taskKey: AccessTaskKey;
-  emails: string[];
   done: boolean;
 }) {
   const task = ACCESS_TASKS[taskKey];
+  const grant = accessGrantTargets(taskKey);
   return (
     <>
       <ol className="list-decimal space-y-1 pl-5 text-sm text-zinc-600">
@@ -388,18 +391,16 @@ function AccessTaskContent({
         ))}
       </ol>
       <div className="mt-4 rounded-md bg-zinc-50 p-3">
-        <div className="text-xs font-medium text-zinc-500">Grant access to:</div>
+        <div className="text-xs font-medium text-zinc-500">{grant.label}</div>
         <ul className="mt-1 space-y-0.5">
-          {emails.length ? (
-            emails.map((e) => (
-              <li key={e} className="font-mono text-sm text-zinc-800">
-                {e}
+          {grant.values.length ? (
+            grant.values.map((v) => (
+              <li key={v} className="font-mono text-sm text-zinc-800">
+                {v}
               </li>
             ))
           ) : (
-            <li className="text-sm text-zinc-400">
-              (ask your PPC Mastery contact for the email)
-            </li>
+            <li className="text-sm text-zinc-400">{grant.emptyHint}</li>
           )}
         </ul>
       </div>
@@ -415,6 +416,50 @@ function AccessTaskContent({
           <SubmitButton>I&rsquo;ve granted access</SubmitButton>
         )}
       </form>
+    </>
+  );
+}
+
+function MsAdsContent({
+  id,
+  account,
+  done,
+}: {
+  id: string;
+  account: string | null;
+  done: boolean;
+}) {
+  return (
+    <>
+      <p className="text-sm text-zinc-500">
+        Enter your Microsoft Advertising account number (find it in Microsoft
+        Ads under Settings → Account &amp; billing). We&rsquo;ll send you a
+        manager-link request to approve.
+      </p>
+      <form
+        action={submitMicrosoftAdsAccount.bind(null, id)}
+        className="mt-4 flex items-start gap-3"
+      >
+        <input
+          name="ms_account"
+          type="text"
+          inputMode="numeric"
+          defaultValue={account ?? ""}
+          placeholder="e.g. 12345678"
+          className={`${inputClass} max-w-xs`}
+        />
+        <SubmitButton>Save account number</SubmitButton>
+      </form>
+      {!done && (
+        <form action={toggleChecklistTask.bind(null, id, "msads")} className="mt-3">
+          <button
+            type="submit"
+            className="text-xs text-zinc-400 underline hover:text-zinc-700"
+          >
+            I don&rsquo;t use Microsoft Ads
+          </button>
+        </form>
+      )}
     </>
   );
 }

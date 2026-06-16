@@ -44,7 +44,7 @@ export async function createClient(formData: FormData): Promise<void> {
   const accessTasks = formData
     .getAll("access_tasks")
     .map(String)
-    .filter((k) => ["ga4", "gtm", "gsc"].includes(k));
+    .filter((k) => ["ga4", "gtm", "gsc", "gmc", "meta"].includes(k));
 
   const supabase = createSupabaseAdminClient();
 
