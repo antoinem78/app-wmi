@@ -20,3 +20,15 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Form controls must always show dark text on our white fields — don't let the
+   browser/OS theme decide their text colour. */
+input,
+textarea,
+select {
+  color: var(--foreground);
+}
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af; /* zinc-400 — visible but clearly placeholder */
+}
