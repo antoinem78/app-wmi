@@ -75,6 +75,7 @@ create table onboarding_state (
   checklist          jsonb not null default '{}'::jsonb,        -- 0007
   assets_drive_link  text,                                      -- 0007
   google_ads_reporting_customer_id text,                        -- 0010
+  microsoft_ads_account_id text,                                -- 0012
   updated_at         timestamptz not null default now()
 );
 

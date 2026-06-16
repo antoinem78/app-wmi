@@ -368,7 +368,7 @@ export async function toggleChecklistTask(
   clientId: string,
   key: string,
 ): Promise<void> {
-  if (!["ga4", "gtm", "gsc", "assets"].includes(key)) return;
+  if (!["ga4", "gtm", "gsc", "gmc", "meta", "assets", "msads"].includes(key)) return;
   const supabase = createSupabaseAdminClient();
   const { data: state } = await supabase
     .from("onboarding_state")
@@ -391,6 +391,43 @@ export async function toggleChecklistTask(
   await logActivity({
     clientId,
     eventType: checklist[key] ? `task_${key}_done` : `task_${key}_reopened`,
+    actor: "client",
+  });
+  revalidatePath(`/onboarding/${clientId}`);
+  revalidatePath(`/clients/${clientId}`);
+}
+
+// Home task: Microsoft Ads account number. The client gives us their account
+// number and we link it manually (no API link). Mirrors the assets task: the
+// value drives "done", with a checklist flag for the explicit skip.
+export async function submitMicrosoftAdsAccount(
+  clientId: string,
+  formData: FormData,
+): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  const { data: state } = await supabase
+    .from("onboarding_state")
+    .select("payment_status, checklist")
+    .eq("client_id", clientId)
+    .single();
+  if (!state || state.payment_status !== "paid") {
+    revalidatePath(`/onboarding/${clientId}`);
+    return;
+  }
+  const account = String(formData.get("ms_account") ?? "").trim();
+
+  const checklist = { ...((state.checklist as Record<string, boolean>) ?? {}) };
+  checklist.msads = !!account;
+
+  const { error } = await supabase
+    .from("onboarding_state")
+    .update({ microsoft_ads_account_id: account || null, checklist })
+    .eq("client_id", clientId);
+  if (error) throw new Error(error.message);
+
+  await logActivity({
+    clientId,
+    eventType: "microsoft_ads_account_submitted",
     actor: "client",
   });
   revalidatePath(`/onboarding/${clientId}`);
