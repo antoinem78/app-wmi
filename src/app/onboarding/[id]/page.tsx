@@ -10,8 +10,10 @@ import {
   planBlurb,
   planFeatures,
 } from "@/lib/tiers";
-import { formatMoney } from "@/lib/config";
+import { entityConfig, formatMoney } from "@/lib/config";
 import { Wordmark } from "@/components/Wordmark";
+import { PoweredBy } from "@/components/PoweredBy";
+import { SubmitButton } from "@/components/SubmitButton";
 import {
   confirmDetails,
   generateContract,
@@ -103,7 +105,7 @@ export default async function OnboardingPage({
           {client.company_name}
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Your campaign performance, managed by PPC Mastery.
+          Your campaign performance, managed by {entityConfig.brandName}.
         </p>
         <div className="mt-6">
           <AdsDashboard
@@ -234,6 +236,9 @@ function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <main className="mx-auto max-w-2xl px-6 py-10">{children}</main>
+      <footer className="mx-auto max-w-2xl px-6 pb-10">
+        <PoweredBy />
+      </footer>
     </div>
   );
 }
@@ -478,7 +483,7 @@ function AssetsContent({
           placeholder="drive.google.com/…"
           className={`${inputClass} max-w-sm`}
         />
-        <SubmitButton>Save link</SubmitButton>
+        <SubmitButton savedLabel="Link saved">Save link</SubmitButton>
       </form>
       {!done && (
         <form action={toggleChecklistTask.bind(null, id, "assets")} className="mt-3">
@@ -936,7 +941,7 @@ function QuestionnaireFields({
         <Field label="Top 5 competitors">
           <textarea name="competitors" rows={2} defaultValue={s("competitors")} className={inputClass} />
         </Field>
-        <SubmitButton>{done ? "Save changes" : "Submit"}</SubmitButton>
+        <SubmitButton savedLabel={done ? "Changes saved" : undefined}>{done ? "Save changes" : "Submit"}</SubmitButton>
       </form>
     </>
   );
@@ -967,13 +972,3 @@ function Field({
   );
 }
 
-function SubmitButton({ children }: { children: React.ReactNode }) {
-  return (
-    <button
-      type="submit"
-      className="rounded-md bg-[#0B1F3A] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#0B1F3A]/90"
-    >
-      {children}
-    </button>
-  );
-}

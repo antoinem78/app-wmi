@@ -24,8 +24,11 @@ export default function PrivacyPage() {
           <section>
             <h2 className="font-semibold text-zinc-900">Who we are</h2>
             <p>
-              This portal is operated by {entity} (&ldquo;we&rdquo;). It is used to
-              onboard and manage clients of our managed advertising service.
+              This portal is operated by {entity} (&ldquo;we&rdquo;), a company
+              registered in England &amp; Wales (company number 10264568),
+              registered office 124 City Road, London, England, EC1V 2NX (VAT
+              registration GB266586851). It is used to onboard and manage clients
+              of our managed advertising service.
             </p>
           </section>
 

@@ -202,7 +202,7 @@ export async function submitSlackEmail(
   if (isSlackConfigured() && client) {
     try {
       const channelId = await createClientChannel(client.company_name);
-      // PPC Mastery team joins every client channel.
+      // WMI team joins every client channel.
       const team = await inviteTeam(channelId).catch((e) => {
         console.error("Team invite failed (continuing):", e);
         return { invited: [], notFound: [] };

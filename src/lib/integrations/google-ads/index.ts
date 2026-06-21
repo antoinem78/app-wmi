@@ -1,4 +1,4 @@
-// Google Ads integration seam — Phase 4 (account linking from the PPC Mastery
+// Google Ads integration seam — Phase 4 (account linking from the WMI
 // MCC). Per docs/google-ads-api-lessons.md: the developer token is passed as an
 // explicit header on EVERY call, and all calls authenticate as the MCC via the
 // login-customer-id header — if a call fails with permission errors despite
@@ -79,7 +79,7 @@ export class GoogleAdsError extends Error {
 }
 
 /**
- * Send a link invitation from the PPC Mastery MCC to the client's account.
+ * Send a link invitation from the WMI MCC to the client's account.
  * Creates a CustomerClientLink with status PENDING — the client must accept it
  * inside Google Ads. Returns the link's resource name (used for status checks).
  */

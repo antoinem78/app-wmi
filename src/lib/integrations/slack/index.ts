@@ -119,7 +119,7 @@ export async function tryInviteByEmail(
 }
 
 /**
- * Add the PPC Mastery team to a client channel (emails from SLACK_TEAM_EMAILS,
+ * Add the WMI team to a client channel (emails from SLACK_TEAM_EMAILS,
  * comma-separated). Per-member failures don't break provisioning.
  */
 export async function inviteTeam(

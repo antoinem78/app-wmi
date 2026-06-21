@@ -1,9 +1,9 @@
 -- =============================================================================
--- CONSOLIDATED FRESH-INSTALL SCHEMA — for a NEW clone database only.
+-- CONSOLIDATED FRESH-INSTALL SCHEMA -- for a NEW clone database only.
 -- =============================================================================
--- This is the end-state of migrations 0001–0011 in a single paste, for standing
--- up a fresh clone (e.g. MCC Command Center). Run it ONCE in the new Supabase
--- project's SQL editor. Do NOT run on an existing database — use the numbered
+-- This is the end-state of migrations 0001-0013 in a single paste, for standing
+-- up a fresh clone (e.g. the WMI portal). Run it ONCE in the new Supabase
+-- project's SQL editor. Do NOT run on an existing database -- use the numbered
 -- migrations there. The ad_link_status enum is defined complete up front (the
 -- 0006 ALTER TYPE ADD VALUE steps are folded in) so it runs cleanly in one go.
 -- =============================================================================

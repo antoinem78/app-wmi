@@ -12,13 +12,13 @@ export const entityConfig = {
   legalName: process.env.ENTITY_LEGAL_NAME ?? "",
 
   /** Brand shown in the UI (wordmark, titles, wizard header). */
-  brandName: process.env.BRAND_NAME ?? "PPC mastery",
+  brandName: process.env.BRAND_NAME ?? "WMI",
 
   /** Optional logo image; when empty the text wordmark is rendered instead. */
   brandLogoUrl: process.env.BRAND_LOGO_URL ?? "",
 
-  /** ISO 4217 currency for all price formatting (USD for BJ PPC, GBP for WMI). */
-  currency: process.env.CURRENCY ?? "USD",
+  /** ISO 4217 currency for all price formatting (GBP for WMI). */
+  currency: process.env.CURRENCY ?? "GBP",
 
   /** VAT percentage for quotes/invoices (Phase 2). Null = not configured. */
   vatRate: process.env.VAT_RATE ? Number(process.env.VAT_RATE) : null,

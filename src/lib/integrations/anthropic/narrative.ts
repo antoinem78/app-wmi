@@ -6,6 +6,7 @@
 // template (generateWeeklyReport.text).
 import Anthropic from "@anthropic-ai/sdk";
 import type { DashboardPayload, Kpi } from "../google-ads/reporting";
+import { entityConfig } from "@/lib/config";
 
 const MODEL = "claude-opus-4-8";
 
@@ -155,7 +156,7 @@ export async function generateNarrative(
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
-  const brand = process.env.BRAND_NAME || "PPC Mastery";
+  const brand = entityConfig.brandName;
   const client = new Anthropic({ apiKey });
 
   try {

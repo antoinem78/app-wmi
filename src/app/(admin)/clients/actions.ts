@@ -83,7 +83,7 @@ export async function createClient(formData: FormData): Promise<void> {
 }
 
 // Approve a client's submitted Google Ads customer ID and send the link
-// invitation from the PPC Mastery MCC. Admin-only — this is the human-approval
+// invitation from the WMI MCC. Admin-only — this is the human-approval
 // gate declared in the Google application. Failures are written to the
 // activity log (the client page surfaces the latest one) instead of crashing.
 export async function approveGoogleAdsLink(clientId: string): Promise<void> {
@@ -275,8 +275,8 @@ export async function deleteClient(clientId: string): Promise<void> {
 }
 
 // Add a reporting-only client: an existing client whose Google Ads account
-// already sits under our MCC (e.g. moved from the BJ PPC main MCC into the PPC
-// Mastery sub-MCC). No wizard, no contract, no payment — we verify we can reach
+// already sits under our MCC (e.g. moved from another MCC into the WMI
+// sub-MCC). No wizard, no contract, no payment — we verify we can reach
 // the account, resolve the reporting leaf, and stand up the dashboard.
 export async function addReportingClient(formData: FormData): Promise<void> {
   const { email: adminEmail } = await requireAgencyAdmin();

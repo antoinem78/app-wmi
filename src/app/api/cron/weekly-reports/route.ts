@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     .not("google_ads_customer_id", "is", null);
 
   const clients = rows ?? [];
-  const base = process.env.APP_BASE_URL ?? "https://ppcmastery.vercel.app";
+  const base = process.env.APP_BASE_URL ?? "https://app.wmiltd.com";
   const reviewChannel = process.env.SLACK_REVIEW_CHANNEL;
   const slackOn = !!process.env.SLACK_BOT_TOKEN && !!reviewChannel;
 
