@@ -23,6 +23,7 @@ function factsBlock(
   p: DashboardPayload,
   companyName: string,
   optimisations: string[],
+  contactName: string,
 ): string {
   const money = (n: number, dp = 0) =>
     new Intl.NumberFormat("en", {
@@ -38,29 +39,37 @@ function factsBlock(
 
   const lines: string[] = [
     `Account: ${companyName}`,
+    `Client contact (for the greeting): ${contactName || `(none — use "Hi there")`}`,
     `Currency: ${p.currency}`,
     `Reporting period: ${w.start} to ${w.end} (the last 7 days), compared with the 7 days before it.`,
-    `Scope: ALL campaign types (account-wide) — Search, Performance Max, Demand Gen, Shopping, Display, Video. Removed campaigns excluded. Conversions attributed by interaction (click) date.`,
+    `Scope: ALL campaign types (account-wide) — Search, Performance Max, Demand Gen, Shopping, Display, Video. Removed campaigns excluded.`,
     ``,
-    `HEADLINE (this week vs prior week):`,
-    `- Spend: ${money(w.spend.value)} (${deltaPhrase(w.spend)})`,
-    `- Conversions: ${dec(w.conversions.value)} (${deltaPhrase(w.conversions)})`,
-    `- Cost per conversion: ${money(k.costPerConv.value, 2)} (${deltaPhrase(k.costPerConv)})`,
-    `- Clicks: ${dec(k.clicks.value, 0)} (${deltaPhrase(k.clicks)})`,
+    `STATS — THIS WEEK (vs prior week). Quote these verbatim, label: value (change):`,
     `- Impressions: ${dec(k.impressions.value, 0)} (${deltaPhrase(k.impressions)})`,
-    `- Click-through rate: ${dec(k.ctr.value)}% (${deltaPhrase(k.ctr)})`,
-    `- Average CPC: ${money(k.avgCpc.value, 2)} (${deltaPhrase(k.avgCpc)})`,
+    `- Clicks: ${dec(k.clicks.value, 0)} (${deltaPhrase(k.clicks)})`,
+    `- CTR: ${dec(k.ctr.value)}% (${deltaPhrase(k.ctr)})`,
+    `- Avg CPC: ${money(k.avgCpc.value, 2)} (${deltaPhrase(k.avgCpc)})`,
+    `- Cost: ${money(w.spend.value)} (${deltaPhrase(w.spend)})`,
+    `- Conversions: ${dec(k.conversions.value)} (${deltaPhrase(k.conversions)})`,
+    `- Cost / conversion (CPA): ${money(k.costPerConv.value, 2)} (${deltaPhrase(k.costPerConv)})`,
+    `- Conversion rate: ${dec(k.convRate.value)}% (${deltaPhrase(k.convRate)})`,
+    `- Conversions (By Time = conversion date): ${dec(k.conversionsByTime.value)} (${deltaPhrase(k.conversionsByTime)})`,
+    `- Average orders/day: ${dec(p.avgOrdersPerDay)}`,
+    `- Average revenue/day: ${money(p.avgRevenuePerDay)}`,
     `- Search impression share: ${dec(k.searchImprShare.value)}% (Search campaigns only)`,
   ];
 
   if (p.hasConversionValue) {
     lines.push(
-      `- Conversion value: ${money(k.convValue.value)} (${deltaPhrase(k.convValue)})`,
-      `- ROAS (conv value / cost): ${dec(k.roas.value, 2)}x (${deltaPhrase(k.roas)})`,
+      `- Revenue (conv. value): ${money(k.convValue.value)} (${deltaPhrase(k.convValue)})`,
+      `- ROAS (conv. value / cost): ${dec(k.roas.value, 2)} (${deltaPhrase(k.roas)})`,
+      `- AOV (revenue / conversions): ${money(k.aov.value, 2)} (${deltaPhrase(k.aov)})`,
+      `- Revenue (By Time): ${money(k.convValueByTime.value)} (${deltaPhrase(k.convValueByTime)})`,
+      `- ROAS (By Time): ${dec(k.roasByTime.value, 2)} (${deltaPhrase(k.roasByTime)})`,
     );
   } else {
     lines.push(
-      `- NOTE: this account does not track conversion value, so do NOT mention revenue or ROAS — talk in conversions and cost per conversion only.`,
+      `- NOTE: this account does not track conversion value, so do NOT mention revenue, ROAS or AOV — talk in conversions and cost per conversion only.`,
     );
   }
 
@@ -126,37 +135,38 @@ function factsBlock(
 }
 
 const SYSTEM = (brand: string) =>
-  `You are a senior paid-search account manager at ${brand}, writing the weekly performance update that goes to a client.
+  `You are a senior paid-media account manager at ${brand}, writing the weekly performance update that goes to a client. Match this house format exactly.
 
-Voice: warm, professional, and specific — an experienced human analyst, not a robot. Plain language a business owner understands.
+Voice: warm, professional, specific — an experienced human analyst. Plain language a business owner understands.
 
 HARD RULES:
-- Use ONLY the figures in the DATA block. Never invent, estimate, or recompute a number, a percentage, a campaign name, or a metric not present in the data.
-- Quote figures exactly as given (same currency, same rounding).
-- The headline figures are ACCOUNT-WIDE across all campaign types (Search, Performance Max, Demand Gen, Shopping, Display, Video). Use the "BY CHANNEL TYPE" data and the [channel] tag on each campaign to attribute performance to the right channel — do NOT describe Performance Max / Demand Gen / Shopping activity as Search, and never call product/listing-group changes "keywords".
-- "Search impression share" and "top search terms" are SEARCH-ONLY signals — only discuss them for Search campaigns, never as account-wide figures.
-- Conversions are counted by interaction (click) date; the most recent days may still mature, so don't over-read a single recent week.
-- If conversion-value tracking is absent, never mention revenue or ROAS.
-- Optimisations: describe ONLY the changes in the change log, using the exact entity wording given (e.g. "product groups added", "asset groups added", "keywords added"). You may add a brief, conservative rationale and reference the campaign by name, but never claim a specific result or number not in the data.
-- Keep it grounded. If the week is quiet or the data is thin, keep each section short — do not pad. If a section has no data, write one honest line rather than inventing content.
-- This is a DRAFT a human reviews before it reaches the client.
+- Use ONLY the figures in the DATA block. Never invent, estimate, or recompute any number, %, campaign name, or metric. Quote every figure exactly as given (same currency, rounding, sign).
+- Figures are ACCOUNT-WIDE across all campaign types (Search, Performance Max, Demand Gen, Shopping, Display, Video). Use the BY CHANNEL TYPE data and the [channel] tag to attribute correctly — never describe Performance Max / Demand Gen / Shopping activity as Search, and never call product/listing-group changes "keywords".
+- "Search impression share" and "top search terms" are SEARCH-ONLY — only discuss them for Search.
+- Two conversion bases are given: standard (interaction/click date) and "By Time" (conversion date). Show both where present; don't conflate them.
+- If conversion value is not tracked, omit Revenue, ROAS and AOV entirely.
+- Optimisations: describe ONLY the logged changes, using the exact entity wording given (e.g. "product groups added", "asset groups added", "keywords added"). A brief conservative rationale and the campaign name are fine; never claim a specific result or number not in the data.
+- Keep it grounded — if a week is quiet, keep it short; don't pad or invent.
+- This is a DRAFT a human reviews and may edit before it reaches the client.
 
-FORMAT — output these five sections in order, each with its title in *bold* (Slack formatting), separated by a blank line. Use "- " bullets only in the two list sections. Everything else is short prose paragraphs. No markdown headers (#), no tables.
+OUTPUT — exactly this structure and order, Slack formatting (*bold* titles, "- " bullets), no markdown headers (#), no tables:
 
-*Top Converting Campaigns*
-A short bulleted list from the data (campaign name / conversions). If none converted, say so in one line.
+Hi <client contact's first name from the data; if none, write "there">,
 
-*Performance Summary*
-One short paragraph: account-wide clicks, impressions, CTR, conversions and cost per conversion for the week with the week-on-week direction; when more than one channel type is present, add a sentence on the channel mix (which channels drove spend and conversions). End with a sentence of plain interpretation.
+Please review the last week report for the account.
 
-*Optimisations Made*
-A bulleted list turning the change log into clear client-facing sentences (e.g. "Expanded negative keyword lists in the X campaign to filter irrelevant traffic"). One bullet per distinct change type/campaign.
+*Date Range:* <the reporting period from the data>
 
-*Campaign Insights*
-One short paragraph tying the campaigns to the results — which carried conversions, what was paused or reallocated, what's being monitored.
+*Google Ads Stats:*
+A bulleted list of the STATS figures (plus the Revenue / ROAS / AOV / By-Time figures when present), copied verbatim as "Label: value (change)".
 
-*Forward Plan*
-One short paragraph on next week: what continues, what's being tested, what to watch.
+*Google Ads Summary:*
+One short prose paragraph walking through the week-on-week movements and what they mean. When more than one channel type is present, add a sentence on the channel mix (which channels drove spend / conversions).
+
+*Google Ads Optimisation:*
+A bulleted list turning the change log into clear client-facing sentences — one per distinct change type/campaign, using the exact entity wording. If nothing was logged, say so in one line.
+
+End with one short closing line — that you'll keep monitoring and optimising and to reach out with any questions — then a brief sign-off.
 
 Write the update now.`;
 
@@ -164,6 +174,7 @@ export async function generateNarrative(
   payload: DashboardPayload,
   companyName: string,
   optimisations: string[] = [],
+  contactName = "",
 ): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
@@ -180,7 +191,7 @@ export async function generateNarrative(
       messages: [
         {
           role: "user",
-          content: `DATA (verified — use these figures verbatim):\n\n${factsBlock(payload, companyName, optimisations)}`,
+          content: `DATA (verified — use these figures verbatim):\n\n${factsBlock(payload, companyName, optimisations, contactName)}`,
         },
       ],
     });

@@ -43,7 +43,12 @@ export interface DashboardPayload {
     spend: Kpi; impressions: Kpi; clicks: Kpi; ctr: Kpi; avgCpc: Kpi;
     conversions: Kpi; costPerConv: Kpi; convValue: Kpi; roas: Kpi;
     convRate: Kpi; searchImprShare: Kpi;
+    // By conversion date ("By Time") + ecommerce derivations:
+    conversionsByTime: Kpi; convValueByTime: Kpi; roasByTime: Kpi; aov: Kpi;
   };
+  /** Window conversions / value averaged over the window's days (interaction date). */
+  avgOrdersPerDay: number;
+  avgRevenuePerDay: number;
   trend: { date: string; spend: number; conversions: number }[];
   /** Per-channel-type rollup for the window (account-wide). */
   byChannel: { channel: string; spend: number; conversions: number; convValue: number; costPerConv: number; roas: number }[];
@@ -123,11 +128,13 @@ async function campaignTotals(customerId: string, start: string, end: string) {
     customerId,
     `SELECT campaign.name, campaign.advertising_channel_type,
             metrics.cost_micros, metrics.impressions, metrics.clicks,
-            metrics.conversions, metrics.conversions_value
+            metrics.conversions, metrics.conversions_value,
+            metrics.conversions_by_conversion_date, metrics.conversions_value_by_conversion_date
      FROM campaign
      WHERE segments.date BETWEEN '${start}' AND '${end}' AND ${ACTIVE_FILTER}`,
   );
   let spend = 0, impressions = 0, clicks = 0, conversions = 0, convValue = 0;
+  let convByTime = 0, convValueByTime = 0;
   const byName: Record<string, { channel: string; spend: number; conversions: number; convValue: number }> = {};
   const byChannel: Record<string, ChannelAgg> = {};
   for (const r of rows) {
@@ -138,6 +145,8 @@ async function campaignTotals(customerId: string, start: string, end: string) {
     const im = num(m.impressions);
     const ck = num(m.clicks);
     spend += c; impressions += im; clicks += ck; conversions += cn; convValue += cv;
+    convByTime += num(m.conversionsByConversionDate);
+    convValueByTime += num(m.conversionsValueByConversionDate);
     const camp = (r.campaign ?? {}) as { name?: string; advertisingChannelType?: string };
     const name = camp.name ?? "(unnamed)";
     const channel = channelLabel(camp.advertisingChannelType);
@@ -147,7 +156,7 @@ async function campaignTotals(customerId: string, start: string, end: string) {
     const bc = byChannel[channel];
     bc.spend += c; bc.conversions += cn; bc.convValue += cv; bc.impressions += im; bc.clicks += ck;
   }
-  return { spend, impressions, clicks, conversions, convValue, byName, byChannel };
+  return { spend, impressions, clicks, conversions, convValue, convByTime, convValueByTime, byName, byChannel };
 }
 
 async function searchImpressionShare(customerId: string, start: string, end: string) {
@@ -483,7 +492,13 @@ async function buildDashboard(
       roas: kpi(ratio(cur.convValue, cur.spend), ratio(prev.convValue, prev.spend)),
       convRate: kpi(ratio(cur.conversions, cur.clicks) * 100, ratio(prev.conversions, prev.clicks) * 100),
       searchImprShare: { value: sis, prev: 0, deltaPct: null }, // no prior IS → no delta
+      conversionsByTime: kpi(cur.convByTime, prev.convByTime),
+      convValueByTime: kpi(cur.convValueByTime, prev.convValueByTime),
+      roasByTime: kpi(ratio(cur.convValueByTime, cur.spend), ratio(prev.convValueByTime, prev.spend)),
+      aov: kpi(ratio(cur.convValue, cur.conversions), ratio(prev.convValue, prev.conversions)),
     },
+    avgOrdersPerDay: windowDays > 0 ? cur.conversions / windowDays : 0,
+    avgRevenuePerDay: windowDays > 0 ? cur.convValue / windowDays : 0,
     trend,
     byChannel,
     byCampaign,
