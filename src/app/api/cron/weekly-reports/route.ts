@@ -45,8 +45,10 @@ export async function GET(request: Request) {
   const reviewChannel = process.env.SLACK_REVIEW_CHANNEL;
   const slackOn = !!process.env.SLACK_BOT_TOKEN && !!reviewChannel;
 
-  let sent = 0;
-  let failed = 0;
+  let sent = 0;        // report generated, stored, and (if Slack on) delivered
+  let failed = 0;      // report generation/storage failed outright
+  let slackFailed = 0; // report generated but the Slack draft post failed
+  const slackErrors: string[] = [];
 
   async function processClient(row: (typeof clients)[number]): Promise<void> {
     const clientId = row.client_id as string;
@@ -75,6 +77,7 @@ export async function GET(request: Request) {
       }
       const body = narrative ?? formatWeeklyText(dash.weekly, dash.currency);
 
+      let slackOk = true;
       if (slackOn) {
         try {
           const { postMessage } = await import("@/lib/integrations/slack");
@@ -88,6 +91,11 @@ export async function GET(request: Request) {
           ].join("\n");
           await postMessage(reviewChannel!, draft);
         } catch (e) {
+          // Surface delivery failures instead of swallowing them — a wrong
+          // SLACK_REVIEW_CHANNEL or an uninvited bot must NOT look like success.
+          slackOk = false;
+          slackFailed++;
+          slackErrors.push(`${clientId}: ${e instanceof Error ? e.message : String(e)}`);
           console.error(`Weekly draft post failed for ${clientId}:`, e);
         }
       }
@@ -109,7 +117,7 @@ export async function GET(request: Request) {
         actor: "system:cron",
         payload: { period_end: dash.weekly.end },
       });
-      sent++;
+      if (slackOk) sent++;
     } catch (e) {
       console.error(`Weekly report failed for client ${clientId}:`, e);
       failed++;
@@ -127,5 +135,11 @@ export async function GET(request: Request) {
     }),
   );
 
-  return NextResponse.json({ clients: clients.length, sent, failed });
+  return NextResponse.json({
+    clients: clients.length,
+    sent,
+    failed,
+    slackFailed,
+    ...(slackErrors.length ? { slackErrors: slackErrors.slice(0, 10) } : {}),
+  });
 }
