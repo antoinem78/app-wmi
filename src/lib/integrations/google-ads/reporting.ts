@@ -1,10 +1,14 @@
 // Phase 6.1: Google Ads performance dashboard data layer.
-// Search campaigns only, removed entities excluded, account timezone + currency,
-// last 28 vs prior 28 (or 7/90) excluding today. Whole payload cached per
-// client+window (~30 min) so client refreshes don't drain the shared API quota.
+// ACCOUNT-WIDE (all campaign types), removed campaigns excluded, account timezone
+// + currency, last 28 vs prior 28 (or 7/90) excluding today. Headline KPIs and
+// the change log span every channel (Search, Performance Max, Demand Gen,
+// Shopping, Display, Video); a per-channel breakdown is provided. Search-only
+// signals (impression share, search terms) are kept but clearly labelled as
+// Search. Conversions are attributed by interaction (click) date. Whole payload
+// cached per client+window (~30 min) so refreshes don't drain the shared quota.
 //
-// All figures come from here (the data layer). Any future LLM summary only
-// rewords these verified numbers — it never generates them.
+// All figures come from here (the data layer). Any LLM summary only rewords
+// these verified numbers — it never generates them.
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { gaqlSearch } from "./index";
 
@@ -23,7 +27,7 @@ export interface WeeklySummary {
   end: string;
   spend: Kpi;
   conversions: Kpi;
-  /** Human-readable change lines, e.g. "3 keywords added". */
+  /** Human-readable change lines, e.g. "keywords added (3)". */
   changeLines: string[];
   changeCount: number;
 }
@@ -41,7 +45,9 @@ export interface DashboardPayload {
     convRate: Kpi; searchImprShare: Kpi;
   };
   trend: { date: string; spend: number; conversions: number }[];
-  byCampaign: { name: string; spend: number; conversions: number; costPerConv: number; roas: number }[];
+  /** Per-channel-type rollup for the window (account-wide). */
+  byChannel: { channel: string; spend: number; conversions: number; convValue: number; costPerConv: number; roas: number }[];
+  byCampaign: { name: string; channel: string; spend: number; conversions: number; costPerConv: number; roas: number }[];
   byDevice: { device: string; spend: number; conversions: number }[];
   topSearchTerms: { term: string; spend: number; conversions: number }[];
 }
@@ -83,32 +89,65 @@ function kpi(value: number, prev: number): Kpi {
   return { value, prev, deltaPct: prev > 0 ? ((value - prev) / prev) * 100 : null };
 }
 
+// Search-only filter (for inherently-Search signals: impression share, terms).
 const SEARCH_FILTER =
   "campaign.advertising_channel_type = 'SEARCH' AND campaign.status != 'REMOVED'";
+// Account-wide filter: every channel type, only removed campaigns excluded.
+const ACTIVE_FILTER = "campaign.status != 'REMOVED'";
 
-// Aggregate campaign metrics for a date range → totals + per-campaign rows.
+// advertising_channel_type enum → friendly label.
+const CHANNEL_LABEL: Record<string, string> = {
+  SEARCH: "Search",
+  PERFORMANCE_MAX: "Performance Max",
+  SHOPPING: "Shopping",
+  DISPLAY: "Display",
+  VIDEO: "Video",
+  DEMAND_GEN: "Demand Gen",
+  DISCOVERY: "Demand Gen",
+  MULTI_CHANNEL: "App",
+  LOCAL: "Local",
+  LOCAL_SERVICES: "Local Services",
+  SMART: "Smart",
+  HOTEL: "Hotel",
+  TRAVEL: "Travel",
+};
+const channelLabel = (t?: string): string =>
+  CHANNEL_LABEL[t ?? ""] ?? (t ? t.replace(/_/g, " ") : "Other");
+
+type ChannelAgg = { spend: number; conversions: number; convValue: number; impressions: number; clicks: number };
+
+// Aggregate campaign metrics for a date range ACROSS ALL CHANNEL TYPES →
+// account totals + per-campaign rows (tagged with channel) + per-channel rollup.
 async function campaignTotals(customerId: string, start: string, end: string) {
   const rows = await gaqlSearch(
     customerId,
-    `SELECT campaign.name, metrics.cost_micros, metrics.impressions, metrics.clicks,
+    `SELECT campaign.name, campaign.advertising_channel_type,
+            metrics.cost_micros, metrics.impressions, metrics.clicks,
             metrics.conversions, metrics.conversions_value
      FROM campaign
-     WHERE segments.date BETWEEN '${start}' AND '${end}' AND ${SEARCH_FILTER}`,
+     WHERE segments.date BETWEEN '${start}' AND '${end}' AND ${ACTIVE_FILTER}`,
   );
   let spend = 0, impressions = 0, clicks = 0, conversions = 0, convValue = 0;
-  const byName: Record<string, { spend: number; conversions: number; convValue: number }> = {};
+  const byName: Record<string, { channel: string; spend: number; conversions: number; convValue: number }> = {};
+  const byChannel: Record<string, ChannelAgg> = {};
   for (const r of rows) {
     const m = (r.metrics ?? {}) as Record<string, unknown>;
     const c = micros(m.costMicros);
     const cv = num(m.conversionsValue);
     const cn = num(m.conversions);
-    spend += c; impressions += num(m.impressions); clicks += num(m.clicks);
-    conversions += cn; convValue += cv;
-    const name = ((r.campaign ?? {}) as { name?: string }).name ?? "(unnamed)";
-    byName[name] ??= { spend: 0, conversions: 0, convValue: 0 };
+    const im = num(m.impressions);
+    const ck = num(m.clicks);
+    spend += c; impressions += im; clicks += ck; conversions += cn; convValue += cv;
+    const camp = (r.campaign ?? {}) as { name?: string; advertisingChannelType?: string };
+    const name = camp.name ?? "(unnamed)";
+    const channel = channelLabel(camp.advertisingChannelType);
+    byName[name] ??= { channel, spend: 0, conversions: 0, convValue: 0 };
     byName[name].spend += c; byName[name].conversions += cn; byName[name].convValue += cv;
+    byChannel[channel] ??= { spend: 0, conversions: 0, convValue: 0, impressions: 0, clicks: 0 };
+    const bc = byChannel[channel];
+    bc.spend += c; bc.conversions += cn; bc.convValue += cv; bc.impressions += im; bc.clicks += ck;
   }
-  return { spend, impressions, clicks, conversions, convValue, byName };
+  return { spend, impressions, clicks, conversions, convValue, byName, byChannel };
 }
 
 async function searchImpressionShare(customerId: string, start: string, end: string) {
@@ -131,72 +170,27 @@ async function searchImpressionShare(customerId: string, start: string, end: str
   return imprWithShare > 0 ? (weighted / imprWithShare) * 100 : 0;
 }
 
-const RESOURCE_LABEL: Record<string, string> = {
-  CAMPAIGN: "campaign",
-  CAMPAIGN_BUDGET: "budget",
-  CAMPAIGN_CRITERION: "campaign targeting",
-  AD_GROUP: "ad group",
-  AD_GROUP_AD: "ad",
-  AD_GROUP_CRITERION: "keyword",
-  AD_GROUP_BID_MODIFIER: "bid adjustment",
-  AD: "ad",
-  AD_GROUP_ASSET: "asset",
-  CAMPAIGN_ASSET: "asset",
-};
-const OP_VERB: Record<string, string> = {
-  CREATE: "added",
-  UPDATE: "updated",
-  REMOVE: "removed",
-};
-const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
-
-// Aggregate the account's change history into plain-English lines (template,
-// not LLM): groups by (operation, resource type) and counts.
-async function changeSummary(customerId: string, start: string, end: string) {
-  const rows = await gaqlSearch(
-    customerId,
-    `SELECT change_event.change_resource_type, change_event.resource_change_operation
-     FROM change_event
-     WHERE change_event.change_date_time >= '${start} 00:00:00'
-       AND change_event.change_date_time <= '${end} 23:59:59'
-     ORDER BY change_event.change_date_time DESC LIMIT 1000`,
-  );
-  const counts: Record<string, number> = {};
-  for (const r of rows) {
-    const ce = (r.changeEvent ?? {}) as {
-      changeResourceType?: string;
-      resourceChangeOperation?: string;
-    };
-    const noun = RESOURCE_LABEL[ce.changeResourceType ?? ""] ?? "item";
-    const verb = OP_VERB[ce.resourceChangeOperation ?? ""] ?? "changed";
-    counts[`${verb}|${noun}`] = (counts[`${verb}|${noun}`] ?? 0) + 1;
-  }
-  const lines = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([key, n]) => {
-      const [verb, noun] = key.split("|");
-      return `${plural(n, noun)} ${verb}`;
-    });
-  return { count: rows.length, lines };
-}
-
 // Classify one change_event into a specific, plain-English optimisation label,
-// using the resource type, the operation, the changed field mask, and the new
-// resource (to distinguish negative keywords / pauses / resumes). Returns null
-// for noise we don't want to surface. These are FACTS (what changed); any
-// rationale ("to improve lead quality") is added later by the narrative LLM.
-function classifyChange(ce: {
-  changeResourceType?: string;
-  resourceChangeOperation?: string;
-  changedFields?: string;
-  newResource?: Record<string, Record<string, unknown>>;
-}): string | null {
+// using resource type, operation, the changed field mask, the new resource, AND
+// the campaign's channel type (so non-Search ad-group criteria are labelled
+// product/listing groups, not keywords — the reported mis-classification).
+// Returns null for noise. FACTS only; rationale is added by the narrative LLM.
+function classifyChange(
+  ce: {
+    changeResourceType?: string;
+    resourceChangeOperation?: string;
+    changedFields?: string;
+    newResource?: Record<string, Record<string, unknown>>;
+  },
+  channelType?: string,
+): string | null {
   const type = ce.changeResourceType ?? "";
   const op = ce.resourceChangeOperation ?? "";
   const fields = ce.changedFields ?? "";
   const has = (f: string) => fields.toLowerCase().includes(f.toLowerCase());
   const nr = ce.newResource ?? {};
   const statusOf = (k: string) => String((nr[k]?.status as string) ?? "");
+  const isSearch = (channelType ?? "SEARCH").toUpperCase() === "SEARCH";
 
   switch (type) {
     case "CAMPAIGN": {
@@ -220,11 +214,13 @@ function classifyChange(ce: {
     case "AD_GROUP_CRITERION": {
       const neg = Boolean((nr.adGroupCriterion?.negative as boolean) ?? false);
       if (has("negative") || neg) return "negative keywords added";
-      if (op === "CREATE") return "keywords added";
-      if (op === "REMOVE") return "keywords removed";
-      if (has("cpcBid")) return "keyword bids adjusted";
-      if (has("status")) return "keyword status changed";
-      return "keywords updated";
+      // Search → keywords; every other channel → product/listing groups.
+      const entity = isSearch ? "keyword" : "product group";
+      if (op === "CREATE") return `${entity}s added`;
+      if (op === "REMOVE") return `${entity}s removed`;
+      if (has("cpcBid")) return `${entity} bids adjusted`;
+      if (has("status")) return `${entity} status changed`;
+      return `${entity}s updated`;
     }
     case "CAMPAIGN_CRITERION": {
       const neg = Boolean((nr.campaignCriterion?.negative as boolean) ?? false);
@@ -239,15 +235,63 @@ function classifyChange(ce: {
     case "AD_GROUP_ASSET":
     case "CAMPAIGN_ASSET":
       return "assets updated";
+    // Performance Max / asset-based campaigns:
+    case "ASSET_GROUP":
+      return op === "CREATE" ? "asset groups added" : op === "REMOVE" ? "asset groups removed" : "asset groups updated";
+    case "ASSET_GROUP_ASSET":
+      return "asset-group assets updated";
+    case "ASSET_GROUP_LISTING_GROUP_FILTER":
+      return op === "CREATE" ? "product groups added" : op === "REMOVE" ? "product groups removed" : "product groups updated";
+    case "FEED":
+    case "FEED_ITEM":
+    case "CAMPAIGN_FEED":
+    case "AD_GROUP_FEED":
+      return "feeds updated";
     default:
       return null;
   }
 }
 
+// Aggregate the account's change history (ALL channel types) into plain-English
+// lines (template, not LLM), using the channel-aware classifier so non-Search
+// edits aren't mislabelled. Used for the Slack fallback / changeCount.
+async function changeSummary(customerId: string, start: string, end: string) {
+  const [campRows, rows] = await Promise.all([
+    gaqlSearch(customerId, "SELECT campaign.id, campaign.advertising_channel_type FROM campaign"),
+    gaqlSearch(
+      customerId,
+      `SELECT change_event.change_resource_type, change_event.resource_change_operation,
+              change_event.changed_fields, change_event.campaign, change_event.new_resource
+       FROM change_event
+       WHERE change_event.change_date_time >= '${start} 00:00:00'
+         AND change_event.change_date_time <= '${end} 23:59:59'
+       ORDER BY change_event.change_date_time DESC LIMIT 1000`,
+    ),
+  ]);
+  const channelById: Record<string, string> = {};
+  for (const r of campRows) {
+    const c = (r.campaign ?? {}) as { id?: string | number; advertisingChannelType?: string };
+    if (c.id != null) channelById[String(c.id)] = c.advertisingChannelType ?? "";
+  }
+  const counts: Record<string, number> = {};
+  for (const r of rows) {
+    const ce = (r.changeEvent ?? {}) as Parameters<typeof classifyChange>[0] & { campaign?: string };
+    const campId = (ce.campaign?.match(/campaigns\/(\d+)/) ?? [])[1];
+    const action = classifyChange(ce, campId ? channelById[campId] : undefined);
+    if (!action) continue;
+    counts[action] = (counts[action] ?? 0) + 1;
+  }
+  const lines = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([action, n]) => `${action} (${n})`);
+  return { count: rows.length, lines };
+}
+
 /**
  * Detailed weekly optimisations, grouped by campaign + action with counts —
- * the raw material for the report's "Optimisations Made" section. Facts only;
- * the narrative layer turns them into client-facing sentences.
+ * the raw material for the report's "Optimisations Made" section, across ALL
+ * channel types and channel-aware. Facts only; the narrative turns them into
+ * client-facing sentences.
  */
 export async function getWeeklyOptimisations(
   customerId: string,
@@ -255,7 +299,7 @@ export async function getWeeklyOptimisations(
   end: string,
 ): Promise<string[]> {
   const [campRows, changeRows] = await Promise.all([
-    gaqlSearch(customerId, "SELECT campaign.id, campaign.name FROM campaign"),
+    gaqlSearch(customerId, "SELECT campaign.id, campaign.name, campaign.advertising_channel_type FROM campaign"),
     gaqlSearch(
       customerId,
       `SELECT change_event.change_resource_type, change_event.resource_change_operation,
@@ -268,9 +312,13 @@ export async function getWeeklyOptimisations(
   ]);
 
   const nameById: Record<string, string> = {};
+  const channelById: Record<string, string> = {};
   for (const r of campRows) {
-    const c = (r.campaign ?? {}) as { id?: string | number; name?: string };
-    if (c.id != null) nameById[String(c.id)] = c.name ?? "";
+    const c = (r.campaign ?? {}) as { id?: string | number; name?: string; advertisingChannelType?: string };
+    if (c.id != null) {
+      nameById[String(c.id)] = c.name ?? "";
+      channelById[String(c.id)] = c.advertisingChannelType ?? "";
+    }
   }
 
   const counts: Record<string, number> = {};
@@ -278,9 +326,9 @@ export async function getWeeklyOptimisations(
     const ce = (r.changeEvent ?? {}) as Parameters<typeof classifyChange>[0] & {
       campaign?: string;
     };
-    const action = classifyChange(ce);
-    if (!action) continue;
     const campId = (ce.campaign?.match(/campaigns\/(\d+)/) ?? [])[1];
+    const action = classifyChange(ce, campId ? channelById[campId] : undefined);
+    if (!action) continue;
     const camp = (campId && nameById[campId]) || "account-level";
     counts[`${camp}|||${action}`] = (counts[`${camp}|||${action}`] ?? 0) + 1;
   }
@@ -339,12 +387,12 @@ async function buildDashboard(
     gaqlSearch(
       customerId,
       `SELECT segments.device, metrics.cost_micros, metrics.conversions
-       FROM campaign WHERE segments.date BETWEEN '${w.start}' AND '${w.end}' AND ${SEARCH_FILTER}`,
+       FROM campaign WHERE segments.date BETWEEN '${w.start}' AND '${w.end}' AND ${ACTIVE_FILTER}`,
     ),
     gaqlSearch(
       customerId,
       `SELECT segments.date, metrics.cost_micros, metrics.conversions
-       FROM campaign WHERE segments.date BETWEEN '${w.start}' AND '${w.end}' AND ${SEARCH_FILTER}
+       FROM campaign WHERE segments.date BETWEEN '${w.start}' AND '${w.end}' AND ${ACTIVE_FILTER}
        ORDER BY segments.date`,
     ),
     gaqlSearch(
@@ -384,9 +432,21 @@ async function buildDashboard(
     .map(([device, v]) => ({ device: prettyDevice(device), ...v }))
     .sort((a, b) => b.spend - a.spend);
 
+  const byChannel = Object.entries(cur.byChannel)
+    .map(([channel, v]) => ({
+      channel,
+      spend: v.spend,
+      conversions: v.conversions,
+      convValue: v.convValue,
+      costPerConv: ratio(v.spend, v.conversions),
+      roas: ratio(v.convValue, v.spend),
+    }))
+    .sort((a, b) => b.spend - a.spend);
+
   const byCampaign = Object.entries(cur.byName)
     .map(([name, v]) => ({
       name,
+      channel: v.channel,
       spend: v.spend,
       conversions: v.conversions,
       costPerConv: ratio(v.spend, v.conversions),
@@ -425,6 +485,7 @@ async function buildDashboard(
       searchImprShare: { value: sis, prev: 0, deltaPct: null }, // no prior IS → no delta
     },
     trend,
+    byChannel,
     byCampaign,
     byDevice,
     topSearchTerms,
@@ -459,7 +520,7 @@ export async function generateWeeklyReport(customerId: string): Promise<{
  * The bulleted weekly-update text (Slack fallback when no LLM narrative). Pure
  * formatting over an already-computed WeeklySummary — so callers that already
  * have the dashboard payload (which contains `weekly`) can reuse it without
- * re-querying.
+ * re-querying. Account-wide; conversions by interaction date.
  */
 export function formatWeeklyText(weekly: WeeklySummary, currency: string): string {
   const money = (n: number) =>
@@ -478,7 +539,7 @@ export function formatWeeklyText(weekly: WeeklySummary, currency: string): strin
     ? `Changes this week: ${weekly.changeLines.join(", ")}.`
     : "No account changes this week.";
   return [
-    `📈 *Weekly update* (${weekly.start} → ${weekly.end})`,
+    `📈 *Weekly update* (${weekly.start} → ${weekly.end}) — all campaign types`,
     `• Spend: ${money(weekly.spend.value)}${delta(weekly.spend)}`,
     `• Conversions: ${dec1(weekly.conversions.value)}${delta(weekly.conversions)}`,
     `• ${changes}`,
