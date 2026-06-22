@@ -1,6 +1,6 @@
 // Google Ads performance dashboard (Phase 6.1, redesigned). Premium, agency-grade
 // client view — verified payload from the reporting data layer. Account currency,
-// Search campaigns only. Server-rendered, inline SVG, no client JS.
+// account-wide (all campaign types). Server-rendered, inline SVG, no client JS.
 import type { DashboardPayload, Kpi } from "@/lib/integrations/google-ads/reporting";
 import { REPORT_WINDOWS } from "@/lib/integrations/google-ads/reporting";
 
@@ -44,7 +44,7 @@ export function AdsDashboard({
         <div>
           <h2 className="text-base font-semibold text-white">Performance</h2>
           <p className="text-xs text-white/60">
-            Search campaigns · {payload.range.start} → {payload.range.end} ·{" "}
+            All campaigns · {payload.range.start} → {payload.range.end} ·{" "}
             {payload.currency}
           </p>
         </div>
@@ -304,12 +304,12 @@ function Breakdown({
   maxSpend: number;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{title}</h3>
       {rows.length === 0 ? (
         <p className="mt-2 text-sm text-zinc-400">No data in this window.</p>
       ) : (
-        <table className="mt-2 w-full text-sm">
+        <table className="mt-2 w-full table-fixed text-sm">
           <thead>
             <tr className="text-[11px] text-zinc-400">
               {cols.map((c, i) => (
@@ -322,7 +322,7 @@ function Breakdown({
           <tbody>
             {rows.map((r, ri) => (
               <tr key={ri} className="border-t border-zinc-100">
-                <td className="relative max-w-[10rem] truncate py-1.5 pr-2 text-zinc-800" title={r.label}>
+                <td className="relative truncate py-1.5 pr-2 text-zinc-800" title={r.label}>
                   <span
                     className="absolute inset-y-1 left-0 -z-0 rounded-sm bg-[#0B1F3A]/[0.05]"
                     style={{ width: `${Math.max(4, (r.spend / maxSpend) * 100)}%` }}
