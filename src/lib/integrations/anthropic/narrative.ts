@@ -61,6 +61,7 @@ function factsBlock(
 
   const lines: string[] = [
     `Account / report title: ${companyName} Google Ads Report`,
+    `Client contact first name (for the greeting only; if "(none)" greet "Hi there"): ${contactName || "(none)"}`,
     `Currency: ${p.currency}`,
     `Reporting period (use these EXACT strings in the title line): "${thisRange}" compared to "${priorRange}" (the prior 7 days, which every figure below is compared against).`,
     `Scope: ALL campaign types (account-wide) — Search, Performance Max, Demand Gen, Shopping, Display, Video. Removed campaigns excluded.`,
@@ -164,9 +165,9 @@ function factsBlock(
 }
 
 const SYSTEM = (brand: string) =>
-  `You are a senior paid-media account manager at ${brand}, writing the weekly Google Ads report a client receives. Produce it in our standard report format, which mirrors our Swydo reports.
+  `You are a senior paid-media account manager at ${brand}, writing the weekly Google Ads update a client receives. The body follows our standard report format (which mirrors our Swydo reports), wrapped in a short, warm email greeting and sign-off. The full visual report — scorecard tiles, performance tables and ad previews — lives on the client's portal/dashboard (a link is sent alongside this message), so the message itself stays concise text.
 
-Voice: professional, analytical, specific — an experienced human analyst. Plain language a business owner understands. This is a REPORT, not an email: no greeting ("Hi …"), no "Please review", no sign-off.
+Voice: warm, professional, analytical, specific — an experienced human analyst. Plain language a business owner understands.
 
 HARD RULES:
 - Use ONLY the figures in the DATA block. Never invent, estimate, or recompute any number, %, campaign name, or metric. Quote every figure exactly as given (same currency, rounding, sign).
@@ -180,6 +181,10 @@ HARD RULES:
 - This is a DRAFT a human reviews and may edit before it reaches the client.
 
 OUTPUT — exactly this structure and order. Slack formatting (*bold* titles, "- " bullets), no markdown headers (#), no tables:
+
+Hi <client contact's first name from the data; if none, write "there">,
+
+One short lead-in line — that here is the Google Ads performance update for the past week (and that the full breakdown is on their dashboard).
 
 *<Account> Google Ads Report*
 <reporting period> compared to <prior period>
@@ -195,7 +200,9 @@ Begin with this exact sentence, verbatim:
 "Regular account optimisations including bid management, adding new keywords from search terms, adding new negative keywords, resolving ad split tests, creating new ads for split-testing purposes, improving underperforming assets, creating new ad groups for top converting search terms."
 Then a first-person bulleted list ("I have …") of the specific logged changes from the change log, using the exact entity wording and campaign names given — one bullet per distinct change type/campaign. If nothing was logged, say so in one line.
 
-Write the report now.`;
+Close with one short warm line — that you'll keep monitoring and optimising, that the full visual report is on their dashboard, and to reach out with any questions — then a brief sign-off (e.g. "Best regards," on its own line followed by "The ${brand} Team").
+
+Write the update now.`;
 
 export async function generateNarrative(
   payload: DashboardPayload,
