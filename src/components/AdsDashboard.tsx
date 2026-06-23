@@ -111,6 +111,12 @@ export function AdsDashboard({
           pct={pct}
         />
 
+        {/* Top performing ads */}
+        <TopAds rows={payload.topAds ?? []} money={money} int={int} pct={pct} dec={dec} guard={guard} />
+
+        {/* Auction insights (impression-share suite — API stand-in) */}
+        <AuctionInsights is={payload.impressionShare} pct={pct} />
+
         {/* Secondary breakdowns stacked below — scroll for detail, not packed. */}
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <Breakdown
@@ -214,6 +220,106 @@ function CampaignPerformance({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function TopAds({
+  rows,
+  money,
+  int,
+  pct,
+  dec,
+  guard,
+}: {
+  rows: DashboardPayload["topAds"];
+  money: (n: number, dp?: number) => string;
+  int: (n: number) => string;
+  pct: (n: number) => string;
+  dec: (n: number, dp?: number) => string;
+  guard: boolean;
+}) {
+  if (!rows.length) return null;
+  return (
+    <div className="mt-8">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        Top performing ads
+      </h3>
+      <p className="mt-0.5 text-[11px] text-zinc-400">Ranked by conversions this period.</p>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full min-w-[820px] text-sm">
+          <thead>
+            <tr className="text-[11px] text-zinc-400">
+              <th className="w-[30rem] py-1.5 pr-3 text-left font-medium">Ad</th>
+              <th className="px-2 py-1.5 text-right font-medium">Impr.</th>
+              <th className="px-2 py-1.5 text-right font-medium">Clicks</th>
+              <th className="px-2 py-1.5 text-right font-medium">CTR</th>
+              <th className="px-2 py-1.5 text-right font-medium">Conv.</th>
+              <th className="px-2 py-1.5 text-right font-medium">Cost</th>
+              {guard && <th className="px-2 py-1.5 text-right font-medium">Value</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((a, i) => (
+              <tr key={i} className="border-t border-zinc-100 align-top">
+                <td className="w-[30rem] py-2 pr-3 text-zinc-800">
+                  <div className="font-medium leading-snug break-words">{a.headline}</div>
+                  <div className="text-[11px] text-zinc-400">
+                    {a.campaign}
+                    {a.finalUrl ? ` · ${a.finalUrl}` : ""}
+                  </div>
+                </td>
+                <td className="px-2 py-2 text-right text-zinc-600">{int(a.impressions)}</td>
+                <td className="px-2 py-2 text-right text-zinc-600">{int(a.clicks)}</td>
+                <td className="px-2 py-2 text-right text-zinc-600">{pct(a.ctr)}</td>
+                <td className="px-2 py-2 text-right text-zinc-600">{dec(a.conversions)}</td>
+                <td className="px-2 py-2 text-right text-zinc-600">{money(a.cost)}</td>
+                {guard && <td className="px-2 py-2 text-right text-zinc-600">{money(a.convValue)}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AuctionInsights({
+  is,
+  pct,
+}: {
+  is: DashboardPayload["impressionShare"];
+  pct: (n: number) => string;
+}) {
+  // Search-only; nothing to show for accounts without Search impression share.
+  if (!is || is.impressionShare <= 0) return null;
+  const tiles: { label: string; value: number }[] = [
+    { label: "Search impr. share", value: is.impressionShare },
+    { label: "Abs. top IS", value: is.absoluteTop },
+    { label: "Top IS", value: is.top },
+    { label: "Lost (rank)", value: is.rankLost },
+    { label: "Lost (budget)", value: is.budgetLost },
+  ];
+  return (
+    <div className="mt-8">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        Auction insights
+      </h3>
+      <p className="mt-0.5 text-[11px] text-zinc-400">
+        Search impression-share — how often you showed, won the top slots, and where you lost share.
+      </p>
+      <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {tiles.map((t) => (
+          <div key={t.label} className="rounded-lg border border-zinc-200 p-3">
+            <div className="text-[11px] text-zinc-500">{t.label}</div>
+            <div className="mt-0.5 text-base font-semibold text-zinc-900">{pct(t.value)}</div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[11px] text-zinc-400">
+        Competitor-domain Auction Insights isn&apos;t available via the Google Ads API; this is the
+        impression-share equivalent.
+      </p>
     </div>
   );
 }

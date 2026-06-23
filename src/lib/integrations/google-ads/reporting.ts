@@ -63,6 +63,15 @@ export interface DashboardPayload {
   topSearchTerms: { term: string; spend: number; conversions: number }[];
   /** Conversions split by conversion action / type (account-wide). */
   byConversionAction: { action: string; conversions: number; convValue: number }[];
+  /** Top performing ads by conversions (with leading RSA headlines + final URL). */
+  topAds: {
+    headline: string; finalUrl: string; campaign: string;
+    impressions: number; clicks: number; ctr: number; cost: number;
+    conversions: number; convValue: number;
+  }[];
+  /** Competitive impression-share suite (Search only) — the API-available
+   *  stand-in for Auction Insights (no competitor-domain data via the API). */
+  impressionShare: { impressionShare: number; absoluteTop: number; top: number; rankLost: number; budgetLost: number };
 }
 
 const num = (v: unknown) => (typeof v === "number" ? v : Number(v ?? 0)) || 0;
@@ -180,24 +189,51 @@ async function campaignTotals(customerId: string, start: string, end: string) {
   return { spend, impressions, clicks, conversions, convValue, convByTime, convValueByTime, byName, byChannel };
 }
 
-async function searchImpressionShare(customerId: string, start: string, end: string) {
+// Competitive "auction insights" suite. NOTE: the Google Ads API does NOT
+// expose the Auction Insights report (competitor domains / overlap rate), so we
+// surface the API-available impression-share family instead — how often we
+// showed, won the top/absolute-top slots, and where we lost share (rank vs
+// budget). Search campaigns only; impression-weighted across campaigns.
+interface ImpressionShareSuite {
+  impressionShare: number;
+  absoluteTop: number;
+  top: number;
+  rankLost: number;
+  budgetLost: number;
+}
+async function impressionShareSuite(
+  customerId: string,
+  start: string,
+  end: string,
+): Promise<ImpressionShareSuite> {
   const rows = await gaqlSearch(
     customerId,
-    `SELECT metrics.impressions, metrics.search_impression_share
+    `SELECT metrics.impressions, metrics.search_impression_share,
+            metrics.search_absolute_top_impression_share, metrics.search_top_impression_share,
+            metrics.search_rank_lost_impression_share, metrics.search_budget_lost_impression_share
      FROM campaign
      WHERE segments.date BETWEEN '${start}' AND '${end}' AND ${SEARCH_FILTER}`,
   );
-  // Impression-weighted average across campaigns that report a share.
-  let weighted = 0, imprWithShare = 0;
+  const acc = { is: 0, at: 0, tp: 0, rl: 0, bl: 0, impr: 0 };
   for (const r of rows) {
     const m = (r.metrics ?? {}) as Record<string, unknown>;
-    const share = m.searchImpressionShare;
-    if (share == null) continue;
+    if (m.searchImpressionShare == null) continue;
     const impr = num(m.impressions);
-    weighted += num(share) * impr;
-    imprWithShare += impr;
+    acc.impr += impr;
+    acc.is += num(m.searchImpressionShare) * impr;
+    acc.at += num(m.searchAbsoluteTopImpressionShare) * impr;
+    acc.tp += num(m.searchTopImpressionShare) * impr;
+    acc.rl += num(m.searchRankLostImpressionShare) * impr;
+    acc.bl += num(m.searchBudgetLostImpressionShare) * impr;
   }
-  return imprWithShare > 0 ? (weighted / imprWithShare) * 100 : 0;
+  const pct = (v: number) => (acc.impr > 0 ? (v / acc.impr) * 100 : 0);
+  return {
+    impressionShare: pct(acc.is),
+    absoluteTop: pct(acc.at),
+    top: pct(acc.tp),
+    rankLost: pct(acc.rl),
+    budgetLost: pct(acc.bl),
+  };
 }
 
 // Classify one change_event into a specific, plain-English optimisation label,
@@ -410,10 +446,10 @@ async function buildDashboard(
   const timeZone = cust.timeZone ?? "Etc/UTC";
   const w = windows(timeZone, windowDays);
 
-  const [cur, prev, sis, deviceRows, trendRows, termRows, convActionRows, weekly] = await Promise.all([
+  const [cur, prev, sis, deviceRows, trendRows, termRows, convActionRows, adRows, weekly] = await Promise.all([
     campaignTotals(customerId, w.start, w.end),
     campaignTotals(customerId, w.prevStart, w.prevEnd),
-    searchImpressionShare(customerId, w.start, w.end),
+    impressionShareSuite(customerId, w.start, w.end),
     gaqlSearch(
       customerId,
       `SELECT segments.device, metrics.cost_micros, metrics.conversions
@@ -435,6 +471,17 @@ async function buildDashboard(
       customerId,
       `SELECT segments.conversion_action_name, metrics.conversions, metrics.conversions_value
        FROM campaign WHERE segments.date BETWEEN '${w.start}' AND '${w.end}' AND ${ACTIVE_FILTER}`,
+    ),
+    gaqlSearch(
+      customerId,
+      `SELECT campaign.name, ad_group_ad.ad.type, ad_group_ad.ad.name,
+              ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.final_urls,
+              metrics.impressions, metrics.clicks, metrics.cost_micros,
+              metrics.conversions, metrics.conversions_value
+       FROM ad_group_ad
+       WHERE segments.date BETWEEN '${w.start}' AND '${w.end}'
+         AND ad_group_ad.status != 'REMOVED' AND ${ACTIVE_FILTER}
+       ORDER BY metrics.conversions DESC LIMIT 10`,
     ),
     buildWeekly(customerId, timeZone),
   ]);
@@ -540,6 +587,37 @@ async function buildDashboard(
     .sort((a, b) => b.conversions - a.conversions)
     .slice(0, 10);
 
+  // Top performing ads (by conversions). RSA headlines come as an array of
+  // text assets; show the leading headlines, falling back to ad name/type.
+  const topAds = adRows.map((r) => {
+    const m = (r.metrics ?? {}) as Record<string, unknown>;
+    const ad = (((r.adGroupAd ?? {}) as Record<string, unknown>).ad ?? {}) as {
+      name?: string;
+      type?: string;
+      responsiveSearchAd?: { headlines?: { text?: string }[] };
+      finalUrls?: string[];
+    };
+    const headlines = (ad.responsiveSearchAd?.headlines ?? [])
+      .map((h) => h.text)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(" | ");
+    const headline = headlines || ad.name || prettyAdType(ad.type) || "Ad";
+    const clicks = num(m.clicks);
+    const impressions = num(m.impressions);
+    return {
+      headline,
+      finalUrl: ad.finalUrls?.[0] ?? "",
+      campaign: ((r.campaign ?? {}) as { name?: string }).name ?? "—",
+      impressions,
+      clicks,
+      ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
+      cost: micros(m.costMicros),
+      conversions: num(m.conversions),
+      convValue: num(m.conversionsValue),
+    };
+  });
+
   return {
     currency,
     timeZone,
@@ -558,7 +636,7 @@ async function buildDashboard(
       convValue: kpi(cur.convValue, prev.convValue),
       roas: kpi(ratio(cur.convValue, cur.spend), ratio(prev.convValue, prev.spend)),
       convRate: kpi(ratio(cur.conversions, cur.clicks) * 100, ratio(prev.conversions, prev.clicks) * 100),
-      searchImprShare: { value: sis, prev: 0, deltaPct: null }, // no prior IS → no delta
+      searchImprShare: { value: sis.impressionShare, prev: 0, deltaPct: null }, // no prior IS → no delta
       conversionsByTime: kpi(cur.convByTime, prev.convByTime),
       convValueByTime: kpi(cur.convValueByTime, prev.convValueByTime),
       roasByTime: kpi(ratio(cur.convValueByTime, cur.spend), ratio(prev.convValueByTime, prev.spend)),
@@ -573,6 +651,8 @@ async function buildDashboard(
     byDevice,
     topSearchTerms,
     byConversionAction,
+    topAds,
+    impressionShare: sis,
   };
 }
 
@@ -639,6 +719,15 @@ function prettyDevice(d: string): string {
     OTHER: "Other",
   };
   return map[d] ?? "Other";
+}
+
+function prettyAdType(t?: string): string {
+  if (!t) return "";
+  return t
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\bad\b/g, "ad")
+    .replace(/^\w/, (c) => c.toUpperCase());
 }
 
 /**
