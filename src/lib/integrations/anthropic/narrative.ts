@@ -190,10 +190,13 @@ One short lead-in line — that here is the Google Ads performance update for th
 <reporting period> compared to <prior period>
 
 *Performance*
-The scorecard as a compact bulleted list, one headline metric per line as "Metric: value (±X% vs prior week)". Include the core tiles in this order: Clicks, Impressions, Cost, Avg CPC, Conv., Cost / conv., Conversion rate, CTR — and, when conversion value is tracked, Revenue, ROAS and AOV. Add a "Conv. (by conversion time)" line from the By-Time figure where present. Copy every figure verbatim from the SCORECARD data.
+The scorecard as a compact bulleted list, one headline metric per line as "Metric: value (±X% vs prior week)". Include the core tiles in this order: Clicks, Impressions, Cost, Avg CPC, Conv., Cost / conv., Conversion rate, CTR — and, when conversion value is tracked, Revenue, ROAS and AOV. Then, where the By-Time figures are present, ALWAYS add these three lines (do not omit any): "Conv. (by conversion time)", "Revenue (by conversion time)", and "ROAS (by conversion time)". Copy every figure verbatim from the SCORECARD data.
 
 *Summary*
 The heart of the report — flowing analytical prose (not bullets). Lead with the headline movement and ITS ATTRIBUTION (why spend / conversions / CPA moved this week). Walk through the CPA (or cost-per-lead) and conversion-rate trends using the actual figures; when more than one channel type or labelled segment is present, add a sentence on the channel/segment mix (which drove spend and conversions). Note any standout campaign and anything being tested and why. End with a clear forward-looking line: the plan for the coming week and any recommendation or next step.
+
+*Conversions by action*
+A short standalone paragraph breaking down the week's conversions by conversion action / type, using the CONVERSIONS BY ACTION data (action name, conversion count, and value where tracked). Lead with the highest-volume actions and call out the conversion mix (e.g. which actions are primary vs secondary signals). If only one action is present, say so in a line. Omit this section entirely only if no conversion-action data is provided.
 
 *Last Week's Optimisations*
 Begin with this exact sentence, verbatim:

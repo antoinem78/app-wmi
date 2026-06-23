@@ -57,7 +57,7 @@ export function AdsDashboard({
                 w === range ? "bg-white text-[#0B1F3A]" : "text-white/70 hover:text-white"
               }`}
             >
-              {w}d
+              {w === 7 ? "Week" : `${w}d`}
             </a>
           ))}
         </div>
@@ -101,21 +101,27 @@ export function AdsDashboard({
           </div>
         </div>
 
-        {/* Breakdowns */}
-        <div className="mt-7 grid gap-6 lg:grid-cols-2">
+        {/* Campaign performance — the core grid: each metric + %Δ vs prior.
+            Promoted up and given full width so campaign names aren't truncated. */}
+        <CampaignPerformance
+          rows={payload.campaignPerformance ?? []}
+          money={money}
+          int={int}
+          dec={dec}
+          pct={pct}
+        />
+
+        {/* Secondary breakdowns stacked below — scroll for detail, not packed. */}
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <Breakdown
-            title="By campaign"
-            cols={["Campaign", "Spend", "Conv.", ...(guard ? ["ROAS"] : ["Cost/conv."])]}
-            rows={payload.byCampaign.map((c) => ({
-              label: c.name,
-              spend: c.spend,
-              cells: [
-                money(c.spend),
-                dec(c.conversions),
-                guard ? `${dec(c.roas, 2)}×` : money(c.costPerConv, 2),
-              ],
+            title="Conversions by action"
+            cols={["Action", "Conv.", ...(guard ? ["Value"] : [])]}
+            rows={(payload.byConversionAction ?? []).map((a) => ({
+              label: a.action,
+              spend: a.conversions,
+              cells: [dec(a.conversions), ...(guard ? [money(a.convValue)] : [])],
             }))}
-            maxSpend={Math.max(...payload.byCampaign.map((c) => c.spend), 1)}
+            maxSpend={Math.max(...(payload.byConversionAction ?? []).map((a) => a.conversions), 1)}
           />
           <Breakdown
             title="By device"
@@ -137,26 +143,7 @@ export function AdsDashboard({
             }))}
             maxSpend={Math.max(...payload.topSearchTerms.map((t) => t.spend), 1)}
           />
-          <Breakdown
-            title="Conversions by action"
-            cols={["Action", "Conv.", ...(guard ? ["Value"] : [])]}
-            rows={(payload.byConversionAction ?? []).map((a) => ({
-              label: a.action,
-              spend: a.conversions,
-              cells: [dec(a.conversions), ...(guard ? [money(a.convValue)] : [])],
-            }))}
-            maxSpend={Math.max(...(payload.byConversionAction ?? []).map((a) => a.conversions), 1)}
-          />
         </div>
-
-        {/* Campaign performance — Swydo-style grid: each metric + %Δ vs prior */}
-        <CampaignPerformance
-          rows={payload.campaignPerformance ?? []}
-          money={money}
-          int={int}
-          dec={dec}
-          pct={pct}
-        />
       </div>
     </section>
   );
@@ -195,10 +182,10 @@ function CampaignPerformance({
         This period with change vs the prior period.
       </p>
       <div className="mt-2 overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="w-full min-w-[900px] text-sm">
           <thead>
             <tr className="text-[11px] text-zinc-400">
-              <th className="py-1.5 pr-3 text-left font-medium">Campaign</th>
+              <th className="w-[22rem] py-1.5 pr-3 text-left font-medium">Campaign</th>
               {cols.map((c) => (
                 <th key={c.label} className="px-2 py-1.5 text-right font-medium">
                   {c.label}
@@ -209,8 +196,8 @@ function CampaignPerformance({
           <tbody>
             {rows.map((r, ri) => (
               <tr key={ri} className="border-t border-zinc-100 align-top">
-                <td className="max-w-[16rem] truncate py-2 pr-3 text-zinc-800" title={r.name}>
-                  <div className="truncate font-medium">{r.name}</div>
+                <td className="w-[22rem] py-2 pr-3 text-zinc-800">
+                  <div className="font-medium leading-snug break-words">{r.name}</div>
                   <div className="text-[11px] text-zinc-400">{r.channel}</div>
                 </td>
                 {cols.map((c) => {

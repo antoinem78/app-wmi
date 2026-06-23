@@ -86,6 +86,18 @@ const addDays = (d: Date, n: number) => {
 
 function windows(tz: string, windowDays: number) {
   const today = new Date(`${ymdInTz(new Date(), tz)}T00:00:00Z`);
+  // The "week" is always the most recent COMPLETE Monday–Sunday week (our
+  // report standard, matching Swydo), compared with the Monday–Sunday before
+  // it. Larger windows (28/90) stay rolling "last N days".
+  if (windowDays === 7) {
+    const dow = today.getUTCDay(); // 0=Sun … 6=Sat
+    const backToSunday = dow === 0 ? 7 : dow; // days back to the last completed Sunday
+    const end = addDays(today, -backToSunday); // Sunday
+    const start = addDays(end, -6); // Monday
+    const prevEnd = addDays(start, -1); // previous Sunday
+    const prevStart = addDays(prevEnd, -6); // previous Monday
+    return { start: fmt(start), end: fmt(end), prevStart: fmt(prevStart), prevEnd: fmt(prevEnd) };
+  }
   const end = addDays(today, -1); // exclude today
   const start = addDays(end, -(windowDays - 1));
   const prevEnd = addDays(start, -1);

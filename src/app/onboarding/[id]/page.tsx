@@ -100,7 +100,7 @@ export default async function OnboardingPage({
       }
     }
     return (
-      <Shell>
+      <Shell wide>
         <h1 className="text-2xl font-semibold text-zinc-900">
           {client.company_name}
         </h1>
@@ -227,16 +227,19 @@ export default async function OnboardingPage({
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
+  // The pure-dashboard view needs room (full campaign names, wide tables); the
+  // funnel/checklist stays comfortably narrow.
+  const w = wide ? "max-w-6xl" : "max-w-2xl";
   return (
     <div className="min-h-screen bg-zinc-50">
       <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto max-w-2xl px-6 py-4 text-lg">
+        <div className={`mx-auto ${w} px-6 py-4 text-lg`}>
           <Wordmark variant="dark" />
         </div>
       </header>
-      <main className="mx-auto max-w-2xl px-6 py-10">{children}</main>
-      <footer className="mx-auto max-w-2xl px-6 pb-10">
+      <main className={`mx-auto ${w} px-6 py-10`}>{children}</main>
+      <footer className={`mx-auto ${w} px-6 pb-10`}>
         <PoweredBy />
       </footer>
     </div>
