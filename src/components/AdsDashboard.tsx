@@ -148,8 +148,86 @@ export function AdsDashboard({
             maxSpend={Math.max(...(payload.byConversionAction ?? []).map((a) => a.conversions), 1)}
           />
         </div>
+
+        {/* Campaign performance — Swydo-style grid: each metric + %Δ vs prior */}
+        <CampaignPerformance
+          rows={payload.campaignPerformance ?? []}
+          money={money}
+          int={int}
+          dec={dec}
+          pct={pct}
+        />
       </div>
     </section>
+  );
+}
+
+function CampaignPerformance({
+  rows,
+  money,
+  int,
+  dec,
+  pct,
+}: {
+  rows: DashboardPayload["campaignPerformance"];
+  money: (n: number, dp?: number) => string;
+  int: (n: number) => string;
+  dec: (n: number, dp?: number) => string;
+  pct: (n: number) => string;
+}) {
+  if (!rows.length) return null;
+  const cols: { label: string; cell: (r: DashboardPayload["campaignPerformance"][number]) => { v: string; k: Kpi; cost?: boolean } }[] = [
+    { label: "Clicks", cell: (r) => ({ v: int(r.clicks.value), k: r.clicks }) },
+    { label: "Impr.", cell: (r) => ({ v: int(r.impressions.value), k: r.impressions }) },
+    { label: "CTR", cell: (r) => ({ v: pct(r.ctr.value), k: r.ctr }) },
+    { label: "Avg CPC", cell: (r) => ({ v: money(r.avgCpc.value, 2), k: r.avgCpc, cost: true }) },
+    { label: "Cost", cell: (r) => ({ v: money(r.cost.value), k: r.cost, cost: true }) },
+    { label: "Conv.", cell: (r) => ({ v: dec(r.conversions.value), k: r.conversions }) },
+    { label: "Cost / conv.", cell: (r) => ({ v: money(r.costPerConv.value, 2), k: r.costPerConv, cost: true }) },
+    { label: "Conv. rate", cell: (r) => ({ v: pct(r.convRate.value), k: r.convRate }) },
+  ];
+  return (
+    <div className="mt-8">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        Campaign performance
+      </h3>
+      <p className="mt-0.5 text-[11px] text-zinc-400">
+        This period with change vs the prior period.
+      </p>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead>
+            <tr className="text-[11px] text-zinc-400">
+              <th className="py-1.5 pr-3 text-left font-medium">Campaign</th>
+              {cols.map((c) => (
+                <th key={c.label} className="px-2 py-1.5 text-right font-medium">
+                  {c.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, ri) => (
+              <tr key={ri} className="border-t border-zinc-100 align-top">
+                <td className="max-w-[16rem] truncate py-2 pr-3 text-zinc-800" title={r.name}>
+                  <div className="truncate font-medium">{r.name}</div>
+                  <div className="text-[11px] text-zinc-400">{r.channel}</div>
+                </td>
+                {cols.map((c) => {
+                  const { v, k, cost } = c.cell(r);
+                  return (
+                    <td key={c.label} className="px-2 py-2 text-right">
+                      <div className="text-zinc-800">{v}</div>
+                      {k.deltaPct != null && <Delta deltaPct={k.deltaPct} cost={cost} />}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 

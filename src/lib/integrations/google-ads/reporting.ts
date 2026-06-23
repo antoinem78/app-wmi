@@ -53,6 +53,12 @@ export interface DashboardPayload {
   /** Per-channel-type rollup for the window (account-wide). */
   byChannel: { channel: string; spend: number; conversions: number; convValue: number; costPerConv: number; roas: number }[];
   byCampaign: { name: string; channel: string; spend: number; conversions: number; costPerConv: number; roas: number }[];
+  /** Swydo-style campaign grid: every metric with this-period value + %Δ vs prior window. */
+  campaignPerformance: {
+    name: string; channel: string;
+    clicks: Kpi; impressions: Kpi; ctr: Kpi; avgCpc: Kpi;
+    cost: Kpi; conversions: Kpi; costPerConv: Kpi; convRate: Kpi;
+  }[];
   byDevice: { device: string; spend: number; conversions: number }[];
   topSearchTerms: { term: string; spend: number; conversions: number }[];
   /** Conversions split by conversion action / type (account-wide). */
@@ -137,7 +143,7 @@ async function campaignTotals(customerId: string, start: string, end: string) {
   );
   let spend = 0, impressions = 0, clicks = 0, conversions = 0, convValue = 0;
   let convByTime = 0, convValueByTime = 0;
-  const byName: Record<string, { channel: string; spend: number; conversions: number; convValue: number }> = {};
+  const byName: Record<string, { channel: string; spend: number; impressions: number; clicks: number; conversions: number; convValue: number }> = {};
   const byChannel: Record<string, ChannelAgg> = {};
   for (const r of rows) {
     const m = (r.metrics ?? {}) as Record<string, unknown>;
@@ -152,8 +158,9 @@ async function campaignTotals(customerId: string, start: string, end: string) {
     const camp = (r.campaign ?? {}) as { name?: string; advertisingChannelType?: string };
     const name = camp.name ?? "(unnamed)";
     const channel = channelLabel(camp.advertisingChannelType);
-    byName[name] ??= { channel, spend: 0, conversions: 0, convValue: 0 };
-    byName[name].spend += c; byName[name].conversions += cn; byName[name].convValue += cv;
+    byName[name] ??= { channel, spend: 0, impressions: 0, clicks: 0, conversions: 0, convValue: 0 };
+    byName[name].spend += c; byName[name].impressions += im; byName[name].clicks += ck;
+    byName[name].conversions += cn; byName[name].convValue += cv;
     byChannel[channel] ??= { spend: 0, conversions: 0, convValue: 0, impressions: 0, clicks: 0 };
     const bc = byChannel[channel];
     bc.spend += c; bc.conversions += cn; bc.convValue += cv; bc.impressions += im; bc.clicks += ck;
@@ -471,6 +478,33 @@ async function buildDashboard(
     .sort((a, b) => b.spend - a.spend)
     .slice(0, 10);
 
+  // Swydo-style "Campaign performance" grid: every metric with this-period
+  // value + %Δ vs the prior window (joined by campaign name across cur/prev).
+  const empty = { channel: "—", spend: 0, impressions: 0, clicks: 0, conversions: 0, convValue: 0 };
+  const ctrOf = (clicks: number, impr: number) => (impr > 0 ? (clicks / impr) * 100 : 0);
+  const cvrOf = (conv: number, clicks: number) => (clicks > 0 ? (conv / clicks) * 100 : 0);
+  const campaignPerformance = Array.from(
+    new Set([...Object.keys(cur.byName), ...Object.keys(prev.byName)]),
+  )
+    .map((name) => {
+      const c = cur.byName[name] ?? empty;
+      const p = prev.byName[name] ?? empty;
+      return {
+        name,
+        channel: (cur.byName[name] ?? prev.byName[name] ?? empty).channel,
+        clicks: kpi(c.clicks, p.clicks),
+        impressions: kpi(c.impressions, p.impressions),
+        ctr: kpi(ctrOf(c.clicks, c.impressions), ctrOf(p.clicks, p.impressions)),
+        avgCpc: kpi(ratio(c.spend, c.clicks), ratio(p.spend, p.clicks)),
+        cost: kpi(c.spend, p.spend),
+        conversions: kpi(c.conversions, p.conversions),
+        costPerConv: kpi(ratio(c.spend, c.conversions), ratio(p.spend, p.conversions)),
+        convRate: kpi(cvrOf(c.conversions, c.clicks), cvrOf(p.conversions, p.clicks)),
+      };
+    })
+    .sort((a, b) => b.cost.value - a.cost.value)
+    .slice(0, 15);
+
   const topSearchTerms = termRows.map((r) => {
     const m = (r.metrics ?? {}) as Record<string, unknown>;
     return {
@@ -523,6 +557,7 @@ async function buildDashboard(
     trend,
     byChannel,
     byCampaign,
+    campaignPerformance,
     byDevice,
     topSearchTerms,
     byConversionAction,
