@@ -102,7 +102,7 @@ export function AdsDashboard({
         </div>
 
         {/* Breakdowns */}
-        <div className="mt-7 grid gap-6 lg:grid-cols-3">
+        <div className="mt-7 grid gap-6 lg:grid-cols-2">
           <Breakdown
             title="By campaign"
             cols={["Campaign", "Spend", "Conv.", ...(guard ? ["ROAS"] : ["Cost/conv."])]}
@@ -136,6 +136,16 @@ export function AdsDashboard({
               cells: [money(t.spend), dec(t.conversions)],
             }))}
             maxSpend={Math.max(...payload.topSearchTerms.map((t) => t.spend), 1)}
+          />
+          <Breakdown
+            title="Conversions by action"
+            cols={["Action", "Conv.", ...(guard ? ["Value"] : [])]}
+            rows={(payload.byConversionAction ?? []).map((a) => ({
+              label: a.action,
+              spend: a.conversions,
+              cells: [dec(a.conversions), ...(guard ? [money(a.convValue)] : [])],
+            }))}
+            maxSpend={Math.max(...(payload.byConversionAction ?? []).map((a) => a.conversions), 1)}
           />
         </div>
       </div>

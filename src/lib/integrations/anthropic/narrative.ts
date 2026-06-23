@@ -117,6 +117,14 @@ function factsBlock(
       `DEVICE SPLIT (spend): ${p.byDevice.map((d) => `${d.device} ${money(d.spend)}`).join(", ")}`,
     );
   }
+  if (p.byConversionAction?.length) {
+    lines.push(``, `CONVERSIONS BY ACTION THIS WEEK:`);
+    for (const a of p.byConversionAction.slice(0, 8)) {
+      lines.push(
+        `- ${a.action}: ${dec(a.conversions)} conversions${p.hasConversionValue ? `, ${money(a.convValue)} value` : ""}`,
+      );
+    }
+  }
 
   // Cap to the most significant changes (already count-sorted) so the LLM
   // consolidates rather than transcribing a 50-line change log.
@@ -154,6 +162,9 @@ OUTPUT — exactly this structure and order, Slack formatting (*bold* titles, "-
 Hi <client contact's first name from the data; if none, write "there">,
 
 Please review the last week report for the account.
+
+*Executive Summary:*
+2-3 sentences at the very top: how the account performed this week at a glance, the standout win(s), and whether it is trending in the right direction. Plain and high-level — NO metric dump (the figures follow below).
 
 *Date Range:* <the reporting period from the data>
 

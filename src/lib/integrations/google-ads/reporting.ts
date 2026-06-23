@@ -55,6 +55,8 @@ export interface DashboardPayload {
   byCampaign: { name: string; channel: string; spend: number; conversions: number; costPerConv: number; roas: number }[];
   byDevice: { device: string; spend: number; conversions: number }[];
   topSearchTerms: { term: string; spend: number; conversions: number }[];
+  /** Conversions split by conversion action / type (account-wide). */
+  byConversionAction: { action: string; conversions: number; convValue: number }[];
 }
 
 const num = (v: unknown) => (typeof v === "number" ? v : Number(v ?? 0)) || 0;
@@ -389,7 +391,7 @@ async function buildDashboard(
   const timeZone = cust.timeZone ?? "Etc/UTC";
   const w = windows(timeZone, windowDays);
 
-  const [cur, prev, sis, deviceRows, trendRows, termRows, weekly] = await Promise.all([
+  const [cur, prev, sis, deviceRows, trendRows, termRows, convActionRows, weekly] = await Promise.all([
     campaignTotals(customerId, w.start, w.end),
     campaignTotals(customerId, w.prevStart, w.prevEnd),
     searchImpressionShare(customerId, w.start, w.end),
@@ -409,6 +411,11 @@ async function buildDashboard(
       `SELECT search_term_view.search_term, metrics.cost_micros, metrics.conversions
        FROM search_term_view WHERE segments.date BETWEEN '${w.start}' AND '${w.end}'
        ORDER BY metrics.cost_micros DESC LIMIT 10`,
+    ),
+    gaqlSearch(
+      customerId,
+      `SELECT segments.conversion_action_name, metrics.conversions, metrics.conversions_value
+       FROM campaign WHERE segments.date BETWEEN '${w.start}' AND '${w.end}' AND ${ACTIVE_FILTER}`,
     ),
     buildWeekly(customerId, timeZone),
   ]);
@@ -473,6 +480,20 @@ async function buildDashboard(
     };
   });
 
+  // Conversions split by conversion action / type (account-wide).
+  const caMap: Record<string, { conversions: number; convValue: number }> = {};
+  for (const r of convActionRows) {
+    const action = ((r.segments ?? {}) as { conversionActionName?: string }).conversionActionName ?? "(unattributed)";
+    const m = (r.metrics ?? {}) as Record<string, unknown>;
+    caMap[action] ??= { conversions: 0, convValue: 0 };
+    caMap[action].conversions += num(m.conversions);
+    caMap[action].convValue += num(m.conversionsValue);
+  }
+  const byConversionAction = Object.entries(caMap)
+    .map(([action, v]) => ({ action, ...v }))
+    .sort((a, b) => b.conversions - a.conversions)
+    .slice(0, 10);
+
   return {
     currency,
     timeZone,
@@ -504,6 +525,7 @@ async function buildDashboard(
     byCampaign,
     byDevice,
     topSearchTerms,
+    byConversionAction,
   };
 }
 
