@@ -37,14 +37,35 @@ function factsBlock(
   const w = p.weekly;
   const k = p.kpis;
 
+  // Prior comparison window (the 7 days immediately before this one) — Swydo
+  // titles every report "<period> compared to <prior period>".
+  const day = 86_400_000;
+  const startMs = new Date(`${w.start}T00:00:00Z`).getTime();
+  const endMs = new Date(`${w.end}T00:00:00Z`).getTime();
+  const priorEndMs = startMs - day;
+  const priorStartMs = priorEndMs - 6 * day;
+  // "Jun 8 – 14, 2026" (same month/year collapses the repeated parts) to match Swydo.
+  const mon = (ms: number) =>
+    new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short" }).format(new Date(ms));
+  const prettyRange = (sMs: number, eMs: number) => {
+    const s = new Date(sMs), e = new Date(eMs);
+    const sd = s.getUTCDate(), ed = e.getUTCDate();
+    const sy = s.getUTCFullYear(), ey = e.getUTCFullYear();
+    if (sy === ey && s.getUTCMonth() === e.getUTCMonth())
+      return `${mon(sMs)} ${sd} – ${ed}, ${ey}`;
+    if (sy === ey) return `${mon(sMs)} ${sd} – ${mon(eMs)} ${ed}, ${ey}`;
+    return `${mon(sMs)} ${sd}, ${sy} – ${mon(eMs)} ${ed}, ${ey}`;
+  };
+  const thisRange = prettyRange(startMs, endMs);
+  const priorRange = prettyRange(priorStartMs, priorEndMs);
+
   const lines: string[] = [
-    `Account: ${companyName}`,
-    `Client contact (for the greeting): ${contactName || `(none — use "Hi there")`}`,
+    `Account / report title: ${companyName} Google Ads Report`,
     `Currency: ${p.currency}`,
-    `Reporting period: ${w.start} to ${w.end} (the last 7 days), compared with the 7 days before it.`,
+    `Reporting period (use these EXACT strings in the title line): "${thisRange}" compared to "${priorRange}" (the prior 7 days, which every figure below is compared against).`,
     `Scope: ALL campaign types (account-wide) — Search, Performance Max, Demand Gen, Shopping, Display, Video. Removed campaigns excluded.`,
     ``,
-    `STATS — THIS WEEK (vs prior week). Quote these verbatim, label: value (change):`,
+    `SCORECARD — THIS WEEK (vs prior week). Quote these verbatim, label: value (change):`,
     `- Impressions: ${dec(k.impressions.value, 0)} (${deltaPhrase(k.impressions)})`,
     `- Clicks: ${dec(k.clicks.value, 0)} (${deltaPhrase(k.clicks)})`,
     `- CTR: ${dec(k.ctr.value)}% (${deltaPhrase(k.ctr)})`,
@@ -143,9 +164,9 @@ function factsBlock(
 }
 
 const SYSTEM = (brand: string) =>
-  `You are a senior paid-media account manager at ${brand}, writing the weekly performance update that goes to a client. Match this house format exactly.
+  `You are a senior paid-media account manager at ${brand}, writing the weekly Google Ads report a client receives. Produce it in our standard report format, which mirrors our Swydo reports.
 
-Voice: warm, professional, specific — an experienced human analyst. Plain language a business owner understands.
+Voice: professional, analytical, specific — an experienced human analyst. Plain language a business owner understands. This is a REPORT, not an email: no greeting ("Hi …"), no "Please review", no sign-off.
 
 HARD RULES:
 - Use ONLY the figures in the DATA block. Never invent, estimate, or recompute any number, %, campaign name, or metric. Quote every figure exactly as given (same currency, rounding, sign).
@@ -153,33 +174,28 @@ HARD RULES:
 - "Search impression share" and "top search terms" are SEARCH-ONLY — only discuss them for Search.
 - Two conversion bases are given: standard (interaction/click date) and "By Time" (conversion date). Show both where present; don't conflate them.
 - If conversion value is not tracked, omit Revenue, ROAS and AOV entirely.
-- Optimisations: describe ONLY the logged changes, using the exact entity wording given (e.g. "product groups added", "asset groups added", "keywords added"). A brief conservative rationale and the campaign name are fine; never claim a specific result or number not in the data.
+- Optimisations: describe ONLY the logged changes, using the exact entity wording given (e.g. "product groups added", "asset groups added", "keywords added"). Never state a specific old→new budget or Target-CPA value unless that exact figure appears in the data.
+- Do NOT invent month-to-date spend, monthly targets, or budget-pacing claims — we do not have those figures.
 - Keep it grounded — if a week is quiet, keep it short; don't pad or invent.
 - This is a DRAFT a human reviews and may edit before it reaches the client.
 
-OUTPUT — exactly this structure and order, Slack formatting (*bold* titles, "- " bullets), no markdown headers (#), no tables:
+OUTPUT — exactly this structure and order. Slack formatting (*bold* titles, "- " bullets), no markdown headers (#), no tables:
 
-Hi <client contact's first name from the data; if none, write "there">,
+*<Account> Google Ads Report*
+<reporting period> compared to <prior period>
 
-Please review the last week report for the account.
+*Performance*
+The scorecard as a compact bulleted list, one headline metric per line as "Metric: value (±X% vs prior week)". Include the core tiles in this order: Clicks, Impressions, Cost, Avg CPC, Conv., Cost / conv., Conversion rate, CTR — and, when conversion value is tracked, Revenue, ROAS and AOV. Add a "Conv. (by conversion time)" line from the By-Time figure where present. Copy every figure verbatim from the SCORECARD data.
 
-*Executive Summary:*
-2-3 sentences at the very top: how the account performed this week at a glance, the standout win(s), and whether it is trending in the right direction. Plain and high-level — NO metric dump (the figures follow below).
+*Summary*
+The heart of the report — flowing analytical prose (not bullets). Lead with the headline movement and ITS ATTRIBUTION (why spend / conversions / CPA moved this week). Walk through the CPA (or cost-per-lead) and conversion-rate trends using the actual figures; when more than one channel type or labelled segment is present, add a sentence on the channel/segment mix (which drove spend and conversions). Note any standout campaign and anything being tested and why. End with a clear forward-looking line: the plan for the coming week and any recommendation or next step.
 
-*Date Range:* <the reporting period from the data>
+*Last Week's Optimisations*
+Begin with this exact sentence, verbatim:
+"Regular account optimisations including bid management, adding new keywords from search terms, adding new negative keywords, resolving ad split tests, creating new ads for split-testing purposes, improving underperforming assets, creating new ad groups for top converting search terms."
+Then a first-person bulleted list ("I have …") of the specific logged changes from the change log, using the exact entity wording and campaign names given — one bullet per distinct change type/campaign. If nothing was logged, say so in one line.
 
-*Google Ads Stats:*
-A bulleted list of the STATS figures (plus the Revenue / ROAS / AOV / By-Time figures when present), copied verbatim as "Label: value (change)".
-
-*Google Ads Summary:*
-One short prose paragraph walking through the week-on-week movements and what they mean. When more than one channel type is present, add a sentence on the channel mix (which channels drove spend / conversions).
-
-*Google Ads Optimisation:*
-A bulleted list turning the change log into clear client-facing sentences — one per distinct change type/campaign, using the exact entity wording. If nothing was logged, say so in one line.
-
-End with one short closing line — that you'll keep monitoring and optimising and to reach out with any questions — then a brief sign-off.
-
-Write the update now.`;
+Write the report now.`;
 
 export async function generateNarrative(
   payload: DashboardPayload,
