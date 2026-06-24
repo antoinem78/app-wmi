@@ -262,6 +262,44 @@ export async function resumeClientSubscription(clientId: string): Promise<void> 
   revalidatePath(`/clients/${clientId}`);
 }
 
+// Manually mark a client as paid when they pay OUTSIDE Stripe (bank transfer
+// against a Xero invoice). Sets the exact same flags the Stripe success path
+// sets (finalizeFromCheckoutSession), so the onboarding flow unlocks
+// identically — no Stripe involved. Admin-only; records method + reference.
+export async function markPaidManually(formData: FormData): Promise<void> {
+  const { email: adminEmail } = await requireAgencyAdmin();
+  const clientId = String(formData.get("client_id") ?? "").trim();
+  const reference = String(formData.get("reference") ?? "").trim();
+  if (!clientId) throw new Error("Missing client id.");
+
+  const supabase = createSupabaseAdminClient();
+  const { data: state } = await supabase
+    .from("onboarding_state")
+    .select("payment_status")
+    .eq("client_id", clientId)
+    .single();
+  // Already paid (e.g. via Stripe) — don't double-record or reset the step.
+  if (state?.payment_status === "paid") {
+    revalidatePath(`/clients/${clientId}`);
+    return;
+  }
+
+  const { error } = await supabase
+    .from("onboarding_state")
+    .update({ payment_status: "paid", current_step: "complete" })
+    .eq("client_id", clientId);
+  if (error) throw new Error(error.message);
+
+  await logActivity({
+    clientId,
+    eventType: "payment_marked_manual",
+    actor: `admin:${adminEmail}`,
+    payload: { method: "bank_transfer", reference: reference || null },
+  });
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath(`/onboarding/${clientId}`);
+}
+
 // Permanently delete a client and everything keyed to it (onboarding_state,
 // activity_log, ads_report_cache, weekly_reports all cascade on delete). Admin
 // only. Does NOT cancel any Stripe subscription — that's a separate action.

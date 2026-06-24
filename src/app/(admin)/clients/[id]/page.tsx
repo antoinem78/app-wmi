@@ -16,6 +16,7 @@ import {
   deleteClient,
   cancelClientSubscription,
   resumeClientSubscription,
+  markPaidManually,
 } from "../actions";
 import {
   getDashboard,
@@ -232,6 +233,36 @@ export default async function ClientDetailPage({
               </li>
             ))}
           </ul>
+
+          {state?.payment_status !== "paid" && (
+            <form
+              action={markPaidManually}
+              className="mt-5 rounded-lg border border-amber-200 bg-amber-50/60 p-4"
+            >
+              <input type="hidden" name="client_id" value={id} />
+              <div className="text-xs font-semibold text-amber-900">
+                Paid by bank transfer?
+              </div>
+              <p className="mt-1 text-xs text-amber-800/80">
+                Use this only when the client pays off-Stripe (e.g. against a Xero
+                invoice). It unlocks the rest of onboarding immediately.
+              </p>
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="text"
+                  name="reference"
+                  placeholder="Invoice / reference (optional)"
+                  className="flex-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs text-zinc-700 placeholder:text-zinc-400"
+                />
+                <ConfirmSubmitButton
+                  message="Mark this client as paid by bank transfer? This unlocks the rest of onboarding."
+                  className="shrink-0 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
+                >
+                  Mark as paid
+                </ConfirmSubmitButton>
+              </div>
+            </form>
+          )}
 
           <div className="mt-6">
             <div className="mb-1 text-xs font-medium text-zinc-500">Onboarding link</div>
