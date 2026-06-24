@@ -84,6 +84,12 @@ export default async function ClientDetailPage({
   const onboardingUrl = `${proto}://${host}/onboarding/${id}`;
 
   const price = client.custom_monthly_price ?? null;
+  // Default the manual-payment "contract start" to the 1st of next month (the
+  // common "clean start" case); the admin can override it.
+  const now = new Date();
+  const firstOfNextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
+    .toISOString()
+    .slice(0, 10);
   const questionnaire =
     (state?.questionnaire_data as Record<string, unknown> | null) ?? null;
   const hasAnswers =
@@ -162,6 +168,9 @@ export default async function ClientDetailPage({
                 <Row label="Monthly" value={`${formatMoney(price)}/mo`} />
                 <Row label="Billing" value="Monthly rolling (31-day notice)" />
               </>
+            )}
+            {state?.service_start_date && (
+              <Row label="Contract start" value={state.service_start_date} />
             )}
             {state?.slack_invite_email && (
               <Row label="Slack invite" value={state.slack_invite_email} />
@@ -247,13 +256,34 @@ export default async function ClientDetailPage({
                 Use this only when the client pays off-Stripe (e.g. against a Xero
                 invoice). It unlocks the rest of onboarding immediately.
               </p>
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="text"
-                  name="reference"
-                  placeholder="Invoice / reference (optional)"
-                  className="flex-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs text-zinc-700 placeholder:text-zinc-400"
-                />
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-[11px] font-medium text-amber-900">
+                    Contract start date
+                  </span>
+                  <input
+                    type="date"
+                    name="start_date"
+                    defaultValue={firstOfNextMonth}
+                    className="mt-1 w-full rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs text-zinc-700"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-amber-900">
+                    Invoice / reference
+                  </span>
+                  <input
+                    type="text"
+                    name="reference"
+                    placeholder="Optional"
+                    className="mt-1 w-full rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs text-zinc-700 placeholder:text-zinc-400"
+                  />
+                </label>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span className="text-[11px] text-amber-800/70">
+                  Leave the date blank to start today.
+                </span>
                 <ConfirmSubmitButton
                   message="Mark this client as paid by bank transfer? This unlocks the rest of onboarding."
                   className="shrink-0 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"

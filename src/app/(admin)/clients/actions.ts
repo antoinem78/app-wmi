@@ -270,7 +270,18 @@ export async function markPaidManually(formData: FormData): Promise<void> {
   const { email: adminEmail } = await requireAgencyAdmin();
   const clientId = String(formData.get("client_id") ?? "").trim();
   const reference = String(formData.get("reference") ?? "").trim();
+  const startDateRaw = String(formData.get("start_date") ?? "").trim();
   if (!clientId) throw new Error("Missing client id.");
+
+  // Optional contract start date (YYYY-MM-DD). Blank → term starts today (the
+  // payment/mark-paid date). Validated to avoid storing junk.
+  let serviceStartDate: string | null = null;
+  if (startDateRaw) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateRaw) || Number.isNaN(Date.parse(startDateRaw))) {
+      throw new Error("Contract start date must be a valid date (YYYY-MM-DD).");
+    }
+    serviceStartDate = startDateRaw;
+  }
 
   const supabase = createSupabaseAdminClient();
   const { data: state } = await supabase
@@ -286,7 +297,11 @@ export async function markPaidManually(formData: FormData): Promise<void> {
 
   const { error } = await supabase
     .from("onboarding_state")
-    .update({ payment_status: "paid", current_step: "complete" })
+    .update({
+      payment_status: "paid",
+      current_step: "complete",
+      service_start_date: serviceStartDate,
+    })
     .eq("client_id", clientId);
   if (error) throw new Error(error.message);
 
@@ -294,7 +309,11 @@ export async function markPaidManually(formData: FormData): Promise<void> {
     clientId,
     eventType: "payment_marked_manual",
     actor: `admin:${adminEmail}`,
-    payload: { method: "bank_transfer", reference: reference || null },
+    payload: {
+      method: "bank_transfer",
+      reference: reference || null,
+      service_start_date: serviceStartDate,
+    },
   });
   revalidatePath(`/clients/${clientId}`);
   revalidatePath(`/onboarding/${clientId}`);
