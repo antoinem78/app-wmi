@@ -117,6 +117,9 @@ export function AdsDashboard({
         {/* Auction insights (impression-share suite — API stand-in) */}
         <AuctionInsights is={payload.impressionShare} pct={pct} />
 
+        {/* Month performance — last ~6 calendar months */}
+        <MonthPerformance rows={payload.monthPerformance ?? []} money={money} int={int} dec={dec} pct={pct} />
+
         {/* Secondary breakdowns stacked below — scroll for detail, not packed. */}
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <Breakdown
@@ -275,6 +278,60 @@ function TopAds({
                 <td className="px-2 py-2 text-right text-zinc-600">{dec(a.conversions)}</td>
                 <td className="px-2 py-2 text-right text-zinc-600">{money(a.cost)}</td>
                 {guard && <td className="px-2 py-2 text-right text-zinc-600">{money(a.convValue)}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function MonthPerformance({
+  rows,
+  money,
+  int,
+  dec,
+  pct,
+}: {
+  rows: DashboardPayload["monthPerformance"];
+  money: (n: number, dp?: number) => string;
+  int: (n: number) => string;
+  dec: (n: number, dp?: number) => string;
+  pct: (n: number) => string;
+}) {
+  if (!rows.length) return null;
+  return (
+    <div className="mt-8">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        Month performance
+      </h3>
+      <p className="mt-0.5 text-[11px] text-zinc-400">Last 6 months (current month to date).</p>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead>
+            <tr className="text-[11px] text-zinc-400">
+              <th className="py-1.5 pr-3 text-left font-medium">Month</th>
+              <th className="px-2 py-1.5 text-right font-medium">Clicks</th>
+              <th className="px-2 py-1.5 text-right font-medium">Impr.</th>
+              <th className="px-2 py-1.5 text-right font-medium">CTR</th>
+              <th className="px-2 py-1.5 text-right font-medium">Avg CPC</th>
+              <th className="px-2 py-1.5 text-right font-medium">Cost</th>
+              <th className="px-2 py-1.5 text-right font-medium">Conv.</th>
+              <th className="px-2 py-1.5 text-right font-medium">Cost / conv.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((m, i) => (
+              <tr key={i} className="border-t border-zinc-100">
+                <td className="py-2 pr-3 font-medium text-zinc-800">{m.month}</td>
+                <td className="px-2 py-2 text-right text-zinc-600">{int(m.clicks)}</td>
+                <td className="px-2 py-2 text-right text-zinc-600">{int(m.impressions)}</td>
+                <td className="px-2 py-2 text-right text-zinc-600">{pct(m.ctr)}</td>
+                <td className="px-2 py-2 text-right text-zinc-600">{money(m.avgCpc, 2)}</td>
+                <td className="px-2 py-2 text-right text-zinc-600">{money(m.cost)}</td>
+                <td className="px-2 py-2 text-right text-zinc-600">{dec(m.conversions)}</td>
+                <td className="px-2 py-2 text-right text-zinc-600">{money(m.costPerConv, 2)}</td>
               </tr>
             ))}
           </tbody>

@@ -72,6 +72,11 @@ export interface DashboardPayload {
   /** Competitive impression-share suite (Search only) — the API-available
    *  stand-in for Auction Insights (no competitor-domain data via the API). */
   impressionShare: { impressionShare: number; absoluteTop: number; top: number; rankLost: number; budgetLost: number };
+  /** Last ~6 calendar months (most recent first), account-wide. */
+  monthPerformance: {
+    month: string; clicks: number; impressions: number; ctr: number;
+    avgCpc: number; cost: number; conversions: number; costPerConv: number;
+  }[];
 }
 
 const num = (v: unknown) => (typeof v === "number" ? v : Number(v ?? 0)) || 0;
@@ -446,7 +451,13 @@ async function buildDashboard(
   const timeZone = cust.timeZone ?? "Etc/UTC";
   const w = windows(timeZone, windowDays);
 
-  const [cur, prev, sis, deviceRows, trendRows, termRows, convActionRows, adRows, weekly] = await Promise.all([
+  // Month performance: the last 6 calendar months (incl. the current partial
+  // month), independent of the selected window — matches the Swydo reports.
+  const todayTz = new Date(`${ymdInTz(new Date(), timeZone)}T00:00:00Z`);
+  const monthEnd = addDays(todayTz, -1); // exclude today
+  const monthStart = new Date(Date.UTC(todayTz.getUTCFullYear(), todayTz.getUTCMonth() - 5, 1));
+
+  const [cur, prev, sis, deviceRows, trendRows, termRows, convActionRows, adRows, monthRows, weekly] = await Promise.all([
     campaignTotals(customerId, w.start, w.end),
     campaignTotals(customerId, w.prevStart, w.prevEnd),
     impressionShareSuite(customerId, w.start, w.end),
@@ -482,6 +493,13 @@ async function buildDashboard(
        WHERE segments.date BETWEEN '${w.start}' AND '${w.end}'
          AND ad_group_ad.status != 'REMOVED' AND ${ACTIVE_FILTER}
        ORDER BY metrics.conversions DESC LIMIT 10`,
+    ),
+    gaqlSearch(
+      customerId,
+      `SELECT segments.month, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions
+       FROM campaign
+       WHERE segments.date BETWEEN '${fmt(monthStart)}' AND '${fmt(monthEnd)}' AND ${ACTIVE_FILTER}
+       ORDER BY segments.month`,
     ),
     buildWeekly(customerId, timeZone),
   ]);
@@ -618,6 +636,35 @@ async function buildDashboard(
     };
   });
 
+  // Month performance — aggregate per calendar month, most recent first.
+  const monthMap: Record<string, { impressions: number; clicks: number; cost: number; conversions: number }> = {};
+  for (const r of monthRows) {
+    const key = ((r.segments ?? {}) as { month?: string }).month ?? "";
+    if (!key) continue;
+    const m = (r.metrics ?? {}) as Record<string, unknown>;
+    monthMap[key] ??= { impressions: 0, clicks: 0, cost: 0, conversions: 0 };
+    monthMap[key].impressions += num(m.impressions);
+    monthMap[key].clicks += num(m.clicks);
+    monthMap[key].cost += micros(m.costMicros);
+    monthMap[key].conversions += num(m.conversions);
+  }
+  const monthLabel = (key: string) =>
+    new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", year: "numeric" }).format(
+      new Date(`${key}T00:00:00Z`),
+    );
+  const monthPerformance = Object.entries(monthMap)
+    .sort(([a], [b]) => b.localeCompare(a)) // most recent month first
+    .map(([key, v]) => ({
+      month: monthLabel(key),
+      clicks: v.clicks,
+      impressions: v.impressions,
+      ctr: v.impressions > 0 ? (v.clicks / v.impressions) * 100 : 0,
+      avgCpc: ratio(v.cost, v.clicks),
+      cost: v.cost,
+      conversions: v.conversions,
+      costPerConv: ratio(v.cost, v.conversions),
+    }));
+
   return {
     currency,
     timeZone,
@@ -653,6 +700,7 @@ async function buildDashboard(
     byConversionAction,
     topAds,
     impressionShare: sis,
+    monthPerformance,
   };
 }
 
