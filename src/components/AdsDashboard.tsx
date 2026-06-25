@@ -94,10 +94,10 @@ export function AdsDashboard({
           <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
             Daily spend &amp; conversions
           </h3>
-          <TrendChart trend={payload.trend} />
+          <TrendChart trend={payload.trend} currency={payload.currency} />
           <div className="mt-2 flex gap-4 text-xs text-zinc-500">
-            <Legend color="#0B1F3A" label={`Spend (${payload.currency})`} />
-            <Legend color="#10b981" label="Conversions" />
+            <Legend color="#0B1F3A" label={`Spend (${payload.currency}) — line, left axis`} />
+            <Legend color="#10b981" label="Conversions/day — bars, right axis" />
           </div>
         </div>
 
@@ -493,39 +493,98 @@ function Legend({ color, label }: { color: string; label: string }) {
   );
 }
 
-function TrendChart({ trend }: { trend: { date: string; spend: number; conversions: number }[] }) {
+// Round a max up to a "nice" axis ceiling (1/2/2.5/5/10 × 10^n) for readable ticks.
+function niceMax(v: number): number {
+  if (v <= 0) return 1;
+  const exp = Math.floor(Math.log10(v));
+  const base = 10 ** exp;
+  const f = v / base;
+  const nice = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
+  return nice * base;
+}
+
+function TrendChart({
+  trend,
+  currency,
+}: {
+  trend: { date: string; spend: number; conversions: number }[];
+  currency: string;
+}) {
   if (trend.length < 2) {
     return <p className="mt-2 text-sm text-zinc-400">Not enough data to chart yet.</p>;
   }
-  const W = 760, H = 180, P = 10;
-  const maxSpend = Math.max(...trend.map((t) => t.spend), 1);
-  const maxConv = Math.max(...trend.map((t) => t.conversions), 1);
-  const x = (i: number) => P + (i * (W - 2 * P)) / (trend.length - 1);
-  const ys = (v: number) => H - P - (v / maxSpend) * (H - 2 * P);
-  const yc = (v: number) => H - P - (v / maxConv) * (H - 2 * P);
-  const spendPts = trend.map((t, i) => `${x(i)},${ys(t.spend)}`).join(" ");
-  const convPts = trend.map((t, i) => `${x(i)},${yc(t.conversions)}`).join(" ");
-  const area = `${P},${H - P} ${spendPts} ${x(trend.length - 1)},${H - P}`;
+  const W = 760, H = 240;
+  const mL = 56, mR = 48, mT = 14, mB = 30; // margins for the two y-axes + x labels
+  const x0 = mL, x1 = W - mR, y0 = mT, y1 = H - mB;
+  const n = trend.length;
+  const band = (x1 - x0) / n;
+  const gap = Math.min(6, band * 0.18);
+
+  const maxSpend = niceMax(Math.max(...trend.map((t) => t.spend), 0));
+  const maxConv = niceMax(Math.max(...trend.map((t) => t.conversions), 0));
+  const ySpend = (v: number) => y1 - (v / maxSpend) * (y1 - y0);
+  const yConv = (v: number) => y1 - (v / maxConv) * (y1 - y0);
+  const cx = (i: number) => x0 + i * band + band / 2;
+
+  const ticks = [0, 0.25, 0.5, 0.75, 1];
+  const money = (v: number) =>
+    new Intl.NumberFormat("en", { style: "currency", currency, notation: "compact", maximumFractionDigits: 1 }).format(v);
+  const numc = (v: number) =>
+    new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(v);
+  const spendLine = trend.map((t, i) => `${cx(i)},${ySpend(t.spend)}`).join(" ");
+
+  // X labels: all dates when few, else ~6 evenly spaced. Show as MM-DD.
+  const step = Math.max(1, Math.round(n / 6));
+  const showLabel = (i: number) => n <= 8 || i % step === 0 || i === n - 1;
+
   return (
     <div className="mt-2">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="spendFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0B1F3A" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#0B1F3A" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {[0.25, 0.5, 0.75].map((g) => (
-          <line key={g} x1={P} x2={W - P} y1={P + g * (H - 2 * P)} y2={P + g * (H - 2 * P)} stroke="#f1f5f9" strokeWidth="1" />
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Daily spend and conversions">
+        {/* gridlines + dual y-axis scales */}
+        {ticks.map((f) => {
+          const y = y1 - f * (y1 - y0);
+          return (
+            <g key={f}>
+              <line x1={x0} x2={x1} y1={y} y2={y} stroke="#f1f5f9" strokeWidth="1" />
+              <text x={x0 - 6} y={y + 3} textAnchor="end" fontSize="10" fill="#0B1F3A">
+                {money(f * maxSpend)}
+              </text>
+              <text x={x1 + 6} y={y + 3} textAnchor="start" fontSize="10" fill="#10b981">
+                {numc(f * maxConv)}
+              </text>
+            </g>
+          );
+        })}
+        {/* conversions/day as bars (right axis) */}
+        {trend.map((t, i) => {
+          const y = yConv(t.conversions);
+          return (
+            <rect
+              key={i}
+              x={x0 + i * band + gap}
+              y={y}
+              width={Math.max(1, band - 2 * gap)}
+              height={Math.max(0, y1 - y)}
+              fill="#10b981"
+              opacity="0.85"
+              rx="1.5"
+            />
+          );
+        })}
+        {/* spend as a line (left axis) */}
+        <polyline fill="none" stroke="#0B1F3A" strokeWidth="2.5" points={spendLine} />
+        {trend.map((t, i) => (
+          <circle key={i} cx={cx(i)} cy={ySpend(t.spend)} r="2.5" fill="#0B1F3A" />
         ))}
-        <polygon points={area} fill="url(#spendFill)" />
-        <polyline fill="none" stroke="#0B1F3A" strokeWidth="2.5" points={spendPts} />
-        <polyline fill="none" stroke="#10b981" strokeWidth="2" strokeDasharray="1 0" points={convPts} />
+        {/* x-axis date labels */}
+        {trend.map((t, i) =>
+          showLabel(i) ? (
+            <text key={i} x={cx(i)} y={H - 10} textAnchor="middle" fontSize="10" fill="#a1a1aa">
+              {t.date.slice(5)}
+            </text>
+          ) : null,
+        )}
       </svg>
-      <div className="mt-1 flex justify-between text-[10px] text-zinc-400">
-        <span>{trend[0].date}</span>
-        <span>{trend[trend.length - 1].date}</span>
-      </div>
     </div>
   );
 }

@@ -178,6 +178,7 @@ HARD RULES:
 - Optimisations: describe ONLY the logged changes, using the exact entity wording given (e.g. "product groups added", "asset groups added", "keywords added"). Never state a specific old→new budget or Target-CPA value unless that exact figure appears in the data.
 - Do NOT invent month-to-date spend, monthly targets, or budget-pacing claims — we do not have those figures.
 - Keep it grounded — if a week is quiet, keep it short; don't pad or invent.
+- The "A note from your account manager" placeholder must be emitted as the exact literal bracketed text given — NEVER fill it in, paraphrase it, or invent manual context for it. It is for the human reviewer.
 - This is a DRAFT a human reviews and may edit before it reaches the client.
 
 OUTPUT — exactly this structure and order. Slack formatting (*bold* titles, "- " bullets), no markdown headers (#), no tables:
@@ -202,6 +203,10 @@ A short standalone paragraph breaking down the week's conversions by conversion 
 Begin with this exact sentence, verbatim:
 "Regular account optimisations including bid management, adding new keywords from search terms, adding new negative keywords, resolving ad split tests, creating new ads for split-testing purposes, improving underperforming assets, creating new ad groups for top converting search terms."
 Then a first-person bulleted list ("I have …") of the specific logged changes from the change log, using the exact entity wording and campaign names given — one bullet per distinct change type/campaign. If nothing was logged, say so in one line.
+
+*A note from your account manager:*
+Output the following line EXACTLY as written, as a placeholder for the human reviewer to fill in or delete before sending — do NOT write your own content here, do NOT invent context, budget changes, or forward plans:
+[Account manager — add any manual context here before sending: budget changes you made this week, what to expect next week, anything the data can't show. Delete this line if not needed.]
 
 Close with one short warm line — that you'll keep monitoring and optimising, that the full visual report is on their dashboard, and to reach out with any questions — then a brief sign-off (e.g. "Best regards," on its own line followed by "The ${brand} Team").
 

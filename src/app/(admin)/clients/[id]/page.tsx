@@ -28,8 +28,9 @@ import { AdsDashboard } from "@/components/AdsDashboard";
 export const dynamic = "force-dynamic";
 
 function parseRange(raw: string | undefined): ReportWindow {
+  // Weekly report tool → default to the Mon–Sun week; 28/90 only when asked.
   const n = Number(raw);
-  return n === 7 || n === 90 ? n : 28;
+  return n === 28 || n === 90 ? n : 7;
 }
 
 const QUESTION_LABELS: Record<string, string> = {

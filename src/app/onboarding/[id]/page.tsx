@@ -36,8 +36,9 @@ import { getDashboard, type DashboardPayload, type ReportWindow } from "@/lib/in
 import { AdsDashboard } from "@/components/AdsDashboard";
 
 function parseRange(raw: string | undefined): ReportWindow {
+  // Weekly report tool → default to the Mon–Sun week; 28/90 only when asked.
   const n = Number(raw);
-  return n === 7 || n === 90 ? n : 28;
+  return n === 28 || n === 90 ? n : 7;
 }
 import { finalizeFromCheckoutSession } from "@/lib/integrations/stripe";
 import {
