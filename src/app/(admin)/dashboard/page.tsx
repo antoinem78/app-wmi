@@ -7,6 +7,7 @@ import { entityConfig } from "@/lib/config";
 import { getCommandCenter, type AccountRow, type Alert } from "@/lib/command-center";
 import type { Kpi } from "@/lib/integrations/google-ads/reporting";
 import { CommandChat } from "@/components/CommandChat";
+import { GenerateAuditButton } from "@/components/GenerateAuditButton";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -136,7 +137,12 @@ export default async function DashboardPage() {
                     <td className="px-3 py-3 text-right">
                       {s && s.hasConversionValue ? <><div className="text-zinc-800">{dec(s.roas.value, 2)}×</div><Delta k={s.roas} /></> : <span className="text-zinc-300">—</span>}
                     </td>
-                    <td className="px-5 py-3 text-right"><HealthPill status={a.status} /></td>
+                    <td className="px-5 py-3 text-right">
+                      <div className="flex flex-col items-end gap-1.5">
+                        <HealthPill status={a.status} />
+                        {a.summary && <GenerateAuditButton clientId={a.clientId} compact />}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}

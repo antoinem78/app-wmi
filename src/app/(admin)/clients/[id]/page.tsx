@@ -24,6 +24,7 @@ import {
   type ReportWindow,
 } from "@/lib/integrations/google-ads/reporting";
 import { AdsDashboard } from "@/components/AdsDashboard";
+import { GenerateAuditButton } from "@/components/GenerateAuditButton";
 
 export const dynamic = "force-dynamic";
 
@@ -319,9 +320,12 @@ export default async function ClientDetailPage({
             <h2 className="text-sm font-semibold text-zinc-900">
               Google Ads linking
             </h2>
-            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600">
-              {state.ad_link_status}
-            </span>
+            <div className="flex items-center gap-3">
+              {state.ad_link_status === "approved" && <GenerateAuditButton clientId={id} />}
+              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600">
+                {state.ad_link_status}
+              </span>
+            </div>
           </div>
           <dl className="mt-4 space-y-2 text-sm">
             <Row label="Customer ID" value={state.google_ads_customer_id} />
