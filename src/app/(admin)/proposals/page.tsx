@@ -58,12 +58,7 @@ export default async function ProposalsPage() {
         {writesOn ? (
           <><span className="font-semibold">Write mode: ENABLED</span> · {allowN} account{allowN === 1 ? "" : "s"} allowlisted · approved executable proposals can be applied (validate-only first).</>
         ) : (
-          <>
-            <span className="font-semibold">Write mode: OFF (propose-only)</span> · approving records your decision; you apply changes in Google Ads. Set <code>GOOGLE_ADS_WRITE_ENABLED=true</code> + allowlist to enable controlled execution.
-            <div className="mt-1 text-[11px] text-amber-700/80">
-              diagnostic · GOOGLE_ADS_WRITE_ENABLED = &quot;{process.env.GOOGLE_ADS_WRITE_ENABLED ?? "(unset)"}&quot; · equals&nbsp;&quot;true&quot;: {String(process.env.GOOGLE_ADS_WRITE_ENABLED === "true")} · allowlisted customers: {allowN} · campaigns: {process.env.GOOGLE_ADS_WRITE_CAMPAIGNS ? process.env.GOOGLE_ADS_WRITE_CAMPAIGNS.split(",").length : 0}
-            </div>
-          </>
+          <><span className="font-semibold">Write mode: OFF (propose-only)</span> · approving records your decision; you apply changes in Google Ads. Set <code>GOOGLE_ADS_WRITE_ENABLED=true</code> + allowlist to enable controlled execution.</>
         )}
       </div>
 

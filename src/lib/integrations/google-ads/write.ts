@@ -13,9 +13,9 @@ const norm = (id: string) => id.replace(/[^0-9]/g, "");
 const list = (v: string | undefined) =>
   new Set((v ?? "").split(",").map((s) => norm(s.trim())).filter(Boolean));
 
-/** Kill switch — must be exactly "true". */
+/** Kill switch — accepts true/True/TRUE (case- and whitespace-insensitive). */
 export function writeEnabled(): boolean {
-  return process.env.GOOGLE_ADS_WRITE_ENABLED === "true";
+  return (process.env.GOOGLE_ADS_WRITE_ENABLED ?? "").trim().toLowerCase() === "true";
 }
 export function allowedCustomers(): Set<string> {
   return list(process.env.GOOGLE_ADS_WRITE_CUSTOMERS);
