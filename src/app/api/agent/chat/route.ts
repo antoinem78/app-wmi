@@ -10,9 +10,11 @@ export const maxDuration = 120;
 export async function POST(request: Request) {
   const session = await auth0.getSession();
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  if (!isAgencyAdmin(session.user as Record<string, unknown>)) {
+  const sUser = session.user as Record<string, unknown>;
+  if (!isAgencyAdmin(sUser)) {
     return NextResponse.json({ error: "Agency admin only." }, { status: 403 });
   }
+  const actor = typeof sUser.email === "string" ? sUser.email : "rexos-agent";
 
   let body: { messages?: unknown };
   try {
@@ -35,7 +37,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { reply } = await runAgentChat(messages);
+    const { reply } = await runAgentChat(messages, actor);
     return NextResponse.json({ reply });
   } catch (e) {
     console.error("Agent chat failed:", e);

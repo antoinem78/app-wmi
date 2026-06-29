@@ -6,6 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { getDashboard, getWeeklyOptimisations } from "@/lib/integrations/google-ads/reporting";
 import { getCommandCenter } from "@/lib/command-center";
+import { createProposal, type ProposalType } from "@/lib/proposals";
 import { entityConfig } from "@/lib/config";
 
 const MODEL = "claude-opus-4-8";
@@ -94,6 +95,26 @@ const TOOLS: Anthropic.Tool[] = [
     description: "The logged account changes (optimisations) for ONE account this week, from the Google Ads change history.",
     input_schema: { type: "object", properties: { account: { type: "string", description: "Client name or id" } }, required: ["account"] },
   },
+  {
+    name: "propose_optimization",
+    description:
+      "File a structured, reviewable optimisation proposal against an account for the human to approve or dismiss. Use when the user asks you to PROPOSE a change, or when you've identified a concrete, figure-backed change worth formalising. This does NOT execute anything — it creates a pending proposal card in the Proposals page. Base it on figures you've fetched. File one proposal per distinct change.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account: { type: "string", description: "Client name or id" },
+        type: { type: "string", enum: ["negative_keywords", "pause_campaign", "budget_reallocation", "rsa_improvement", "other"] },
+        title: { type: "string", description: "Short imperative summary, e.g. 'Pause Competitors Test 2026 (£268, 0 conv)'" },
+        rationale: { type: "string", description: "1-3 sentences, figure-backed, on why." },
+        details: {
+          type: "object",
+          description:
+            "Type-specific structured change. negative_keywords: {campaign, keywords:[...]}. pause_campaign: {campaign}. budget_reallocation: {from, to, amount, currency}. rsa_improvement: {campaign, suggestions:[...]}.",
+        },
+      },
+      required: ["account", "type", "title", "rationale"],
+    },
+  },
 ];
 
 const SYSTEM = `You are Rexos, the ${entityConfig.brandName} paid-media ops analyst inside the PPC Ops Command Center. You help the agency team understand and optimise their Google Ads accounts.
@@ -106,10 +127,11 @@ HOW YOU WORK:
 
 YOUR JOB:
 - Be concise, specific and actionable — a senior analyst talking to a peer. Lead with the answer, then the evidence.
-- You may PROPOSE optimisations (negatives to add, budget reallocations, RSA improvements, campaigns/ad groups to pause) with clear, figure-backed rationale. But you CANNOT execute anything — present every change as a recommendation for the human to review and apply. NEVER claim you made or applied a change.
+- You may PROPOSE optimisations (negatives to add, budget reallocations, RSA improvements, campaigns/ad groups to pause) with clear, figure-backed rationale. But you CANNOT execute anything.
+- When the user asks you to PROPOSE something (or you've found a concrete change worth formalising), call propose_optimization to file it as a reviewable card — one call per distinct change — then tell the user it's filed for their approval in the Proposals page. NEVER claim you made or applied a change; approval/execution is the human's.
 - If asked whether an optimisation is needed and you think NOT, prove it with the figures.`;
 
-interface ToolContext { roster: RosterEntry[] }
+interface ToolContext { roster: RosterEntry[]; actor: string }
 async function runTool(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<unknown> {
   switch (name) {
     case "list_accounts":
@@ -142,16 +164,41 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
       const changes = await getWeeklyOptimisations(acc.reportingId, dash.weekly.start, dash.weekly.end);
       return { company: acc.company, period: dash.weekly, changes: changes.length ? changes : ["No account changes logged this week."] };
     }
+    case "propose_optimization": {
+      const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
+      if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
+      const res = await createProposal({
+        clientId: acc.clientId,
+        accountLabel: acc.company,
+        type: (input.type as ProposalType) ?? "other",
+        title: String(input.title ?? "Optimisation proposal"),
+        rationale: input.rationale != null ? String(input.rationale) : undefined,
+        details:
+          input.details && typeof input.details === "object"
+            ? (input.details as Record<string, unknown>)
+            : {},
+        createdBy: ctx.actor,
+      });
+      if ("error" in res) return { error: res.error };
+      return {
+        ok: true,
+        proposalId: res.id,
+        message: `Proposal filed for ${acc.company} — pending review in the Proposals page.`,
+      };
+    }
     default:
       return { error: `Unknown tool ${name}` };
   }
 }
 
-export async function runAgentChat(history: ChatMessage[]): Promise<{ reply: string }> {
+export async function runAgentChat(
+  history: ChatMessage[],
+  actor = "rexos-agent",
+): Promise<{ reply: string }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { reply: "The assistant isn't configured (no ANTHROPIC_API_KEY)." };
   const client = new Anthropic({ apiKey });
-  const ctx: ToolContext = { roster: await loadRoster() };
+  const ctx: ToolContext = { roster: await loadRoster(), actor };
 
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
 

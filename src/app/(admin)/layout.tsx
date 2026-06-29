@@ -12,10 +12,12 @@ import Link from "next/link";
 import { auth0 } from "@/lib/auth/auth0";
 import { isAgencyAdmin } from "@/lib/auth/roles";
 import { Wordmark } from "@/components/Wordmark";
+import { pendingProposalCount } from "@/lib/proposals";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/clients", label: "Clients" },
+  { href: "/proposals", label: "Proposals" },
 ];
 
 export default async function AdminLayout({
@@ -38,6 +40,8 @@ export default async function AdminLayout({
     return <NoAccess email={email} />;
   }
 
+  const pendingProposals = await pendingProposalCount().catch(() => 0);
+
   return (
     <div className="flex min-h-screen">
       <aside className="flex w-60 flex-col bg-[#0B1F3A] text-white">
@@ -49,9 +53,14 @@ export default async function AdminLayout({
             <Link
               key={item.href}
               href={item.href}
-              className="block rounded-md px-3 py-2 text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex items-center justify-between rounded-md px-3 py-2 text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white"
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.href === "/proposals" && pendingProposals > 0 && (
+                <span className="ml-2 rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-semibold text-[#0B1F3A]">
+                  {pendingProposals}
+                </span>
+              )}
             </Link>
           ))}
         </nav>

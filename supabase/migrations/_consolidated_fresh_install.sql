@@ -120,3 +120,22 @@ create table weekly_reports (
 );
 
 create index weekly_reports_client_idx on weekly_reports (client_id, created_at desc);
+
+-- --- optimization_proposals (0015) -------------------------------------------
+create table optimization_proposals (
+  id           uuid primary key default gen_random_uuid(),
+  client_id    uuid not null references clients(id) on delete cascade,
+  account_label text,
+  type         text not null,
+  title        text not null,
+  rationale    text,
+  details      jsonb not null default '{}'::jsonb,
+  status       text not null default 'pending',
+  created_by   text,
+  created_at   timestamptz not null default now(),
+  decided_by   text,
+  decided_at   timestamptz
+);
+
+create index optimization_proposals_status_idx on optimization_proposals(status, created_at desc);
+create index optimization_proposals_client_idx on optimization_proposals(client_id);
