@@ -728,6 +728,51 @@ export async function generateWeeklyReport(customerId: string): Promise<{
   return { currency, timeZone, weekly, text: formatWeeklyText(weekly, currency) };
 }
 
+/** Lightweight per-account headline summary for the agency Command Center —
+ *  just the KPIs + deltas needed for the overview table + alert rules, in ~3
+ *  GAQL calls (meta + cur/prev campaign totals), not the full 14-call dashboard. */
+export interface AccountSummary {
+  currency: string;
+  range: { start: string; end: string };
+  priorRange: { start: string; end: string };
+  hasConversionValue: boolean;
+  spend: Kpi; conversions: Kpi; convValue: Kpi;
+  cpa: Kpi; roas: Kpi; convRate: Kpi;
+  impressions: Kpi; clicks: Kpi;
+}
+export async function getAccountSummary(
+  customerId: string,
+  windowDays: ReportWindow = 7,
+): Promise<AccountSummary> {
+  const metaRows = await gaqlSearch(
+    customerId,
+    "SELECT customer.currency_code, customer.time_zone FROM customer LIMIT 1",
+  );
+  const cust = (metaRows[0]?.customer ?? {}) as { currencyCode?: string; timeZone?: string };
+  const currency = cust.currencyCode ?? "USD";
+  const timeZone = cust.timeZone ?? "Etc/UTC";
+  const w = windows(timeZone, windowDays);
+  const [cur, prev] = await Promise.all([
+    campaignTotals(customerId, w.start, w.end),
+    campaignTotals(customerId, w.prevStart, w.prevEnd),
+  ]);
+  const ratio = (a: number, b: number) => (b > 0 ? a / b : 0);
+  return {
+    currency,
+    range: { start: w.start, end: w.end },
+    priorRange: { start: w.prevStart, end: w.prevEnd },
+    hasConversionValue: cur.convValue > 0,
+    spend: kpi(cur.spend, prev.spend),
+    conversions: kpi(cur.conversions, prev.conversions),
+    convValue: kpi(cur.convValue, prev.convValue),
+    cpa: kpi(ratio(cur.spend, cur.conversions), ratio(prev.spend, prev.conversions)),
+    roas: kpi(ratio(cur.convValue, cur.spend), ratio(prev.convValue, prev.spend)),
+    convRate: kpi(ratio(cur.conversions, cur.clicks) * 100, ratio(prev.conversions, prev.clicks) * 100),
+    impressions: kpi(cur.impressions, prev.impressions),
+    clicks: kpi(cur.clicks, prev.clicks),
+  };
+}
+
 /**
  * The bulleted weekly-update text (Slack fallback when no LLM narrative). Pure
  * formatting over an already-computed WeeklySummary — so callers that already
