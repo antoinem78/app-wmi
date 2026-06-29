@@ -6,6 +6,7 @@ import Link from "next/link";
 import { entityConfig } from "@/lib/config";
 import { getCommandCenter, type AccountRow, type Alert } from "@/lib/command-center";
 import type { Kpi } from "@/lib/integrations/google-ads/reporting";
+import { CommandChat } from "@/components/CommandChat";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -53,7 +54,9 @@ export default async function DashboardPage() {
   const flagged = cc.accounts.filter((a) => a.alerts.length > 0);
 
   return (
-    <div className="p-10">
+    <div className="p-6 lg:p-8">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="min-w-0">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">Command Center</h1>
@@ -175,6 +178,11 @@ export default async function DashboardPage() {
       <p className="mt-8 text-[11px] text-zinc-400">
         Read-only overview · {withData.length} accounts pulled live · cached figures refresh on reload.
       </p>
+        </div>
+        <aside className="xl:sticky xl:top-6 xl:self-start">
+          <CommandChat />
+        </aside>
+      </div>
     </div>
   );
 }
