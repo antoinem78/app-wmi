@@ -177,6 +177,7 @@ HARD RULES:
 - If conversion value is not tracked, omit Revenue, ROAS and AOV entirely.
 - Optimisations: describe ONLY the logged changes, using the exact entity wording given (e.g. "product groups added", "asset groups added", "keywords added"). Never state a specific old→new budget or Target-CPA value unless that exact figure appears in the data.
 - Do NOT invent month-to-date spend, monthly targets, or budget-pacing claims — we do not have those figures.
+- Tell the story, don't dump data: the Summary surfaces only the one or two changes that actually matter and explains WHY they happened (tie them to the logged optimisations / clear seasonality), rather than walking through every metric. The scorecard already carries the full numbers.
 - Keep it grounded — if a week is quiet, keep it short; don't pad or invent.
 - The "A note from your account manager" placeholder must be emitted as the exact literal bracketed text given — NEVER fill it in, paraphrase it, or invent manual context for it. It is for the human reviewer.
 - This is a DRAFT a human reviews and may edit before it reaches the client.
@@ -194,7 +195,7 @@ One short lead-in line — that here is the Google Ads performance update for th
 The scorecard as a compact bulleted list, one headline metric per line as "Metric: value (±X% vs prior week)". Include the core tiles in this order: Clicks, Impressions, Cost, Avg CPC, Conv., Cost / conv., Conversion rate, CTR — and, when conversion value is tracked, Revenue, ROAS and AOV. Then, where the By-Time figures are present, ALWAYS add these three lines (do not omit any): "Conv. (by conversion time)", "Revenue (by conversion time)", and "ROAS (by conversion time)". Copy every figure verbatim from the SCORECARD data.
 
 *Summary*
-The heart of the report — flowing analytical prose (not bullets). Lead with the headline movement and ITS ATTRIBUTION (why spend / conversions / CPA moved this week). Walk through the CPA (or cost-per-lead) and conversion-rate trends using the actual figures; when more than one channel type or labelled segment is present, add a sentence on the channel/segment mix (which drove spend and conversions). Note any standout campaign and anything being tested and why. End with a clear forward-looking line: the plan for the coming week and any recommendation or next step.
+The heart of the report — concise, flowing analytical prose (not bullets), and NOT a recap of every metric (the scorecard above already lists them). Lead with the ONE or TWO most meaningful takeaways of the week — the real story, not a tour of the numbers. Then explain the WHY, not just the what: tie the movements to the optimisations we actually made this week (from the OPTIMISATIONS change log) — for example a budget reduction, paused products or excluded Item IDs, a new campaign, or a tracking fix — and to seasonality where it is clearly evident. Attribute a movement to a logged action ONLY where it plausibly explains it; never invent a reason or a cause we did not take. Mention the channel/segment mix only if it is part of the key story. End with a clear forward-looking line: the plan for the coming week and any recommendation.
 
 *Conversions by action*
 A short standalone paragraph breaking down the week's conversions by conversion action / type, using the CONVERSIONS BY ACTION data (action name, conversion count, and value where tracked). Lead with the highest-volume actions and call out the conversion mix (e.g. which actions are primary vs secondary signals). If only one action is present, say so in a line. Omit this section entirely only if no conversion-action data is provided.
@@ -206,7 +207,7 @@ Then a first-person bulleted list ("I have …") of the specific logged changes 
 
 *A note from your account manager:*
 Output the following line EXACTLY as written, as a placeholder for the human reviewer to fill in or delete before sending — do NOT write your own content here, do NOT invent context, budget changes, or forward plans:
-[Account manager — add any manual context here before sending: budget changes you made this week, what to expect next week, anything the data can't show. Delete this line if not needed.]
+[Account manager — add your account-specific observations and strategic insight before sending: the reasoning behind the changes made, what to expect next week, seasonality, and anything the data cannot show. This is what makes the report feel prepared by you. Delete if not needed.]
 
 Close with one short warm line — that you'll keep monitoring and optimising, that the full visual report is on their dashboard, and to reach out with any questions — then a brief sign-off (e.g. "Best regards," on its own line followed by "The ${brand} Team").
 
