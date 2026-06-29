@@ -130,11 +130,16 @@ create table optimization_proposals (
   title        text not null,
   rationale    text,
   details      jsonb not null default '{}'::jsonb,
-  status       text not null default 'pending',
+  status       text not null default 'pending',   -- pending|approved|dismissed|applied|failed|rolled_back
   created_by   text,
   created_at   timestamptz not null default now(),
   decided_by   text,
-  decided_at   timestamptz
+  decided_at   timestamptz,
+  applied_at      timestamptz,                      -- 0016
+  applied_by      text,                             -- 0016
+  rolled_back_at  timestamptz,                      -- 0016
+  rolled_back_by  text,                             -- 0016
+  execution       jsonb not null default '{}'::jsonb -- 0016 (before/after + mutate request/response)
 );
 
 create index optimization_proposals_status_idx on optimization_proposals(status, created_at desc);

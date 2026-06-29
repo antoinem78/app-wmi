@@ -26,6 +26,7 @@ export interface Proposal {
   createdAt: string;
   decidedBy: string | null;
   decidedAt: string | null;
+  execution: Record<string, unknown>;
 }
 
 const PROPOSAL_TYPES: ProposalType[] = [
@@ -41,6 +42,7 @@ type Row = {
   title: string; rationale: string | null; details: Record<string, unknown> | null;
   status: string; created_by: string | null; created_at: string;
   decided_by: string | null; decided_at: string | null;
+  execution: Record<string, unknown> | null;
 };
 function mapRow(r: Row): Proposal {
   return {
@@ -48,7 +50,7 @@ function mapRow(r: Row): Proposal {
     type: (PROPOSAL_TYPES.includes(r.type as ProposalType) ? r.type : "other") as ProposalType,
     title: r.title, rationale: r.rationale, details: r.details ?? {},
     status: r.status as ProposalStatus, createdBy: r.created_by, createdAt: r.created_at,
-    decidedBy: r.decided_by, decidedAt: r.decided_at,
+    decidedBy: r.decided_by, decidedAt: r.decided_at, execution: r.execution ?? {},
   };
 }
 

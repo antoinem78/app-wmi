@@ -116,6 +116,38 @@ export async function sendLinkInvitation(clientCustomerId: string): Promise<stri
 }
 
 /**
+ * Unified Google Ads mutate (GoogleAdsService.Mutate). Sends an operations array
+ * to customers/{cid}/googleAds:mutate. Supports validateOnly (server-side
+ * validation with NO change) and partialFailure. This is the ONLY write path;
+ * all guardrails live above it (see google-ads/write.ts + proposals-execute.ts).
+ * Returns the parsed response (mutateOperationResponses) or throws GoogleAdsError.
+ */
+export async function googleAdsMutate(
+  customerId: string,
+  mutateOperations: unknown[],
+  opts: { validateOnly?: boolean; partialFailure?: boolean } = {},
+): Promise<{ mutateOperationResponses?: Array<Record<string, unknown>>; [k: string]: unknown }> {
+  const res = await fetch(`${API}/customers/${customerId}/googleAds:mutate`, {
+    method: "POST",
+    headers: await adsHeaders(),
+    body: JSON.stringify({
+      mutateOperations,
+      validateOnly: opts.validateOnly ?? false,
+      partialFailure: opts.partialFailure ?? false,
+    }),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    const text = JSON.stringify(body);
+    const invalid =
+      res.status === 404 ||
+      /NOT_FOUND|INVALID_CUSTOMER|USER_PERMISSION_DENIED|CUSTOMER_NOT_FOUND/i.test(text);
+    throw new GoogleAdsError(extractAdsError(body), invalid);
+  }
+  return body as { mutateOperationResponses?: Array<Record<string, unknown>> };
+}
+
+/**
  * Run a GAQL query against a customer account (authenticated as the MCC via the
  * login-customer-id header). Returns the raw result rows.
  */
