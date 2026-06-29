@@ -102,3 +102,78 @@ Verify each (Node local; throwaway `tsx` — load `.env.local` manually, then dy
 - Re-brand the audit document per entity (company, palette, logo, Premier-Partner claim).
 
 *Companion: `HANDOVER_REPORTING_BILLING_PORT.md`, `HANDOVER_BJ_FULL_PARITY.md`, `V4a_MULTITENANCY_AUDIT.md`.*
+
+---
+
+# Appendix — reference detail
+
+Reference material for the build. Nothing here is new scope; it makes §1–§6 precise.
+
+## A1. New-file manifest (everything Rexos added)
+| File | Subsystem | Purpose |
+|---|---|---|
+| `src/lib/command-center.ts` | Command Center | `getCommandCenter`, `evaluateAlerts`, per-currency roll-ups |
+| `src/app/(admin)/dashboard/page.tsx` | Command Center | overview + alerts UI (replaces placeholder) |
+| `src/lib/integrations/anthropic/agent.ts` | Chat | tool-use loop (`runAgentChat`/`runAgentChatStream`) + tools |
+| `src/app/api/agent/chat/route.ts` | Chat | admin-gated streaming NDJSON endpoint |
+| `src/components/CommandChat.tsx` | Chat | right-rail chat panel |
+| `src/lib/proposals.ts` | Proposals | create/list/decide/pendingCount |
+| `src/app/(admin)/proposals/page.tsx` + `actions.ts` | Proposals | approval queue UI + actions |
+| `supabase/migrations/0015_optimization_proposals.sql` | Proposals | proposals table |
+| `src/lib/integrations/google-ads/write.ts` | P5-Lite | guardrails + op builders + `parseAction` |
+| `src/lib/proposals-execute.ts` | P5-Lite | the worker (validate→mutate→verify→audit→rollback) |
+| `supabase/migrations/0016_proposal_execution.sql` | P5-Lite | execution/audit columns |
+| `src/lib/audit/extract.ts` | Audit | findings artifact from the API |
+| `src/lib/audit/docx.ts` | Audit | branded docx-js helpers (**re-brand per entity**) |
+| `src/lib/audit/generate.ts` | Audit | diagnose + narrative + assemble + glossary + account-type |
+| `src/lib/audit/assets/<logo>.png` | Audit | cover logo (**per entity**) |
+| `src/app/api/audit/[clientId]/route.ts` | Audit | admin-gated .docx download |
+| `src/components/GenerateAuditButton.tsx` | Audit | client-page + Command-Center button |
+| `googleAdsMutate` in `…/google-ads/index.ts` | P5-Lite | only write path |
+| `next.config.ts` `outputFileTracingIncludes` | Audit | bundles the logo |
+Modified: `narrative.ts`, `AdsDashboard.tsx`, `reporting.ts` (getAccountSummary), `(admin)/layout.tsx` (Proposals nav badge), `(admin)/clients/[id]/page.tsx` (audit button), cron route.
+
+## A2. New GAQL queries added today (all read-only, 1 request each)
+- **Network split:** `SELECT segments.ad_network_type, metrics.cost_micros, metrics.clicks, metrics.conversions FROM campaign WHERE …` (values SEARCH / SEARCH_PARTNERS / CONTENT / YOUTUBE / …).
+- **Conversion-action config:** `SELECT conversion_action.name, conversion_action.category, conversion_action.status, conversion_action.origin FROM conversion_action` (do NOT select `primary_for_goal` — brittle across versions).
+- **Per-action conversions:** `SELECT segments.conversion_action_name, metrics.conversions, metrics.conversions_value FROM campaign WHERE …`.
+- **Assets present:** `SELECT asset_field_type_view.field_type FROM asset_field_type_view`.
+- **Month trend:** `SELECT segments.month, metrics.* FROM campaign WHERE segments.date BETWEEN … ORDER BY segments.month`.
+- **Impression-share suite:** `metrics.search_impression_share`, `…absolute_top…`, `…top…`, `…rank_lost…`, `…budget_lost…` FROM campaign (Search only), impression-weighted.
+- **Top ads:** `SELECT campaign.name, ad_group_ad.ad.type, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.final_urls, metrics.* FROM ad_group_ad WHERE … ORDER BY metrics.conversions DESC LIMIT 10`.
+- `campaignTotals` now also retains per-campaign impressions+clicks (drives the campaign-performance grid).
+- **Mutate (P5-Lite, the ONLY write):** `POST customers/{cid}/googleAds:mutate` with `mutateOperations`, `validateOnly`, `partialFailure`. Op shapes: `campaignCriterionOperation.create{campaign, negative:true, keyword{text,matchType}}` (remove by resourceName); `campaignOperation.update{resourceName,status}` + `updateMask:"status"`; `campaignBudgetOperation.update{resourceName, amountMicros}` + `updateMask:"amount_micros"`. ⚠️ The API does NOT expose Auction-Insights competitor domains — only impression share.
+
+## A3. Audit document map (section → source → who writes it)
+Cover · Overview (code, type-aware) · **Glossary** (code, type-aware table) · Contents (TOC) · Executive Summary (LLM) · **PART B**: Account Analysis + Exhibit 1 totals (table) · Campaign Structure + Exhibit 2 (table) + commentary (LLM) · Network Split + table (the killer finding) · Search Terms + junk exhibit · Negative Strategy (LLM bullets) · Auction Insights + impression-share table (note: no competitor domains via API) · Conversion Tracking + actions table + explainer (LLM, type-aware) · Assets panel · Audiences · Quick Wins · **PART C** (all LLM): Architecture · Measurement/OCT Roadmap · Channel Strategy · Short/Long-Term · Forecast (table, type-aware) · Optimisation Plan · **Appendix**: full Premier-Partner section. Rule: **tables/exhibits are built in code from the findings; prose is LLM, artifact-values-only.**
+
+## A4. Account-type framing matrix
+| Aspect | lead_gen | ecommerce |
+|---|---|---|
+| Detect | else | purchase-category action OR (value tracked & ROAS≥1) |
+| Principle | qualified demos/MQLs, not form fills | profitable revenue & ROAS, not raw conversions |
+| Conversion section | "The Root Cause" + OCT explainer | "Value Integrity" + value-based-bidding explainer |
+| Roadmap | Conversion Tracking & OCT | Measurement & Value-Based Bidding |
+| Forecast | Media / CPC / Demos / Cost-per-demo | Media / Orders / Revenue / ROAS (off account AOV+CVR) |
+| "no value" diagnosis | implement OCT/GCLID/pipeline | enable conversion VALUE → Target ROAS |
+| FORBIDDEN | — | OCT, GCLID-to-CRM, MQL/SQL/Opportunity/pipeline |
+
+## A5. P5-Lite execution flow & go-live (the dangerous part)
+Flow: **approved proposal → worker re-checks approval (NOT the UI) → resolve names→IDs → `validate_only` → mutate → re-query/verify → immutable audit (activity_log + execution before/after) → Slack alert → rollback available.** Guardrails: kill switch `GOOGLE_ADS_WRITE_ENABLED` (off by default, case-insensitive), customer allowlist `GOOGLE_ADS_WRITE_CUSTOMERS`, campaign allowlist `GOOGLE_ADS_WRITE_CAMPAIGNS` (pause/budget only), budget caps. One op per approval; no batch; no autonomous writes.
+Go-live per app (do NOT change a real account first): confirm dev token can mutate + OAuth edit access → allowlist ONE test account → `validate_only` → one low-risk mutate (a negative keyword on a paused campaign is safest) → verify → rollback → confirm the audit before/after. Vercel binds env at deploy → **redeploy** after setting vars; the Proposals banner shows ENABLED/OFF.
+
+## A6. Agent tools (read-only + propose)
+`list_accounts` (roster), `get_account_report` (one account full snapshot), `get_all_account_summaries` (cross-account KPIs + alerts), `get_recent_changes` (change log), `propose_optimization` (files a proposal; include `details.action` = {kind: add_negative_keyword | pause_campaign | set_campaign_budget, …} for an EXECUTABLE one, ONE op each). The agent analyses and proposes only — it never executes.
+
+## A7. Re-branding the audit document per entity (the #1 per-app task)
+In `audit/docx.ts`: `NAVY`/`ORANGE` palette, font, the cover "WEB MARKETING INTERNATIONAL LTD" + "Google Premier Partner" lines, header/footer text. In `audit/generate.ts`: the Premier-Partner appendix prose ("Web Marketing International is a Google Premier Partner…" — only keep the Premier-Partner claim if that entity holds it; otherwise reword), and the cover title/subtitle. Replace `audit/assets/<logo>.png` and the `outputFileTracingIncludes` path. `entityConfig.brandName` covers the chat/weekly-report sign-off.
+
+## A8. Deliberately out of scope (so nobody rebuilds them by surprise)
+Part A (market/competitor/keyword research) and the Website CRO document — need live web/Chrome the runtime doesn't have (the standalone agent bundle does these). Auction-Insights competitor domains — not in the API. Batch writes & autonomous writes — excluded by the P5-Lite safety model. The Glossary IS included (added in commit a248c75).
+
+## A9. Verification reference (expected anchors)
+Throwaway harness: `npm i tsx --no-save`; in the script parse `.env.local` manually, then `await import("@/…")`; `npm uninstall tsx` after. Live anchors from app-wmi to sanity-check a port:
+- Command Center: per-currency totals (USD/GBP/AUD/EUR), Action-first, real alerts (e.g. House of Isabella conv −33%).
+- Chat: ranks accounts needing attention; for one account cites real figures + impression-share breakdown; proposes, never executes.
+- P5-Lite: negative-keyword add on a paused test campaign → verify exists → rollback → criterion gone; audit log has before/after; re-approve guard rejects.
+- Audit: ecommerce account → revenue/ROAS framing + ecommerce glossary, NO OCT; lead-gen → OCT framing + lead-gen glossary. Valid 1MB+ `.docx` in ~2 min.
