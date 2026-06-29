@@ -131,6 +131,37 @@ Ground every section in the DATA + diagnoses.`;
   return JSON.parse(json) as Sections;
 }
 
+// ---- glossary (account-type aware; abbreviations actually used) ----
+function glossarySection(ecom: boolean) {
+  const common: [string, string][] = [
+    ["CPA", "Cost Per Acquisition"], ["CPC", "Cost Per Click"], ["CR / CVR", "Conversion Rate"],
+    ["CRO", "Conversion Rate Optimisation"], ["CTR", "Click-Through Rate"], ["DSA", "Dynamic Search Ads"],
+    ["GA4", "Google Analytics 4"], ["GTM", "Google Tag Manager"], ["Impr. Share", "Impression Share"],
+    ["LTV", "Lifetime Value"], ["PMax", "Performance Max"], ["PPC", "Pay Per Click"],
+    ["RLSA", "Remarketing Lists for Search Ads"], ["ROAS", "Return On Ad Spend"], ["RSA", "Responsive Search Ad"],
+    ["Search Partners", "Non-Google sites showing Search ads"], ["SKAG", "Single Keyword Ad Group"],
+    ["tCPA / tROAS", "Target CPA / Target ROAS"], ["YT", "YouTube"],
+  ];
+  const leadgen: [string, string][] = [
+    ["CPL", "Cost Per Lead"], ["CRM", "Customer Relationship Management (e.g. HubSpot)"],
+    ["GCLID", "Google Click Identifier"], ["MQL", "Marketing Qualified Lead"],
+    ["OCT", "Offline Conversion Tracking"], ["SQL", "Sales Qualified Lead"],
+  ];
+  const ecomTerms: [string, string][] = [
+    ["AOV", "Average Order Value"], ["COS", "Cost of Sale"], ["Feed", "Google Merchant Center product feed"],
+    ["Item ID", "Product identifier in the Merchant Center feed"], ["POAS", "Profit On Ad Spend"],
+    ["VBB", "Value-Based Bidding (Target ROAS)"],
+  ];
+  const map = new Map<string, string>();
+  for (const [k, v] of [...common, ...(ecom ? ecomTerms : leadgen)]) map.set(k, v);
+  const rows = [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => [k, v] as CellVal[]);
+  return [
+    h1("Glossary"),
+    para("Paid media comes with a lot of shorthand. This glossary covers the terms used in this document so that nothing is ambiguous."),
+    table([2400, 6960], ["Term", "Meaning"], rows),
+  ];
+}
+
 // ---- assemble ----
 function assemble(f: AuditFindings, diagnoses: Diagnosis[], s: Sections, monthlyBudget: number, accountType: AccountType, logo?: Buffer) {
   const a = f.account;
@@ -145,6 +176,7 @@ function assemble(f: AuditFindings, diagnoses: Diagnosis[], s: Sections, monthly
     : "Our guiding principle throughout is that success is measured in qualified demos, marketing qualified leads and opportunities, not in clicks or form fills.";
   push(h1("Overview"), para(`This document audits the ${f.meta.client} Google Ads account and sets out how paid media should be rebuilt to drive ${ecom ? "profitable, scalable demand" : "qualified demand"} rather than volume for its own sake. It is not exhaustive; it gives an honest summary of where the account stands today and where the opportunities sit. ${principle}`));
 
+  push(...glossarySection(ecom));
   push(contents());
 
   push(h1("Executive Summary"), para(s.executiveSummary.intro));
