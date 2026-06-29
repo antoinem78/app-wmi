@@ -116,7 +116,23 @@ const TOOLS: Anthropic.Tool[] = [
         details: {
           type: "object",
           description:
-            "Type-specific structured change. negative_keywords: {campaign, keywords:[...]}. pause_campaign: {campaign}. budget_reallocation: {from, to, amount, currency}. rsa_improvement: {campaign, suggestions:[...]}.",
+            "To make the proposal EXECUTABLE (gives it an Apply button), include an `action` object — exactly ONE operation per proposal (one op per approval; NO batching). For multiple negatives, file SEPARATE proposals, one keyword each. Use exact campaign names. Without `action`, the proposal is advisory-only (human applies it manually).",
+          properties: {
+            action: {
+              type: "object",
+              description:
+                "negatives: {kind:'add_negative_keyword', campaign, level:'campaign'|'ad_group', adGroup?, text:'<one keyword>', matchType:'EXACT'|'PHRASE'|'BROAD'}. pause: {kind:'pause_campaign', campaign}. budget: {kind:'set_campaign_budget', campaign, newDailyAmount:<number in account currency>}.",
+              properties: {
+                kind: { type: "string", enum: ["add_negative_keyword", "pause_campaign", "set_campaign_budget"] },
+                campaign: { type: "string" },
+                level: { type: "string", enum: ["campaign", "ad_group"] },
+                adGroup: { type: "string" },
+                text: { type: "string" },
+                matchType: { type: "string", enum: ["EXACT", "PHRASE", "BROAD"] },
+                newDailyAmount: { type: "number" },
+              },
+            },
+          },
         },
       },
       required: ["account", "type", "title", "rationale"],
@@ -136,7 +152,8 @@ HOW YOU WORK:
 YOUR JOB:
 - Be concise, specific and actionable — a senior analyst talking to a peer. Lead with the answer, then the evidence.
 - You may PROPOSE optimisations (negatives to add, budget reallocations, RSA improvements, campaigns/ad groups to pause) with clear, figure-backed rationale. But you CANNOT execute anything.
-- When the user asks you to PROPOSE something (or you've found a concrete change worth formalising), call propose_optimization to file it as a reviewable card — one call per distinct change — then tell the user it's filed for their approval in the Proposals page. NEVER claim you made or applied a change; approval/execution is the human's.
+- When the user asks you to PROPOSE something (or you've found a concrete change worth formalising), call propose_optimization to file it as a reviewable card, then tell the user it's filed for their approval in the Proposals page. NEVER claim you made or applied a change; approval/execution is the human's.
+- For the three executable actions — add a single negative keyword, pause a campaign, set a campaign daily budget — ALWAYS include the precise details.action block so the proposal can be applied behind the approval gate, using the EXACT campaign name. ONE operation per proposal: to add several negatives, file several proposals (one keyword each), never a batch.
 - If asked whether an optimisation is needed and you think NOT, prove it with the figures.`;
 
 interface ToolContext { roster: RosterEntry[]; actor: string }
