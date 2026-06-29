@@ -16,6 +16,13 @@ export interface ChatMessage {
   content: string;
 }
 
+export type AgentEvent =
+  | { type: "status"; text: string } // a tool is running
+  | { type: "delta"; text: string } // a chunk of the answer
+  | { type: "reset" } // discard any text streamed during a tool-use turn (preamble)
+  | { type: "done" }
+  | { type: "error"; text: string };
+
 // ---- Account roster + resolution (cheap; DB only, no GAQL) ----
 interface RosterEntry { clientId: string; reportingId: string; company: string; status: string }
 async function loadRoster(): Promise<RosterEntry[]> {
@@ -124,6 +131,7 @@ HOW YOU WORK:
 - Resolve client names with list_accounts. Use get_account_report for one account, get_all_account_summaries for cross-account questions, get_recent_changes for what was changed.
 - Figures are ACCOUNT-WIDE across all channel types. Attribute correctly — never call Performance Max / Shopping activity "Search", never call product/listing groups "keywords". Search impression share and search terms are Search-only. Two conversion bases exist (interaction date vs by-time); don't conflate them.
 - Respect each account's own currency; never sum across currencies.
+- Don't narrate your tool use ("let me check…", "I'll look that up"); just call the tools, then give the answer.
 
 YOUR JOB:
 - Be concise, specific and actionable — a senior analyst talking to a peer. Lead with the answer, then the evidence.
@@ -237,4 +245,71 @@ export async function runAgentChat(
     messages.push({ role: "user", content: results });
   }
   return { reply: "I wasn't able to finish that — try narrowing the question to a specific account." };
+}
+
+function statusLabel(name: string, input: Record<string, unknown>): string {
+  const acc = typeof input?.account === "string" ? input.account : "";
+  switch (name) {
+    case "list_accounts": return "Listing accounts…";
+    case "get_account_report": return `Reading ${acc || "account"}…`;
+    case "get_all_account_summaries": return "Scanning all accounts…";
+    case "get_recent_changes": return `Checking ${acc || "account"} changes…`;
+    case "propose_optimization": return `Filing proposal${acc ? ` for ${acc}` : ""}…`;
+    default: return "Working…";
+  }
+}
+
+// Streaming variant: emits status events as tools run and delta events as the
+// answer is generated. Same tool-use loop as runAgentChat.
+export async function runAgentChatStream(
+  history: ChatMessage[],
+  actor: string,
+  emit: (ev: AgentEvent) => void,
+): Promise<void> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    emit({ type: "delta", text: "The assistant isn't configured (no ANTHROPIC_API_KEY)." });
+    emit({ type: "done" });
+    return;
+  }
+  const client = new Anthropic({ apiKey });
+  const ctx: ToolContext = { roster: await loadRoster(), actor };
+  const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
+
+  try {
+    for (let i = 0; i < 8; i++) {
+      const stream = client.messages.stream({
+        model: MODEL,
+        max_tokens: 2000,
+        system: SYSTEM,
+        tools: TOOLS,
+        messages,
+      });
+      stream.on("text", (t) => emit({ type: "delta", text: t }));
+      const final = await stream.finalMessage();
+      const toolUses = final.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
+      if (final.stop_reason !== "tool_use" || toolUses.length === 0) {
+        emit({ type: "done" });
+        return;
+      }
+      messages.push({ role: "assistant", content: final.content });
+      emit({ type: "reset" }); // drop any "let me check…" preamble from this tool turn
+      const results: Anthropic.ToolResultBlockParam[] = [];
+      for (const tu of toolUses) {
+        emit({ type: "status", text: statusLabel(tu.name, (tu.input ?? {}) as Record<string, unknown>) });
+        let out: unknown;
+        try {
+          out = await runTool(tu.name, (tu.input ?? {}) as Record<string, unknown>, ctx);
+        } catch (e) {
+          out = { error: e instanceof Error ? e.message : String(e) };
+        }
+        results.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(out).slice(0, 80000) });
+      }
+      messages.push({ role: "user", content: results });
+    }
+    emit({ type: "delta", text: "\n\n(Stopped after several steps — try narrowing the question.)" });
+    emit({ type: "done" });
+  } catch (e) {
+    emit({ type: "error", text: e instanceof Error ? e.message : String(e) });
+  }
 }

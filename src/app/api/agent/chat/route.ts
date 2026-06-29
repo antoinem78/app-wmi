@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { auth0 } from "@/lib/auth/auth0";
 import { isAgencyAdmin } from "@/lib/auth/roles";
-import { runAgentChat, type ChatMessage } from "@/lib/integrations/anthropic/agent";
+import { runAgentChatStream, type AgentEvent, type ChatMessage } from "@/lib/integrations/anthropic/agent";
 
 export const maxDuration = 120;
 
@@ -36,11 +36,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Expected a user message." }, { status: 400 });
   }
 
-  try {
-    const { reply } = await runAgentChat(messages, actor);
-    return NextResponse.json({ reply });
-  } catch (e) {
-    console.error("Agent chat failed:", e);
-    return NextResponse.json({ error: "The assistant hit an error. Try again." }, { status: 500 });
-  }
+  // Stream the answer as newline-delimited JSON events (status / delta / done / error).
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (ev: AgentEvent) => {
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify(ev) + "\n"));
+        } catch {
+          /* controller closed (client disconnected) */
+        }
+      };
+      try {
+        await runAgentChatStream(messages, actor, send);
+      } catch (e) {
+        console.error("Agent chat failed:", e);
+        send({ type: "error", text: "The assistant hit an error. Try again." });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }

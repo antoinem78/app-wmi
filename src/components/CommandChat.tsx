@@ -18,8 +18,11 @@ export function CommandChat() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollSoon = () =>
+    requestAnimationFrame(() => scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight));
 
   async function send(text: string) {
     const content = text.trim();
@@ -29,23 +32,67 @@ export function CommandChat() {
     setMessages(next);
     setInput("");
     setLoading(true);
-    requestAnimationFrame(() => scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight));
+    setStatus(null);
+    scrollSoon();
     try {
       const res = await fetch("/api/agent/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Request failed");
-      setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
+      if (!res.ok || !res.body) {
+        let msg = "Request failed";
+        try { msg = (await res.json())?.error ?? msg; } catch { /* non-JSON */ }
+        throw new Error(msg);
+      }
+      // Placeholder assistant bubble that fills as deltas stream in.
+      setMessages((m) => [...m, { role: "assistant", content: "" }]);
+      const appendDelta = (t: string) =>
+        setMessages((m) => {
+          const copy = m.slice();
+          const last = copy[copy.length - 1];
+          if (last && last.role === "assistant") copy[copy.length - 1] = { ...last, content: last.content + t };
+          return copy;
+        });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+          let ev: { type: string; text?: string };
+          try { ev = JSON.parse(line); } catch { continue; }
+          if (ev.type === "delta" && ev.text) { setStatus(null); appendDelta(ev.text); scrollSoon(); }
+          else if (ev.type === "status" && ev.text) { setStatus(ev.text); }
+          else if (ev.type === "reset") {
+            // clear preamble streamed during a tool-use turn
+            setMessages((m) => {
+              const copy = m.slice();
+              const li = copy.length - 1;
+              if (copy[li]?.role === "assistant") copy[li] = { ...copy[li], content: "" };
+              return copy;
+            });
+          }
+          else if (ev.type === "error" && ev.text) { setError(ev.text); }
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setLoading(false);
-      requestAnimationFrame(() => scrollRef.current?.scrollTo(0, scrollRef.current!.scrollHeight));
+      setStatus(null);
+      scrollSoon();
     }
   }
+
+  const last = messages[messages.length - 1];
+  const streaming = !!last && last.role === "assistant" && last.content.length > 0;
 
   return (
     <div className="flex h-[calc(100vh-7rem)] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
@@ -83,25 +130,31 @@ export function CommandChat() {
             </div>
           </div>
         )}
-        {messages.map((m, i) => (
-          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-            <div
-              className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm ${
-                m.role === "user"
-                  ? "bg-[#0B1F3A] text-white"
-                  : "border border-zinc-200 bg-zinc-50 text-zinc-800"
-              }`}
-            >
-              {m.content}
+        {messages.map((m, i) =>
+          m.role === "assistant" && !m.content ? null : (
+            <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+              <div
+                className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm ${
+                  m.role === "user"
+                    ? "bg-[#0B1F3A] text-white"
+                    : "border border-zinc-200 bg-zinc-50 text-zinc-800"
+                }`}
+              >
+                {m.content}
+              </div>
             </div>
-          </div>
-        ))}
-        {loading && (
+          ),
+        )}
+        {loading && !streaming && (
           <div className="flex justify-start">
-            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-zinc-400">
-              <span className="inline-flex gap-1">
-                <Dot /> <Dot /> <Dot />
-              </span>
+            <div className="flex items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-zinc-400">
+              {status ? (
+                <span>{status}</span>
+              ) : (
+                <span className="inline-flex gap-1">
+                  <Dot /> <Dot /> <Dot />
+                </span>
+              )}
             </div>
           </div>
         )}
