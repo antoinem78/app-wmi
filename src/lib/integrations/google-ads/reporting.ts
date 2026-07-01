@@ -829,10 +829,14 @@ function prettyAdType(t?: string): string {
  * (e.g. table not migrated yet) degrade gracefully to a live query.
  */
 export async function getDashboard(
-  clientId: string,
+  clientId: string | null,
   customerId: string,
   windowDays: ReportWindow,
 ): Promise<DashboardPayload> {
+  // MCC-wide reads: an account not imported as a client has no clientId, so the
+  // ads_report_cache (FK to clients) can't be used — compute live, no cache.
+  if (!clientId) return buildDashboard(customerId, windowDays);
+
   const supabase = createSupabaseAdminClient();
   try {
     const { data } = await supabase

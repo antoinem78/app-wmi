@@ -5,7 +5,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { getDashboard, getWeeklyOptimisations } from "@/lib/integrations/google-ads/reporting";
-import { gaqlSearch } from "@/lib/integrations/google-ads";
+import { gaqlSearch, listManagedAccounts } from "@/lib/integrations/google-ads";
 import { getCommandCenter } from "@/lib/command-center";
 import { createProposal, type ProposalType } from "@/lib/proposals";
 import { entityConfig } from "@/lib/config";
@@ -25,7 +25,10 @@ export type AgentEvent =
   | { type: "error"; text: string };
 
 // ---- Account roster + resolution (cheap; DB only, no GAQL) ----
-interface RosterEntry { clientId: string; reportingId: string; company: string; status: string }
+interface RosterEntry { clientId: string | null; reportingId: string; company: string; status: string; imported: boolean }
+// MCC-wide READS: the roster is imported clients PLUS every leaf under the MCC
+// (so the agent can analyse any account). Non-imported accounts have clientId
+// null — reads work off the customer id; proposals require an imported client.
 async function loadRoster(): Promise<RosterEntry[]> {
   const supabase = createSupabaseAdminClient();
   const { data } = await supabase
@@ -33,12 +36,23 @@ async function loadRoster(): Promise<RosterEntry[]> {
     .select("client_id, google_ads_customer_id, google_ads_reporting_customer_id, clients(company_name, status)")
     .eq("ad_link_status", "approved")
     .not("google_ads_customer_id", "is", null);
-  return (data ?? []).map((r) => ({
+  const roster: RosterEntry[] = (data ?? []).map((r) => ({
     clientId: r.client_id as string,
     reportingId: (r.google_ads_reporting_customer_id ?? r.google_ads_customer_id) as string,
     company: (r.clients as unknown as { company_name?: string } | null)?.company_name ?? "(unnamed)",
     status: (r.clients as unknown as { status?: string } | null)?.status ?? "",
+    imported: true,
   }));
+  const seen = new Set(roster.map((r) => r.reportingId.replace(/\D/g, "")));
+  try {
+    for (const leaf of await listManagedAccounts()) {
+      if (seen.has(leaf.id.replace(/\D/g, ""))) continue; // already an imported client
+      roster.push({ clientId: null, reportingId: leaf.id, company: leaf.name || leaf.id, status: "managed", imported: false });
+    }
+  } catch {
+    /* MCC enumeration best-effort — fall back to imported clients only */
+  }
+  return roster;
 }
 function resolveAccount(roster: RosterEntry[], ref: string): RosterEntry | null {
   const q = (ref ?? "").trim().toLowerCase();
@@ -174,7 +188,7 @@ interface ToolContext { roster: RosterEntry[]; actor: string }
 async function runTool(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<unknown> {
   switch (name) {
     case "list_accounts":
-      return ctx.roster.map((r) => ({ clientId: r.clientId, company: r.company, customerId: r.reportingId, status: r.status }));
+      return ctx.roster.map((r) => ({ clientId: r.clientId, company: r.company, customerId: r.reportingId, status: r.status, imported: r.imported }));
     case "list_campaigns": {
       const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
       if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
@@ -216,6 +230,8 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
     case "propose_optimization": {
       const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
       if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
+      if (!acc.clientId)
+        return { error: `${acc.company} is under the MCC but not imported as a client, so a proposal can't be filed against it yet. It can still be analysed; to file/track proposals, import it first (Add managed account).` };
       const res = await createProposal({
         clientId: acc.clientId,
         accountLabel: acc.company,
