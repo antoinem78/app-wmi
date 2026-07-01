@@ -184,3 +184,11 @@ Throwaway harness: `npm i tsx --no-save`; in the script parse `.env.local` manua
 **"Add negative … to undefined" / "This proposal has no executable action."** The agent filed an executable negative with no campaign (account-level / shared list, or it couldn't find a campaign). Ensure the port includes the agent fixes: `resolveAccount` matches the **Google customer id**; the **`list_campaigns`** tool (paused-inclusive); and `propose_optimization` requires an exact `campaign` for executable actions and otherwise files ADVISORY. Account-level / shared-negative-list writes are **not** in the P5-Lite spike — they are advisory-only. (Fixed in app-wmi commit d0f7712.)
 
 **"Hard for the assistant to find the account/campaign."** Same fix: reference accounts by name OR customer id (list_accounts now returns the customerId); the agent calls list_campaigns to get exact names even on paused/zero-activity accounts.
+
+## A11. MCC-wide reads (commit a568e9d)
+The agent can analyse ANY leaf under the MCC, not just imported clients — **reads only; writes stay gated to the per-account allowlist.**
+- `loadRoster()` merges the DB roster (imported clients, `clientId` set) with `listManagedAccounts()` (every MCC leaf, `clientId: null`, deduped by customer id).
+- `getDashboard(clientId: string | null, …)` computes **live/cache-less** when `clientId` is null (the `ads_report_cache` FKs to `clients`, so non-client accounts can't cache).
+- Read tools work for any account; `propose_optimization` requires an imported client (proposals FK to `clients`) and otherwise returns an "import it first" message.
+- Note: `get_all_account_summaries` / the Command Center page still use the imported-client roster (the heavy per-account KPI pull). Extending those to all MCC leaves is a deliberate follow-up (perf: an MCC can have 100+ leaves).
+- ⚠️ MCC-wide WRITES are NOT enabled: the write allowlist stays the boundary. A "write to any MCC account" mode would be a separate, explicit opt-in flag, only after Standard Access, keeping human approval + validate-only + caps + audit.
