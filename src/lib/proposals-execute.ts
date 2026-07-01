@@ -46,14 +46,24 @@ async function customerFor(clientId: string): Promise<string | null> {
 }
 
 interface CampaignRef { id: string; name: string; status: string; budgetResourceName: string; budgetAmountMicros: number; budgetShared: boolean }
+// Accept the campaign as EITHER an exact name OR a numeric campaign id (the
+// agent sometimes carries the id from list_campaigns) — a pure-digits value is
+// resolved by id, everything else by name.
+function idOrName(ref: string): { predicate: string; by: "id" | "name" } {
+  const r = String(ref ?? "").trim();
+  const digits = r.replace(/\D/g, "");
+  if (digits.length >= 6 && /^[\d\s-]+$/.test(r)) return { predicate: `campaign.id = ${digits}`, by: "id" };
+  return { predicate: `campaign.name = '${gaqlStr(r)}'`, by: "name" };
+}
 async function resolveCampaign(customerId: string, name: string): Promise<CampaignRef | { error: string }> {
+  const { predicate, by } = idOrName(name);
   const rows = await gaqlSearch(
     customerId,
     `SELECT campaign.id, campaign.name, campaign.status, campaign_budget.id,
             campaign_budget.amount_micros, campaign_budget.explicitly_shared, campaign.campaign_budget
-     FROM campaign WHERE campaign.name = '${gaqlStr(name)}' AND campaign.status != 'REMOVED'`,
+     FROM campaign WHERE ${predicate} AND campaign.status != 'REMOVED'`,
   );
-  if (rows.length === 0) return { error: `No campaign named "${name}".` };
+  if (rows.length === 0) return { error: `No campaign matching "${name}" (by ${by}) in this account.` };
   if (rows.length > 1) return { error: `"${name}" matches ${rows.length} campaigns — be exact.` };
   const c = (rows[0].campaign ?? {}) as { id?: string | number; name?: string; status?: string; campaignBudget?: string };
   const b = (rows[0].campaignBudget ?? {}) as { amountMicros?: string | number; explicitlyShared?: boolean };
@@ -64,12 +74,15 @@ async function resolveCampaign(customerId: string, name: string): Promise<Campai
   };
 }
 async function resolveAdGroup(customerId: string, name: string, campaignId: string): Promise<{ id: string } | { error: string }> {
+  const r = String(name ?? "").trim();
+  const digits = r.replace(/\D/g, "");
+  const predicate = digits.length >= 6 && /^[\d\s-]+$/.test(r) ? `ad_group.id = ${digits}` : `ad_group.name = '${gaqlStr(r)}'`;
   const rows = await gaqlSearch(
     customerId,
     `SELECT ad_group.id, ad_group.name FROM ad_group
-     WHERE ad_group.name = '${gaqlStr(name)}' AND campaign.id = ${campaignId} AND ad_group.status != 'REMOVED'`,
+     WHERE ${predicate} AND campaign.id = ${campaignId} AND ad_group.status != 'REMOVED'`,
   );
-  if (rows.length === 0) return { error: `No ad group named "${name}" in that campaign.` };
+  if (rows.length === 0) return { error: `No ad group matching "${name}" in that campaign.` };
   if (rows.length > 1) return { error: `Ad group "${name}" is ambiguous.` };
   return { id: String(((rows[0].adGroup ?? {}) as { id?: string | number }).id) };
 }
