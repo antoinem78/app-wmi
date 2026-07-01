@@ -5,6 +5,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { getDashboard, getWeeklyOptimisations } from "@/lib/integrations/google-ads/reporting";
+import { gaqlSearch } from "@/lib/integrations/google-ads";
 import { getCommandCenter } from "@/lib/command-center";
 import { createProposal, type ProposalType } from "@/lib/proposals";
 import { entityConfig } from "@/lib/config";
@@ -42,8 +43,16 @@ async function loadRoster(): Promise<RosterEntry[]> {
 function resolveAccount(roster: RosterEntry[], ref: string): RosterEntry | null {
   const q = (ref ?? "").trim().toLowerCase();
   if (!q) return null;
+  const byId = roster.find((r) => r.clientId === ref);
+  if (byId) return byId;
+  // Match on the Google Ads customer id (dash/space-insensitive) — the agent or
+  // user often refers to an account by its numeric id (e.g. 236-724-2101).
+  const digits = q.replace(/\D/g, "");
+  if (digits) {
+    const byCid = roster.find((r) => r.reportingId.replace(/\D/g, "") === digits);
+    if (byCid) return byCid;
+  }
   return (
-    roster.find((r) => r.clientId === ref) ??
     roster.find((r) => r.company.toLowerCase() === q) ??
     roster.find((r) => r.company.toLowerCase().includes(q)) ??
     null
@@ -84,8 +93,13 @@ function compactReport(company: string, p: Awaited<ReturnType<typeof getDashboar
 const TOOLS: Anthropic.Tool[] = [
   {
     name: "list_accounts",
-    description: "List all managed accounts (name, id, status). Use to resolve a client name or see what's available. Cheap; no metrics.",
+    description: "List all managed accounts (company name, client id, Google Ads customer id, status). Use to resolve an account — you can then reference it by name OR by its Google customer id. Cheap; no metrics.",
     input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "list_campaigns",
+    description: "List an account's campaigns (name, id, status, type) INCLUDING PAUSED ones, independent of recent activity. Use this to find the EXACT campaign name to target for a proposal — especially on paused or low-activity accounts where get_account_report shows little. Always confirm the exact campaign name here before filing an executable proposal.",
+    input_schema: { type: "object", properties: { account: { type: "string", description: "Client name, client id, or Google customer id" } }, required: ["account"] },
   },
   {
     name: "get_account_report",
@@ -116,7 +130,7 @@ const TOOLS: Anthropic.Tool[] = [
         details: {
           type: "object",
           description:
-            "To make the proposal EXECUTABLE (gives it an Apply button), include an `action` object — exactly ONE operation per proposal (one op per approval; NO batching). For multiple negatives, file SEPARATE proposals, one keyword each. Use exact campaign names. Without `action`, the proposal is advisory-only (human applies it manually).",
+            "To make the proposal EXECUTABLE (gives it an Apply button), include an `action` object — exactly ONE operation per proposal (one op per approval; NO batching). For multiple negatives, file SEPARATE proposals, one keyword each. The `campaign` field is REQUIRED and must be an EXACT campaign name from list_campaigns (do NOT guess). If you cannot identify a specific campaign, or the change is account-level / shared-negative-list (no single campaign), OMIT `action` entirely and file it as ADVISORY — never emit an action with a missing or invented campaign.",
           properties: {
             action: {
               type: "object",
@@ -144,7 +158,7 @@ const SYSTEM = `You are Rexos, the ${entityConfig.brandName} paid-media ops anal
 
 HOW YOU WORK:
 - Use the tools to fetch REAL figures. Never invent, estimate or recompute a number, %, campaign name or metric. If you don't have it, fetch it.
-- Resolve client names with list_accounts. Use get_account_report for one account, get_all_account_summaries for cross-account questions, get_recent_changes for what was changed.
+- Resolve accounts with list_accounts (you can reference an account by name OR its Google customer id). Use get_account_report for one account, get_all_account_summaries for cross-account questions, get_recent_changes for what was changed, and list_campaigns to get the EXACT campaign names (including paused ones) before filing any executable proposal.
 - Figures are ACCOUNT-WIDE across all channel types. Attribute correctly — never call Performance Max / Shopping activity "Search", never call product/listing groups "keywords". Search impression share and search terms are Search-only. Two conversion bases exist (interaction date vs by-time); don't conflate them.
 - Respect each account's own currency; never sum across currencies.
 - Don't narrate your tool use ("let me check…", "I'll look that up"); just call the tools, then give the answer.
@@ -153,14 +167,24 @@ YOUR JOB:
 - Be concise, specific and actionable — a senior analyst talking to a peer. Lead with the answer, then the evidence.
 - You may PROPOSE optimisations (negatives to add, budget reallocations, RSA improvements, campaigns/ad groups to pause) with clear, figure-backed rationale. But you CANNOT execute anything.
 - When the user asks you to PROPOSE something (or you've found a concrete change worth formalising), call propose_optimization to file it as a reviewable card, then tell the user it's filed for their approval in the Proposals page. NEVER claim you made or applied a change; approval/execution is the human's.
-- For the three executable actions — add a single negative keyword, pause a campaign, set a campaign daily budget — ALWAYS include the precise details.action block so the proposal can be applied behind the approval gate, using the EXACT campaign name. ONE operation per proposal: to add several negatives, file several proposals (one keyword each), never a batch.
+- For the three executable actions — add a single negative keyword, pause a campaign, set a campaign daily budget — first call list_campaigns to get the EXACT campaign name, then include the precise details.action block (with that exact campaign) so the proposal can be applied behind the approval gate. ONE operation per proposal: to add several negatives, file several proposals (one keyword each), never a batch. If the change is account-level / a shared negative list, or you cannot pin it to a specific campaign, file it as ADVISORY (omit details.action) rather than emitting an action with no campaign.
 - If asked whether an optimisation is needed and you think NOT, prove it with the figures.`;
 
 interface ToolContext { roster: RosterEntry[]; actor: string }
 async function runTool(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<unknown> {
   switch (name) {
     case "list_accounts":
-      return ctx.roster.map((r) => ({ clientId: r.clientId, company: r.company, status: r.status }));
+      return ctx.roster.map((r) => ({ clientId: r.clientId, company: r.company, customerId: r.reportingId, status: r.status }));
+    case "list_campaigns": {
+      const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
+      if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
+      const rows = await gaqlSearch(acc.reportingId, "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type FROM campaign WHERE campaign.status != 'REMOVED' ORDER BY campaign.name");
+      const campaigns = rows.map((r) => {
+        const c = (r.campaign ?? {}) as { id?: string | number; name?: string; status?: string; advertisingChannelType?: string };
+        return { id: String(c.id), name: c.name, status: c.status, type: c.advertisingChannelType };
+      }).slice(0, 80);
+      return { company: acc.company, customerId: acc.reportingId, campaignCount: campaigns.length, campaigns };
+    }
     case "get_account_report": {
       const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
       if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
