@@ -185,6 +185,8 @@ Throwaway harness: `npm i tsx --no-save`; in the script parse `.env.local` manua
 
 **"Hard for the assistant to find the account/campaign."** Same fix: reference accounts by name OR customer id (list_accounts now returns the customerId); the agent calls list_campaigns to get exact names even on paused/zero-activity accounts.
 
+**"Campaign <id> not found" at Apply time.** `proposals-execute.ts` `resolveCampaign`/`resolveAdGroup` originally matched by NAME only, so a proposal carrying a numeric campaign id failed. Fixed (app-wmi commit 8af8969): a pure-digits value resolves by `campaign.id`, otherwise by name. If it still "not found" after this, the campaign belongs to a DIFFERENT account than the proposal's resolved customer id — check the account.
+
 ## A11. MCC-wide reads (commit a568e9d)
 The agent can analyse ANY leaf under the MCC, not just imported clients — **reads only; writes stay gated to the per-account allowlist.**
 - `loadRoster()` merges the DB roster (imported clients, `clientId` set) with `listManagedAccounts()` (every MCC leaf, `clientId: null`, deduped by customer id).
