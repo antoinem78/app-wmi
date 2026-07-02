@@ -8,10 +8,13 @@ export function AdsDashboard({
   payload,
   basePath,
   range,
+  hideRangeControl = false,
 }: {
   payload: DashboardPayload | null;
   basePath: string;
   range: string;
+  /** Hide the interactive range selector (public/read-only share view). */
+  hideRangeControl?: boolean;
 }) {
   if (!payload) {
     return (
@@ -48,7 +51,7 @@ export function AdsDashboard({
             {payload.currency}
           </p>
         </div>
-        <RangeSelector basePath={basePath} active={range} />
+        {!hideRangeControl && <RangeSelector basePath={basePath} active={range} />}
       </div>
 
       <div className="p-6">

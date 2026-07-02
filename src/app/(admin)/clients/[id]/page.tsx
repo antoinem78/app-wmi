@@ -18,6 +18,7 @@ import {
   resumeClientSubscription,
   markPaidManually,
   saveReportPrompt,
+  toggleShareLink,
 } from "../actions";
 import {
   getDashboard,
@@ -429,6 +430,42 @@ export default async function ClientDetailPage({
               Save guidance
             </button>
           </form>
+        </section>
+      )}
+
+      {/* Public shareable dashboard link */}
+      {adApproved && (
+        <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900">Client share link</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                A public, read-only dashboard the client can open without signing in.
+              </p>
+            </div>
+            <form action={toggleShareLink}>
+              <input type="hidden" name="client_id" value={id} />
+              <input type="hidden" name="enable" value={client.share_enabled ? "false" : "true"} />
+              <button
+                type="submit"
+                className={`rounded-lg px-4 py-2 text-sm font-medium ${
+                  client.share_enabled
+                    ? "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                    : "bg-[#0B1F3A] text-white hover:opacity-90"
+                }`}
+              >
+                {client.share_enabled ? "Disable sharing" : "Enable sharing"}
+              </button>
+            </form>
+          </div>
+          {client.share_enabled && client.share_token && (
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+              <code className="flex-1 truncate text-xs text-zinc-700">
+                {`${proto}://${host}/share/${client.share_token}`}
+              </code>
+              <CopyButton value={`${proto}://${host}/share/${client.share_token}`} />
+            </div>
+          )}
         </section>
       )}
 

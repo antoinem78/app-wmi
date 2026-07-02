@@ -491,6 +491,28 @@ export async function addReportingClientsBulk(formData: FormData): Promise<void>
   redirect("/clients");
 }
 
+// Enable/disable the public read-only share link for a client's dashboard.
+export async function toggleShareLink(formData: FormData): Promise<void> {
+  await requireAgencyAdmin();
+  const clientId = String(formData.get("client_id") ?? "").trim();
+  const enable = String(formData.get("enable") ?? "") === "true";
+  if (!clientId) throw new Error("Missing client.");
+
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from("clients")
+    .update({ share_enabled: enable })
+    .eq("id", clientId);
+  if (error) throw new Error(error.message);
+
+  await logActivity({
+    clientId,
+    eventType: enable ? "share_link_enabled" : "share_link_disabled",
+    actor: "admin",
+  });
+  revalidatePath(`/clients/${clientId}`);
+}
+
 // Save the per-account narrative guidance (report_prompt). Advisory text the
 // account manager sets; appended to the report narrative system prompt.
 export async function saveReportPrompt(formData: FormData): Promise<void> {
