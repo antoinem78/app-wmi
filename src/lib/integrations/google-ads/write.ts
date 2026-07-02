@@ -105,6 +105,9 @@ export function guardAllowlist(customerId: string): string | null {
   return null;
 }
 export function guardCampaignWrite(campaignId: string): string | null {
+  // "Open the whole book" lifts the per-campaign gate too — pause/budget then run
+  // on any in-MCC campaign (account boundary + budget caps + kill switch still apply).
+  if (allowAllMcc()) return null;
   if (!allowedCampaigns().has(norm(campaignId)))
     return `Campaign ${campaignId} is not on the campaign write allowlist (required for pause/budget).`;
   return null;
