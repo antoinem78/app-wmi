@@ -2,7 +2,9 @@
 
 // Rexos chat panel — "ask about your accounts". Talks to /api/agent/chat
 // (read-only tool-use agent). Proposes optimisations; never executes.
-import { useRef, useState } from "react";
+// The conversation is persisted server-side per `scope` (parity P2), so it
+// reloads across page navigation and reloads.
+import { useEffect, useRef, useState } from "react";
 
 interface Msg { role: "user" | "assistant"; content: string }
 
@@ -14,15 +16,49 @@ const SUGGESTIONS = [
   "Suggest RSA improvements for ",
 ];
 
-export function CommandChat() {
+export function CommandChat({ scope = "command-center" }: { scope?: string }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollSoon = () =>
     requestAnimationFrame(() => scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight));
+
+  // Load prior turns for this scope on mount (persistence / cross-page memory).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/agent/chat?scope=${encodeURIComponent(scope)}`);
+        if (res.ok) {
+          const data = (await res.json()) as { messages?: Msg[] };
+          if (!cancelled && Array.isArray(data.messages) && data.messages.length) {
+            setMessages(data.messages);
+            scrollSoon();
+          }
+        }
+      } catch {
+        /* memory is best-effort */
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [scope]);
+
+  async function clearChat() {
+    setMessages([]);
+    try {
+      await fetch(`/api/agent/chat?scope=${encodeURIComponent(scope)}`, { method: "DELETE" });
+    } catch {
+      /* best-effort */
+    }
+  }
 
   async function send(text: string) {
     const content = text.trim();
@@ -38,7 +74,7 @@ export function CommandChat() {
       const res = await fetch("/api/agent/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ messages: next, scope }),
       });
       if (!res.ok || !res.body) {
         let msg = "Request failed";
@@ -103,7 +139,7 @@ export function CommandChat() {
           <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white/80">analyst · read-only</span>
         </div>
         {messages.length > 0 && (
-          <button onClick={() => setMessages([])} className="text-[11px] text-white/60 hover:text-white">
+          <button onClick={clearChat} className="text-[11px] text-white/60 hover:text-white">
             Clear
           </button>
         )}
@@ -111,7 +147,7 @@ export function CommandChat() {
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-        {messages.length === 0 && (
+        {messages.length === 0 && hydrated && (
           <div className="text-sm text-zinc-500">
             <p className="font-medium text-zinc-700">Ask about your accounts.</p>
             <p className="mt-1 text-xs text-zinc-400">
