@@ -6,6 +6,13 @@ import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { requireAgencyAdmin } from "@/lib/auth/guard";
 import { logActivity } from "@/lib/activity";
 import { CUSTOM_TIER_KEY } from "@/lib/tiers";
+import {
+  getDashboard,
+  getWeeklyOptimisations,
+  formatWeeklyText,
+  parseRange,
+} from "@/lib/integrations/google-ads/reporting";
+import { generateNarrative, periodForRange } from "@/lib/integrations/anthropic/narrative";
 
 // Create a client record + its onboarding state, then jump to the client page
 // (where the shareable onboarding link lives). Admin-only.
@@ -482,4 +489,102 @@ export async function addReportingClientsBulk(formData: FormData): Promise<void>
 
   revalidatePath("/clients");
   redirect("/clients");
+}
+
+export interface SendReportResult {
+  ok: boolean;
+  message: string;
+}
+
+// On-demand report → Slack review channel. The admin picks the timeframe on the
+// dashboard (Week / Month / 14d / custom …); this builds the report for that
+// exact window, writes the LLM narrative, and posts a review draft — the same
+// format the weekly cron produces, but for any period and on demand. It never
+// reaches the client directly; it lands in the review channel for a human.
+export async function sendReportToSlack(
+  _prev: SendReportResult | null,
+  formData: FormData,
+): Promise<SendReportResult> {
+  try {
+    await requireAgencyAdmin();
+
+    const clientId = String(formData.get("client_id") ?? "").trim();
+    const range = parseRange(String(formData.get("range") ?? "week"));
+    if (!clientId) return { ok: false, message: "Missing client." };
+
+    const reviewChannel = process.env.SLACK_REVIEW_CHANNEL;
+    if (!process.env.SLACK_BOT_TOKEN || !reviewChannel) {
+      return { ok: false, message: "Slack is not configured (SLACK_BOT_TOKEN / SLACK_REVIEW_CHANNEL)." };
+    }
+
+    const supabase = createSupabaseAdminClient();
+    const { data: client } = await supabase
+      .from("clients")
+      .select("company_name, contact_name")
+      .eq("id", clientId)
+      .single();
+    const { data: state } = await supabase
+      .from("onboarding_state")
+      .select("google_ads_customer_id, google_ads_reporting_customer_id, ad_link_status")
+      .eq("client_id", clientId)
+      .single();
+
+    const reportingId =
+      state?.google_ads_reporting_customer_id ?? state?.google_ads_customer_id;
+    if (!reportingId) {
+      return { ok: false, message: "This client has no linked Google Ads account to report on." };
+    }
+
+    const companyName = client?.company_name ?? "";
+    const contactName = (client?.contact_name ?? "").trim();
+
+    // Build the dashboard for the selected window (cache-less for non-week
+    // ranges), then the optimisations + narrative for that same window.
+    const dash = await getDashboard(clientId, reportingId, range);
+    const optimisations = await getWeeklyOptimisations(
+      reportingId,
+      dash.range.start,
+      dash.range.end,
+    );
+    let narrative: string | null = null;
+    try {
+      narrative = await generateNarrative(
+        dash,
+        companyName,
+        optimisations,
+        contactName,
+        periodForRange(range),
+      );
+    } catch (e) {
+      console.error("On-demand narrative failed:", e);
+    }
+    const body = narrative ?? formatWeeklyText(dash.weekly, dash.currency);
+
+    const base = process.env.APP_BASE_URL ?? "https://app.wmiltd.com";
+    const { postMessage } = await import("@/lib/integrations/slack");
+    const draft = [
+      `📊 *Report draft — ${companyName}* (${dash.range.start} → ${dash.range.end})`,
+      "",
+      body,
+      "",
+      `👉 Client dashboard: ${base}/onboarding/${clientId}`,
+      "_Draft for review — not yet sent to the client._",
+    ].join("\n");
+    await postMessage(reviewChannel, draft);
+
+    await logActivity({
+      clientId,
+      eventType: "report_sent_to_slack",
+      actor: "admin",
+      payload: { period_start: dash.range.start, period_end: dash.range.end },
+    });
+
+    return {
+      ok: true,
+      message: `Report for ${dash.range.start} → ${dash.range.end} posted to the Slack review channel.`,
+    };
+  } catch (e) {
+    console.error("sendReportToSlack failed:", e);
+    return { ok: false, message: e instanceof Error ? e.message : "Failed to send report." };
+  }
 }

@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     try {
       // One dashboard pull (cached) gives us the verified weekly numbers + the
       // material for the narrative — no separate weekly recompute.
-      const dash = await getDashboard(clientId, reportingId, 7);
+      const dash = await getDashboard(clientId, reportingId, { kind: "week" });
       const optimisations = await getWeeklyOptimisations(
         reportingId,
         dash.weekly.start,

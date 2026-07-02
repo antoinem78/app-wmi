@@ -32,14 +32,8 @@ import {
   accessGrantTargets,
   type AccessTaskKey,
 } from "@/lib/access-tasks";
-import { getDashboard, type DashboardPayload, type ReportWindow } from "@/lib/integrations/google-ads/reporting";
+import { getDashboard, parseRange, rangeKey, type DashboardPayload } from "@/lib/integrations/google-ads/reporting";
 import { AdsDashboard } from "@/components/AdsDashboard";
-
-function parseRange(raw: string | undefined): ReportWindow {
-  // Weekly report tool → default to the Mon–Sun week; 28/90 only when asked.
-  const n = Number(raw);
-  return n === 28 || n === 90 ? n : 7;
-}
 import { finalizeFromCheckoutSession } from "@/lib/integrations/stripe";
 import {
   getDocumentStatus,
@@ -112,7 +106,7 @@ export default async function OnboardingPage({
           <AdsDashboard
             payload={dashboard}
             basePath={`/onboarding/${id}`}
-            range={range}
+            range={rangeKey(range)}
           />
         </div>
       </Shell>
@@ -168,7 +162,7 @@ export default async function OnboardingPage({
           assetsLink={state?.assets_drive_link ?? null}
           msAdsAccount={state?.microsoft_ads_account_id ?? null}
           dashboard={adApproved ? dashboard : undefined}
-          dashboardRange={range}
+          dashboardRange={rangeKey(range)}
           dashboardBasePath={`/onboarding/${id}`}
         />
       </Shell>
@@ -277,7 +271,7 @@ function ClientHome({
   assetsLink: string | null;
   msAdsAccount: string | null;
   dashboard?: DashboardPayload | null;
-  dashboardRange: number;
+  dashboardRange: string;
   dashboardBasePath: string;
 }) {
   const questionnaireDone = !!questionnaire.monthly_budget;

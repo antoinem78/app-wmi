@@ -124,6 +124,64 @@ function windows(tz: string, windowDays: number) {
   };
 }
 
+// ---- Selectable report ranges (Week / 7d / 14d / 30d / Month / Custom) ----
+export type DashRange =
+  | { kind: "week" }
+  | { kind: "rolling"; days: 7 | 14 | 30 }
+  | { kind: "month" }
+  | { kind: "custom"; start: string; end: string };
+export const RANGE_PRESETS = [
+  { key: "week", label: "Week" },
+  { key: "7d", label: "7d" },
+  { key: "14d", label: "14d" },
+  { key: "30d", label: "30d" },
+  { key: "month", label: "Month" },
+] as const;
+
+/** Parse the `?range=` param into a DashRange. week | 7d/14d/30d | month | custom:from:to. */
+export function parseRange(raw?: string | null): DashRange {
+  const v = (raw ?? "").trim().toLowerCase();
+  if (v === "month") return { kind: "month" };
+  const cm = v.match(/^custom:(\d{4}-\d{2}-\d{2}):(\d{4}-\d{2}-\d{2})$/);
+  if (cm && cm[1] <= cm[2]) return { kind: "custom", start: cm[1], end: cm[2] };
+  const rm = v.match(/^(\d{1,3})d?$/);
+  if (rm) { const n = Number(rm[1]); if (n === 7 || n === 14 || n === 30) return { kind: "rolling", days: n }; }
+  return { kind: "week" };
+}
+/** Serialize a DashRange back to a `?range=` value (for the active-preset check). */
+export function rangeKey(r: DashRange): string {
+  if (r.kind === "week") return "week";
+  if (r.kind === "month") return "month";
+  if (r.kind === "rolling") return `${r.days}d`;
+  return `custom:${r.start}:${r.end}`;
+}
+
+export interface ResolvedRange { start: string; end: string; prevStart: string; prevEnd: string; days: number }
+export function resolveRange(tz: string, range: DashRange): ResolvedRange {
+  const today = new Date(`${ymdInTz(new Date(), tz)}T00:00:00Z`);
+  if (range.kind === "week") return { ...windows(tz, 7), days: 7 };
+  if (range.kind === "rolling") {
+    const n = range.days;
+    const end = addDays(today, -1);
+    const start = addDays(end, -(n - 1));
+    const prevEnd = addDays(start, -1);
+    const prevStart = addDays(prevEnd, -(n - 1));
+    return { start: fmt(start), end: fmt(end), prevStart: fmt(prevStart), prevEnd: fmt(prevEnd), days: n };
+  }
+  if (range.kind === "month") {
+    const y = today.getUTCFullYear(), m = today.getUTCMonth();
+    const s = new Date(Date.UTC(y, m - 1, 1)), e = new Date(Date.UTC(y, m, 0)); // last complete calendar month
+    const ps = new Date(Date.UTC(y, m - 2, 1)), pe = new Date(Date.UTC(y, m - 1, 0));
+    const days = Math.round((e.getTime() - s.getTime()) / 86_400_000) + 1;
+    return { start: fmt(s), end: fmt(e), prevStart: fmt(ps), prevEnd: fmt(pe), days };
+  }
+  const s = new Date(`${range.start}T00:00:00Z`), e = new Date(`${range.end}T00:00:00Z`);
+  const span = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86_400_000) + 1);
+  const prevEnd = addDays(s, -1);
+  const prevStart = addDays(prevEnd, -(span - 1));
+  return { start: range.start, end: range.end, prevStart: fmt(prevStart), prevEnd: fmt(prevEnd), days: span };
+}
+
 function kpi(value: number, prev: number): Kpi {
   return { value, prev, deltaPct: prev > 0 ? ((value - prev) / prev) * 100 : null };
 }
@@ -323,10 +381,19 @@ function classifyChange(
   }
 }
 
+// Google Ads `change_event` only serves roughly the last 30 days; a query whose
+// start is older errors out. Clamp the start to today-29 (UTC, a safe margin) so
+// wider ranges (Month, custom, 30d) still return whatever change history exists.
+function clampChangeStart(start: string): string {
+  const floor = fmt(addDays(new Date(`${ymdInTz(new Date(), "UTC")}T00:00:00Z`), -29));
+  return start < floor ? floor : start;
+}
+
 // Aggregate the account's change history (ALL channel types) into plain-English
 // lines (template, not LLM), using the channel-aware classifier so non-Search
 // edits aren't mislabelled. Used for the Slack fallback / changeCount.
 async function changeSummary(customerId: string, start: string, end: string) {
+  const from = clampChangeStart(start);
   const [campRows, rows] = await Promise.all([
     gaqlSearch(customerId, "SELECT campaign.id, campaign.advertising_channel_type FROM campaign"),
     gaqlSearch(
@@ -334,7 +401,7 @@ async function changeSummary(customerId: string, start: string, end: string) {
       `SELECT change_event.change_resource_type, change_event.resource_change_operation,
               change_event.changed_fields, change_event.campaign, change_event.new_resource
        FROM change_event
-       WHERE change_event.change_date_time >= '${start} 00:00:00'
+       WHERE change_event.change_date_time >= '${from} 00:00:00'
          AND change_event.change_date_time <= '${end} 23:59:59'
        ORDER BY change_event.change_date_time DESC LIMIT 1000`,
     ),
@@ -369,6 +436,7 @@ export async function getWeeklyOptimisations(
   start: string,
   end: string,
 ): Promise<string[]> {
+  const from = clampChangeStart(start);
   const [campRows, changeRows] = await Promise.all([
     gaqlSearch(customerId, "SELECT campaign.id, campaign.name, campaign.advertising_channel_type FROM campaign"),
     gaqlSearch(
@@ -376,7 +444,7 @@ export async function getWeeklyOptimisations(
       `SELECT change_event.change_resource_type, change_event.resource_change_operation,
               change_event.changed_fields, change_event.campaign, change_event.new_resource
        FROM change_event
-       WHERE change_event.change_date_time >= '${start} 00:00:00'
+       WHERE change_event.change_date_time >= '${from} 00:00:00'
          AND change_event.change_date_time <= '${end} 23:59:59'
        ORDER BY change_event.change_date_time DESC LIMIT 2000`,
     ),
@@ -436,7 +504,7 @@ async function buildWeekly(
 
 async function buildDashboard(
   customerId: string,
-  windowDays: number,
+  range: DashRange,
 ): Promise<DashboardPayload> {
   // Account meta first (timezone drives the date math, currency drives display).
   const metaRows = await gaqlSearch(
@@ -449,7 +517,8 @@ async function buildDashboard(
   });
   const currency = cust.currencyCode ?? "USD";
   const timeZone = cust.timeZone ?? "Etc/UTC";
-  const w = windows(timeZone, windowDays);
+  const w = resolveRange(timeZone, range);
+  const windowDays = w.days;
 
   // Month performance: the last 6 calendar months (incl. the current partial
   // month), independent of the selected window — matches the Swydo reports.
@@ -831,11 +900,14 @@ function prettyAdType(t?: string): string {
 export async function getDashboard(
   clientId: string | null,
   customerId: string,
-  windowDays: ReportWindow,
+  range: DashRange = { kind: "week" },
 ): Promise<DashboardPayload> {
-  // MCC-wide reads: an account not imported as a client has no clientId, so the
-  // ads_report_cache (FK to clients) can't be used — compute live, no cache.
-  if (!clientId) return buildDashboard(customerId, windowDays);
+  // Cache ONLY the canonical Mon–Sun week for imported clients (the cron + the
+  // default dashboard view). Everything else — MCC-wide reads with no clientId,
+  // and the 7d/14d/30d/month/custom ranges — computes live: the cache key is an
+  // int window_days that can't disambiguate week-vs-7d or custom windows, and
+  // those ranges are user-triggered rather than hot paths.
+  if (!clientId || range.kind !== "week") return buildDashboard(customerId, range);
 
   const supabase = createSupabaseAdminClient();
   try {
@@ -843,7 +915,7 @@ export async function getDashboard(
       .from("ads_report_cache")
       .select("payload, fetched_at")
       .eq("client_id", clientId)
-      .eq("window_days", windowDays)
+      .eq("window_days", 7)
       .single();
     if (data && Date.now() - new Date(data.fetched_at).getTime() < CACHE_TTL_MS) {
       return data.payload as DashboardPayload;
@@ -852,12 +924,12 @@ export async function getDashboard(
     /* cache miss / table missing — fall through to live */
   }
 
-  const payload = await buildDashboard(customerId, windowDays);
+  const payload = await buildDashboard(customerId, range);
 
   try {
     await supabase
       .from("ads_report_cache")
-      .upsert({ client_id: clientId, window_days: windowDays, payload, fetched_at: new Date().toISOString() });
+      .upsert({ client_id: clientId, window_days: 7, payload, fetched_at: new Date().toISOString() });
   } catch {
     /* cache write best-effort */
   }

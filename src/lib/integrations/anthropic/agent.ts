@@ -202,7 +202,7 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
     case "get_account_report": {
       const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
       if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
-      const dash = await getDashboard(acc.clientId, acc.reportingId, 7);
+      const dash = await getDashboard(acc.clientId, acc.reportingId, { kind: "week" });
       return compactReport(acc.company, dash);
     }
     case "get_all_account_summaries": {
@@ -223,7 +223,7 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
     case "get_recent_changes": {
       const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
       if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
-      const dash = await getDashboard(acc.clientId, acc.reportingId, 7);
+      const dash = await getDashboard(acc.clientId, acc.reportingId, { kind: "week" });
       const changes = await getWeeklyOptimisations(acc.reportingId, dash.weekly.start, dash.weekly.end);
       return { company: acc.company, period: dash.weekly, changes: changes.length ? changes : ["No account changes logged this week."] };
     }

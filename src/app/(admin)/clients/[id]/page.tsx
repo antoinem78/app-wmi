@@ -20,19 +20,15 @@ import {
 } from "../actions";
 import {
   getDashboard,
+  parseRange,
+  rangeKey,
   type DashboardPayload,
-  type ReportWindow,
 } from "@/lib/integrations/google-ads/reporting";
 import { AdsDashboard } from "@/components/AdsDashboard";
 import { GenerateAuditButton } from "@/components/GenerateAuditButton";
+import { SendReportButton } from "@/components/SendReportButton";
 
 export const dynamic = "force-dynamic";
-
-function parseRange(raw: string | undefined): ReportWindow {
-  // Weekly report tool → default to the Mon–Sun week; 28/90 only when asked.
-  const n = Number(raw);
-  return n === 28 || n === 90 ? n : 7;
-}
 
 const QUESTION_LABELS: Record<string, string> = {
   monthly_budget: "Monthly budget",
@@ -400,9 +396,12 @@ export default async function ClientDetailPage({
       {/* Performance dashboard */}
       {adApproved && (
         <div className="mt-6">
-          <AdsDashboard payload={dashboard} basePath={`/clients/${id}`} range={range} />
+          <AdsDashboard payload={dashboard} basePath={`/clients/${id}`} range={rangeKey(range)} />
         </div>
       )}
+
+      {/* On-demand report → Slack (for the currently selected timeframe) */}
+      {adApproved && <SendReportButton clientId={id} range={rangeKey(range)} />}
 
       {/* Questionnaire answers */}
       {hasAnswers && (

@@ -2,7 +2,7 @@
 // client view — verified payload from the reporting data layer. Account currency,
 // account-wide (all campaign types). Server-rendered, inline SVG, no client JS.
 import type { DashboardPayload, Kpi } from "@/lib/integrations/google-ads/reporting";
-import { REPORT_WINDOWS } from "@/lib/integrations/google-ads/reporting";
+import { RangeSelector } from "@/components/RangeSelector";
 
 export function AdsDashboard({
   payload,
@@ -11,7 +11,7 @@ export function AdsDashboard({
 }: {
   payload: DashboardPayload | null;
   basePath: string;
-  range: number;
+  range: string;
 }) {
   if (!payload) {
     return (
@@ -48,19 +48,7 @@ export function AdsDashboard({
             {payload.currency}
           </p>
         </div>
-        <div className="flex gap-1 rounded-lg bg-white/10 p-1">
-          {REPORT_WINDOWS.map((w) => (
-            <a
-              key={w}
-              href={`${basePath}?range=${w}`}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                w === range ? "bg-white text-[#0B1F3A]" : "text-white/70 hover:text-white"
-              }`}
-            >
-              {w === 7 ? "Week" : `${w}d`}
-            </a>
-          ))}
-        </div>
+        <RangeSelector basePath={basePath} active={range} />
       </div>
 
       <div className="p-6">
