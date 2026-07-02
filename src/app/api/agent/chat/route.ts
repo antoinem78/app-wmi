@@ -95,7 +95,10 @@ export async function POST(request: Request) {
         }
       };
       try {
-        await runAgentChatStream(messages, actor, send);
+        // When the conversation is scoped to a client (per-account thread), that
+        // client id is also the analyst's FOCUS account — forward it so the agent
+        // treats questions as about that account instead of asking "which?".
+        await runAgentChatStream(messages, actor, send, clientId);
       } catch (e) {
         console.error("Agent chat failed:", e);
         send({ type: "error", text: "The assistant hit an error. Try again." });

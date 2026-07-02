@@ -73,6 +73,16 @@ function resolveAccount(roster: RosterEntry[], ref: string): RosterEntry | null 
   );
 }
 
+// When the chat is scoped to a client in the UI, tell the agent which account it
+// is (so it doesn't ask "which account?"). Advisory — the user can still name
+// another account explicitly.
+function focusNote(roster: RosterEntry[], focusClientId?: string | null): string {
+  if (!focusClientId) return "";
+  const acc = roster.find((r) => r.clientId === focusClientId);
+  if (!acc) return "";
+  return `\n\nFOCUS ACCOUNT: the user is working on ${acc.company} (clientId ${acc.clientId}, Google customer id ${acc.reportingId}). Treat questions as about this account unless they clearly name another. Call tools with this account directly — you do not need to ask which account.`;
+}
+
 // ---- Compact projection of a dashboard payload (keep tokens sane) ----
 function compactReport(company: string, p: Awaited<ReturnType<typeof getDashboard>>) {
   const k = p.kpis;
@@ -131,6 +141,11 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: { type: "object", properties: { account: { type: "string", description: "Client name or id" } }, required: ["account"] },
   },
   {
+    name: "get_search_terms",
+    description: "The account's ACTUAL search-term (query) data — Search campaigns only, aggregated per query, sorted by spend. Call this BEFORE proposing any negative keyword so you cite real wasted queries (meaningful cost, zero/low conversions) rather than inventing one. Only Search has search terms; PMax / Demand Gen / Shopping return nothing.",
+    input_schema: { type: "object", properties: { account: { type: "string", description: "Client name or id" }, days: { type: "number", description: "Look-back window in days (default 30, max 90)" } }, required: ["account"] },
+  },
+  {
     name: "propose_optimization",
     description:
       "File a structured, reviewable optimisation proposal against an account for the human to approve or dismiss. Use when the user asks you to PROPOSE a change, or when you've identified a concrete, figure-backed change worth formalising. This does NOT execute anything — it creates a pending proposal card in the Proposals page. Base it on figures you've fetched. File one proposal per distinct change.",
@@ -181,7 +196,8 @@ YOUR JOB:
 - Be concise, specific and actionable — a senior analyst talking to a peer. Lead with the answer, then the evidence.
 - You may PROPOSE optimisations (negatives to add, budget reallocations, RSA improvements, campaigns/ad groups to pause) with clear, figure-backed rationale. But you CANNOT execute anything.
 - When the user asks you to PROPOSE something (or you've found a concrete change worth formalising), call propose_optimization to file it as a reviewable card, then tell the user it's filed for their approval in the Proposals page. NEVER claim you made or applied a change; approval/execution is the human's.
-- For the three executable actions — add a single negative keyword, pause a campaign, set a campaign daily budget — first call list_campaigns to get the EXACT campaign name, then include the precise details.action block (with that exact campaign) so the proposal can be applied behind the approval gate. ONE operation per proposal: to add several negatives, file several proposals (one keyword each), never a batch. If the change is account-level / a shared negative list, or you cannot pin it to a specific campaign, file it as ADVISORY (omit details.action) rather than emitting an action with no campaign.
+- For the executable actions — add a single (campaign or ad-group) negative keyword, add a shared/account-level negative, pause a campaign, set a campaign daily budget — include the precise details.action block so the proposal can be applied behind the approval gate. ONE operation per proposal: to add several negatives, file several proposals (one keyword each), never a batch. For a campaign-level negative, pause, or budget change, first call list_campaigns to get the EXACT campaign name. For a shared negative (no campaign), use the add_shared_negative action.
+- NEGATIVE KEYWORDS: before proposing ANY negative keyword, call get_search_terms and cite the actual wasted queries (meaningful cost, zero/low conversions). Never invent a query. If get_search_terms returns nothing, say so and do not fabricate one. If a wasted query is spending across many Search campaigns, file a shared negative (add_shared_negative); if it is confined to one campaign, file a campaign-level add_negative_keyword against that exact campaign.
 - If asked whether an optimisation is needed and you think NOT, prove it with the figures.`;
 
 interface ToolContext { roster: RosterEntry[]; actor: string }
@@ -227,6 +243,59 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
       const changes = await getWeeklyOptimisations(acc.reportingId, dash.weekly.start, dash.weekly.end);
       return { company: acc.company, period: dash.weekly, changes: changes.length ? changes : ["No account changes logged this week."] };
     }
+    case "get_search_terms": {
+      const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
+      if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
+      const days = Math.min(90, Math.max(1, Math.round(Number(input.days) || 30)));
+      const end = new Date(Date.now() - 86_400_000); // exclude today
+      const start = new Date(end.getTime() - (days - 1) * 86_400_000);
+      const ymd = (d: Date) => d.toISOString().slice(0, 10);
+      const rows = await gaqlSearch(
+        acc.reportingId,
+        `SELECT search_term_view.search_term, campaign.name, campaign.advertising_channel_type,
+                metrics.cost_micros, metrics.clicks, metrics.conversions
+         FROM search_term_view
+         WHERE segments.date BETWEEN '${ymd(start)}' AND '${ymd(end)}'
+           AND campaign.advertising_channel_type = 'SEARCH'
+           AND metrics.cost_micros > 0
+         ORDER BY metrics.cost_micros DESC
+         LIMIT 500`,
+      );
+      // Aggregate per query (sum cost/clicks/conv, collect campaign names).
+      const agg: Record<string, { term: string; cost: number; clicks: number; conversions: number; campaigns: Set<string> }> = {};
+      for (const r of rows) {
+        const term = ((r.searchTermView ?? {}) as { searchTerm?: string }).searchTerm ?? "";
+        if (!term) continue;
+        const m = (r.metrics ?? {}) as Record<string, unknown>;
+        const camp = ((r.campaign ?? {}) as { name?: string }).name ?? "";
+        agg[term] ??= { term, cost: 0, clicks: 0, conversions: 0, campaigns: new Set() };
+        agg[term].cost += Number(m.costMicros ?? 0) / 1_000_000;
+        agg[term].clicks += Number(m.clicks ?? 0);
+        agg[term].conversions += Number(m.conversions ?? 0);
+        if (camp) agg[term].campaigns.add(camp);
+      }
+      const terms = Object.values(agg)
+        .sort((a, b) => b.cost - a.cost)
+        .slice(0, 60)
+        .map((t2) => ({
+          term: t2.term,
+          cost: Number(t2.cost.toFixed(2)),
+          clicks: t2.clicks,
+          conversions: Number(t2.conversions.toFixed(2)),
+          campaigns: [...t2.campaigns],
+        }));
+      if (!terms.length) {
+        return { company: acc.company, days, terms: [], note: "No Search search-term data in this window (the account may have no active Search campaigns; PMax/Demand Gen/Shopping have no search terms)." };
+      }
+      return {
+        company: acc.company,
+        currency: undefined,
+        days,
+        window: { start: ymd(start), end: ymd(end) },
+        terms,
+        note: "Costs in account major units. Queries with meaningful cost and zero/near-zero conversions are negative-keyword candidates. A wasted query spanning many Search campaigns is a shared-negative candidate; one confined to a single campaign is a campaign-level negative.",
+      };
+    }
     case "propose_optimization": {
       const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
       if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
@@ -259,11 +328,13 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
 export async function runAgentChat(
   history: ChatMessage[],
   actor = "rexos-agent",
+  focusClientId?: string | null,
 ): Promise<{ reply: string }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { reply: "The assistant isn't configured (no ANTHROPIC_API_KEY)." };
   const client = new Anthropic({ apiKey });
   const ctx: ToolContext = { roster: await loadRoster(), actor };
+  const system = SYSTEM + focusNote(ctx.roster, focusClientId);
 
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
 
@@ -271,7 +342,7 @@ export async function runAgentChat(
     const resp = await client.messages.create({
       model: MODEL,
       max_tokens: 2000,
-      system: SYSTEM,
+      system,
       tools: TOOLS,
       messages,
     });
@@ -311,6 +382,7 @@ function statusLabel(name: string, input: Record<string, unknown>): string {
     case "get_account_report": return `Reading ${acc || "account"}…`;
     case "get_all_account_summaries": return "Scanning all accounts…";
     case "get_recent_changes": return `Checking ${acc || "account"} changes…`;
+    case "get_search_terms": return `Pulling ${acc || "account"} search terms…`;
     case "propose_optimization": return `Filing proposal${acc ? ` for ${acc}` : ""}…`;
     default: return "Working…";
   }
@@ -322,6 +394,7 @@ export async function runAgentChatStream(
   history: ChatMessage[],
   actor: string,
   emit: (ev: AgentEvent) => void,
+  focusClientId?: string | null,
 ): Promise<void> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -331,6 +404,7 @@ export async function runAgentChatStream(
   }
   const client = new Anthropic({ apiKey });
   const ctx: ToolContext = { roster: await loadRoster(), actor };
+  const system = SYSTEM + focusNote(ctx.roster, focusClientId);
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
 
   try {
@@ -338,7 +412,7 @@ export async function runAgentChatStream(
       const stream = client.messages.stream({
         model: MODEL,
         max_tokens: 2000,
-        system: SYSTEM,
+        system,
         tools: TOOLS,
         messages,
       });

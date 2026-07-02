@@ -29,6 +29,7 @@ import {
 import { AdsDashboard } from "@/components/AdsDashboard";
 import { GenerateAuditButton } from "@/components/GenerateAuditButton";
 import { SendReportButton } from "@/components/SendReportButton";
+import { CommandChat } from "@/components/CommandChat";
 
 export const dynamic = "force-dynamic";
 
@@ -399,6 +400,14 @@ export default async function ClientDetailPage({
       {adApproved && (
         <div className="mt-6">
           <AdsDashboard payload={dashboard} basePath={`/clients/${id}`} range={rangeKey(range)} />
+        </div>
+      )}
+
+      {/* Per-account Rexos chat — scoped to this client (persistent + focused) */}
+      {adApproved && (
+        <div className="mt-6">
+          <h2 className="mb-2 text-sm font-semibold text-zinc-900">Ask Rexos about {client.company_name}</h2>
+          <CommandChat scope={id} heightClass="h-[34rem]" />
         </div>
       )}
 

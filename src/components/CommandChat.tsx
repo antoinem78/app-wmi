@@ -16,7 +16,13 @@ const SUGGESTIONS = [
   "Suggest RSA improvements for ",
 ];
 
-export function CommandChat({ scope = "command-center" }: { scope?: string }) {
+export function CommandChat({
+  scope = "command-center",
+  heightClass = "h-[calc(100vh-7rem)]",
+}: {
+  scope?: string;
+  heightClass?: string;
+}) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -131,7 +137,7 @@ export function CommandChat({ scope = "command-center" }: { scope?: string }) {
   const streaming = !!last && last.role === "assistant" && last.content.length > 0;
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+    <div className={`flex ${heightClass} flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm`}>
       {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-zinc-100 bg-gradient-to-r from-[#0B1F3A] to-[#13315c] px-4 py-3">
         <div className="flex items-center gap-2">
