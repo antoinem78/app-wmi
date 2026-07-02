@@ -65,7 +65,7 @@ export interface DashboardPayload {
   byConversionAction: { action: string; conversions: number; convValue: number }[];
   /** Top performing ads by conversions (with leading RSA headlines + final URL). */
   topAds: {
-    headline: string; finalUrl: string; campaign: string;
+    headline: string; finalUrl: string; campaign: string; adGroup: string;
     impressions: number; clicks: number; ctr: number; cost: number;
     conversions: number; convValue: number;
   }[];
@@ -545,7 +545,7 @@ async function buildDashboard(
       customerId,
       `SELECT search_term_view.search_term, metrics.cost_micros, metrics.conversions
        FROM search_term_view WHERE segments.date BETWEEN '${w.start}' AND '${w.end}'
-       ORDER BY metrics.cost_micros DESC LIMIT 10`,
+       ORDER BY metrics.conversions DESC, metrics.cost_micros DESC LIMIT 10`,
     ),
     gaqlSearch(
       customerId,
@@ -554,7 +554,7 @@ async function buildDashboard(
     ),
     gaqlSearch(
       customerId,
-      `SELECT campaign.name, ad_group_ad.ad.type, ad_group_ad.ad.name,
+      `SELECT campaign.name, ad_group.name, ad_group_ad.ad.type, ad_group_ad.ad.name,
               ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.final_urls,
               metrics.impressions, metrics.clicks, metrics.cost_micros,
               metrics.conversions, metrics.conversions_value
@@ -648,6 +648,9 @@ async function buildDashboard(
         convRate: kpi(cvrOf(c.conversions, c.clicks), cvrOf(p.conversions, p.clicks)),
       };
     })
+    // Drop campaigns with no spend in either window — paused/empty shells only
+    // clutter the grid; a campaign active in either period is kept for its Δ.
+    .filter((r) => r.cost.value > 0 || (r.cost.prev ?? 0) > 0)
     .sort((a, b) => b.cost.value - a.cost.value)
     .slice(0, 15);
 
@@ -696,6 +699,7 @@ async function buildDashboard(
       headline,
       finalUrl: ad.finalUrls?.[0] ?? "",
       campaign: ((r.campaign ?? {}) as { name?: string }).name ?? "—",
+      adGroup: ((r.adGroup ?? {}) as { name?: string }).name ?? "",
       impressions,
       clicks,
       ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,

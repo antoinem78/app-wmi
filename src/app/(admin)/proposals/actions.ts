@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAgencyAdmin } from "@/lib/auth/guard";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { decideProposal } from "@/lib/proposals";
+import { decideProposal, deleteProposal } from "@/lib/proposals";
 import { dryRunProposal, applyProposal, rollbackProposal } from "@/lib/proposals-execute";
 
 async function decide(formData: FormData, decision: "approved" | "dismissed") {
@@ -21,6 +21,16 @@ export async function approveProposal(formData: FormData): Promise<void> {
 }
 export async function dismissProposal(formData: FormData): Promise<void> {
   await decide(formData, "dismissed");
+}
+
+export async function deleteProposalAction(formData: FormData): Promise<void> {
+  const { email } = await requireAgencyAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) throw new Error("Missing proposal id.");
+  const res = await deleteProposal(id, email);
+  if ("error" in res) throw new Error(res.error);
+  revalidatePath("/proposals");
+  revalidatePath("/dashboard");
 }
 
 // Execution actions — each routes through the worker (proposals-execute), which

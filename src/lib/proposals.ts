@@ -114,6 +114,33 @@ export async function pendingProposalCount(): Promise<number> {
   return count ?? 0;
 }
 
+// Permanently remove a proposal. Blocked while a proposal is live-applied — roll
+// it back first so we never delete an active change's audit record.
+export async function deleteProposal(
+  id: string,
+  by: string,
+): Promise<{ ok: true } | { error: string }> {
+  const supabase = createSupabaseAdminClient();
+  const { data: row } = await supabase
+    .from("optimization_proposals")
+    .select("client_id, status, title, type")
+    .eq("id", id)
+    .single();
+  if (!row) return { error: "Proposal not found." };
+  if (row.status === "applied") {
+    return { error: "This proposal is applied to a live account — roll it back before deleting." };
+  }
+  const { error } = await supabase.from("optimization_proposals").delete().eq("id", id);
+  if (error) return { error: error.message };
+  await logActivity({
+    clientId: row.client_id as string,
+    eventType: "proposal_deleted",
+    actor: `admin:${by}`,
+    payload: { proposal_id: id, type: row.type, title: row.title },
+  });
+  return { ok: true };
+}
+
 // Record a decision. Propose-only: "approve" means accepted (you'll apply it in
 // Google Ads); it does not execute. Idempotent-ish: only acts on a pending row.
 export async function decideProposal(

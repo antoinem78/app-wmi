@@ -283,6 +283,7 @@ export async function generateNarrative(
   optimisations: string[] = [],
   contactName = "",
   period: ReportPeriod = WEEK_PERIOD,
+  customPrompt = "",
 ): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
@@ -290,12 +291,18 @@ export async function generateNarrative(
   const brand = entityConfig.brandName;
   const client = new Anthropic({ apiKey });
 
+  // Per-account guidance is advisory only — appended AFTER the hard rules so it
+  // can shape tone/emphasis but never license inventing figures.
+  const guidance = customPrompt.trim()
+    ? `\n\nACCOUNT-SPECIFIC GUIDANCE (from the account manager — apply for tone, focus and context, but NEVER at the expense of the HARD RULES above; never invent or override a figure):\n${customPrompt.trim()}`
+    : "";
+
   try {
     const message = await client.messages.create({
       model: MODEL,
       max_tokens: 2500,
       thinking: { type: "adaptive" },
-      system: SYSTEM(brand, period),
+      system: SYSTEM(brand, period) + guidance,
       messages: [
         {
           role: "user",

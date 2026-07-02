@@ -491,6 +491,24 @@ export async function addReportingClientsBulk(formData: FormData): Promise<void>
   redirect("/clients");
 }
 
+// Save the per-account narrative guidance (report_prompt). Advisory text the
+// account manager sets; appended to the report narrative system prompt.
+export async function saveReportPrompt(formData: FormData): Promise<void> {
+  await requireAgencyAdmin();
+  const clientId = String(formData.get("client_id") ?? "").trim();
+  if (!clientId) throw new Error("Missing client.");
+  const prompt = String(formData.get("report_prompt") ?? "").trim().slice(0, 4000);
+
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from("clients")
+    .update({ report_prompt: prompt || null })
+    .eq("id", clientId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/clients/${clientId}`);
+}
+
 export interface SendReportResult {
   ok: boolean;
   message: string;
@@ -520,7 +538,7 @@ export async function sendReportToSlack(
     const supabase = createSupabaseAdminClient();
     const { data: client } = await supabase
       .from("clients")
-      .select("company_name, contact_name")
+      .select("company_name, contact_name, report_prompt")
       .eq("id", clientId)
       .single();
     const { data: state } = await supabase
@@ -554,6 +572,7 @@ export async function sendReportToSlack(
         optimisations,
         contactName,
         periodForRange(range),
+        client?.report_prompt ?? "",
       );
     } catch (e) {
       console.error("On-demand narrative failed:", e);

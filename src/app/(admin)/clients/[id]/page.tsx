@@ -17,6 +17,7 @@ import {
   cancelClientSubscription,
   resumeClientSubscription,
   markPaidManually,
+  saveReportPrompt,
 } from "../actions";
 import {
   getDashboard,
@@ -402,6 +403,34 @@ export default async function ClientDetailPage({
 
       {/* On-demand report → Slack (for the currently selected timeframe) */}
       {adApproved && <SendReportButton clientId={id} range={rangeKey(range)} />}
+
+      {/* Per-account narrative guidance (report_prompt) */}
+      {adApproved && (
+        <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <h2 className="text-sm font-semibold text-zinc-900">Report narrative guidance</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Optional per-account instructions for the AI report writer — tone, metrics to
+            emphasise, or context the data can&rsquo;t show. It never overrides the verified
+            figures; it shapes how the story is told.
+          </p>
+          <form action={saveReportPrompt} className="mt-4">
+            <input type="hidden" name="client_id" value={id} />
+            <textarea
+              name="report_prompt"
+              rows={4}
+              defaultValue={client.report_prompt ?? ""}
+              placeholder="e.g. This client cares most about lead quality over volume; keep the tone concise and avoid jargon. Peak season is Nov–Dec."
+              className="w-full resize-y rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[#0B1F3A] focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="mt-3 rounded-lg bg-[#0B1F3A] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              Save guidance
+            </button>
+          </form>
+        </section>
+      )}
 
       {/* Questionnaire answers */}
       {hasAnswers && (

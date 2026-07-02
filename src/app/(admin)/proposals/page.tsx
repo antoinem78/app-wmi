@@ -9,7 +9,7 @@ import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { listProposals, type Proposal, type ProposalType } from "@/lib/proposals";
 import { writeEnabled, allowedCustomers, parseAction } from "@/lib/integrations/google-ads/write";
 import {
-  approveProposal, dismissProposal,
+  approveProposal, dismissProposal, deleteProposalAction,
   dryRunProposalAction, applyProposalAction, rollbackProposalAction,
 } from "./actions";
 
@@ -94,6 +94,9 @@ export default async function ProposalsPage() {
                       <span className="ml-2 text-zinc-800">{p.title}</span>
                       <span className="ml-2 text-xs text-zinc-400">· {p.accountLabel}</span>
                     </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <Form action={deleteProposalAction} id={p.id} msg="Permanently delete this proposal? This cannot be undone." cls="border border-red-200 bg-white text-red-600 hover:bg-red-50">Delete</Form>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -125,6 +128,7 @@ function PendingCard({ p }: { p: Proposal }) {
       <div className="mt-4 flex gap-2">
         <Form action={approveProposal} id={p.id} msg="Approve this proposal?" cls="bg-emerald-600 text-white hover:bg-emerald-700">Approve</Form>
         <Form action={dismissProposal} id={p.id} msg="Dismiss this proposal?" cls="border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50">Dismiss</Form>
+        <Form action={deleteProposalAction} id={p.id} msg="Permanently delete this proposal? This cannot be undone." cls="border border-red-200 bg-white text-red-600 hover:bg-red-50">Delete</Form>
       </div>
     </Card>
   );

@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   const { data: rows } = await supabase
     .from("onboarding_state")
     .select(
-      "client_id, google_ads_customer_id, google_ads_reporting_customer_id, clients(company_name, contact_name)",
+      "client_id, google_ads_customer_id, google_ads_reporting_customer_id, clients(company_name, contact_name, report_prompt)",
     )
     .eq("ad_link_status", "approved")
     .not("google_ads_customer_id", "is", null);
@@ -56,9 +56,14 @@ export async function GET(request: Request) {
     // Report on the leaf account (the linked id may be a manager/MCC).
     const reportingId =
       (row.google_ads_reporting_customer_id as string | null) ?? customerId;
-    const clientRow = row.clients as unknown as { company_name?: string; contact_name?: string } | null;
+    const clientRow = row.clients as unknown as {
+      company_name?: string;
+      contact_name?: string;
+      report_prompt?: string;
+    } | null;
     const companyName = clientRow?.company_name ?? "";
     const contactName = (clientRow?.contact_name ?? "").trim();
+    const reportPrompt = clientRow?.report_prompt ?? "";
 
     try {
       // One dashboard pull (cached) gives us the verified weekly numbers + the
@@ -72,7 +77,14 @@ export async function GET(request: Request) {
 
       let narrative: string | null = null;
       try {
-        narrative = await generateNarrative(dash, companyName, optimisations, contactName);
+        narrative = await generateNarrative(
+          dash,
+          companyName,
+          optimisations,
+          contactName,
+          undefined,
+          reportPrompt,
+        );
       } catch (e) {
         console.error(`Narrative skipped for ${clientId}:`, e);
       }

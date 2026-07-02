@@ -257,6 +257,7 @@ function TopAds({
                   <div className="font-medium leading-snug break-words">{a.headline}</div>
                   <div className="text-[11px] text-zinc-400">
                     {a.campaign}
+                    {a.adGroup ? ` › ${a.adGroup}` : ""}
                     {a.finalUrl ? ` · ${a.finalUrl}` : ""}
                   </div>
                 </td>
@@ -572,6 +573,14 @@ function TrendChart({
             </text>
           ) : null,
         )}
+        {/* Per-day hover targets — a transparent full-height band with a native
+            SVG tooltip (date · spend · conversions), so the chart is inspectable
+            without any client JS. */}
+        {trend.map((t, i) => (
+          <rect key={`h${i}`} x={x0 + i * band} y={y0} width={band} height={y1 - y0} fill="transparent">
+            <title>{`${t.date} · ${money(t.spend)} spend · ${numc(t.conversions)} conv`}</title>
+          </rect>
+        ))}
       </svg>
     </div>
   );
