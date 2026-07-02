@@ -50,17 +50,36 @@ export function GenerateAuditButton({
   const base = compact
     ? "rounded-md px-2.5 py-1 text-xs font-medium"
     : "rounded-md px-3.5 py-2 text-sm font-medium";
+  const btn = (
+    <button
+      onClick={go}
+      disabled={loading}
+      title="Generate a branded Google Ads audit (Word). Takes ~2 minutes."
+      className={`${base} border border-zinc-300 bg-white text-[#0B1F3A] hover:bg-zinc-50 disabled:opacity-50`}
+    >
+      {loading ? "Generating… (~2 min)" : compact ? "Audit ↓" : "Generate audit (Word)"}
+    </button>
+  );
+  if (compact) {
+    return (
+      <span className="inline-flex items-center gap-2">
+        {btn}
+        {error && <span className="text-xs text-red-600">{error}</span>}
+      </span>
+    );
+  }
   return (
-    <span className="inline-flex items-center gap-2">
-      <button
-        onClick={go}
-        disabled={loading}
-        title="Generate a branded Google Ads audit (Word). Takes ~2 minutes."
-        className={`${base} border border-zinc-300 bg-white text-[#0B1F3A] hover:bg-zinc-50 disabled:opacity-50`}
-      >
-        {loading ? "Generating… (~2 min)" : compact ? "Audit ↓" : "Generate audit (Word)"}
-      </button>
-      {error && <span className="text-xs text-red-600">{error}</span>}
-    </span>
+    <div>
+      <div className="flex items-center gap-2">
+        {btn}
+        {error && <span className="text-xs text-red-600">{error}</span>}
+      </div>
+      {/* Native export path — the .docx exports to PDF and opens as a Google Doc
+          with full fidelity, no extra tooling needed. */}
+      <p className="mt-2 text-[11px] text-zinc-400">
+        Downloads as Word (.docx). For a PDF, open it and use File → Save/Export as PDF.
+        For a Google Doc, upload the file to Google Drive and open it — Drive converts it automatically.
+      </p>
+    </div>
   );
 }
