@@ -203,6 +203,41 @@ export async function resolveReportingCustomerId(linkedCustomerId: string): Prom
   return { reportingId: null, leaves, multi: leaves.length > 1 };
 }
 
+// ---- MCC membership (the hard write boundary) ----
+// The set of every customer id ENABLED under this deployment's MCC (managers +
+// leaves), plus the MCC id itself. Writes are permitted ONLY to ids in this set,
+// verified against the LIVE hierarchy — never a trusted UI value. Cached briefly.
+let mccCache: { ids: Set<string>; expiresAt: number } | null = null;
+const MCC_TTL_MS = 15 * 60 * 1000;
+
+export async function mccMemberSet(): Promise<Set<string>> {
+  if (mccCache && Date.now() < mccCache.expiresAt) return mccCache.ids;
+  const mcc = requireEnv("GOOGLE_ADS_LOGIN_CUSTOMER_ID");
+  const rows = await gaqlSearch(
+    mcc,
+    `SELECT customer_client.id, customer_client.manager, customer_client.status
+     FROM customer_client WHERE customer_client.status = 'ENABLED'`,
+  );
+  const ids = new Set<string>();
+  ids.add(mcc.replace(/\D/g, "")); // include the MCC id itself
+  for (const r of rows) {
+    const c = (r.customerClient ?? {}) as { id?: string | number };
+    if (c.id != null) ids.add(String(c.id).replace(/\D/g, ""));
+  }
+  mccCache = { ids, expiresAt: Date.now() + MCC_TTL_MS };
+  return ids;
+}
+
+/** True iff customerId is under this deployment's MCC. Re-verifies live on a
+ *  cache miss (a freshly-added account may not be in the cached set yet). */
+export async function isUnderMcc(customerId: string): Promise<boolean> {
+  const norm = customerId.replace(/\D/g, "");
+  if (!norm) return false;
+  if ((await mccMemberSet()).has(norm)) return true;
+  mccCache = null; // force a live re-check on miss
+  return (await mccMemberSet()).has(norm);
+}
+
 export interface ManagedLeaf {
   id: string;
   name: string;

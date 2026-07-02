@@ -159,14 +159,14 @@ const TOOLS: Anthropic.Tool[] = [
         details: {
           type: "object",
           description:
-            "To make the proposal EXECUTABLE (gives it an Apply button), include an `action` object — exactly ONE operation per proposal (one op per approval; NO batching). For multiple negatives, file SEPARATE proposals, one keyword each. The `campaign` field is REQUIRED and must be an EXACT campaign name from list_campaigns (do NOT guess). If you cannot identify a specific campaign, or the change is account-level / shared-negative-list (no single campaign), OMIT `action` entirely and file it as ADVISORY — never emit an action with a missing or invented campaign.",
+            "To make the proposal EXECUTABLE (gives it an Apply button), include an `action` object — exactly ONE operation per proposal (one op per approval; NO batching). For multiple negatives, file SEPARATE proposals, one keyword each. For campaign-level actions (add_negative_keyword, pause_campaign, set_campaign_budget) the `campaign` field is REQUIRED and must be an EXACT campaign name from list_campaigns (do NOT guess). For an account-wide shared negative use add_shared_negative (NO campaign). If you cannot pin a campaign-level change to a specific campaign, OMIT `action` entirely and file it as ADVISORY — never emit a campaign-level action with a missing or invented campaign.",
           properties: {
             action: {
               type: "object",
               description:
-                "negatives: {kind:'add_negative_keyword', campaign, level:'campaign'|'ad_group', adGroup?, text:'<one keyword>', matchType:'EXACT'|'PHRASE'|'BROAD'}. pause: {kind:'pause_campaign', campaign}. budget: {kind:'set_campaign_budget', campaign, newDailyAmount:<number in account currency>}.",
+                "campaign negative: {kind:'add_negative_keyword', campaign, level:'campaign'|'ad_group', adGroup?, text:'<one keyword>', matchType:'EXACT'|'PHRASE'|'BROAD'}. shared/account-level negative (attaches to all Search campaigns): {kind:'add_shared_negative', text:'<one keyword>', matchType:'EXACT'|'PHRASE'|'BROAD'}. pause: {kind:'pause_campaign', campaign}. budget: {kind:'set_campaign_budget', campaign, newDailyAmount:<number in account currency>}.",
               properties: {
-                kind: { type: "string", enum: ["add_negative_keyword", "pause_campaign", "set_campaign_budget"] },
+                kind: { type: "string", enum: ["add_negative_keyword", "add_shared_negative", "pause_campaign", "set_campaign_budget"] },
                 campaign: { type: "string" },
                 level: { type: "string", enum: ["campaign", "ad_group"] },
                 adGroup: { type: "string" },
