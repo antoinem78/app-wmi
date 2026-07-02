@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { entityConfig } from "@/lib/config";
 import { AdsDashboard } from "@/components/AdsDashboard";
+import { PrintButton } from "@/components/PrintButton";
 import {
   getDashboard,
   parseRange,
@@ -63,9 +64,12 @@ export default async function SharedDashboardPage({
             <div className="text-sm font-semibold text-[#0B1F3A]">{entityConfig.brandName}</div>
             <h1 className="text-lg font-semibold text-zinc-900">{client.company_name}</h1>
           </div>
-          <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-medium text-zinc-500">
-            Live performance
-          </span>
+          <div className="flex items-center gap-3">
+            {linked && <PrintButton />}
+            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-medium text-zinc-500 print:hidden">
+              Live performance
+            </span>
+          </div>
         </div>
       </header>
 
