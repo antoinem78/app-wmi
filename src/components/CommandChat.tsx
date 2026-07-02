@@ -16,12 +16,22 @@ const SUGGESTIONS = [
   "Suggest RSA improvements for ",
 ];
 
+export interface ChatAccount {
+  clientId: string;
+  company: string;
+}
+
 export function CommandChat({
   scope = "command-center",
   heightClass = "h-[calc(100vh-7rem)]",
+  accounts,
+  onScopeChange,
 }: {
   scope?: string;
   heightClass?: string;
+  /** When provided, renders an account selector in the header. */
+  accounts?: ChatAccount[];
+  onScopeChange?: (scope: string) => void;
 }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -140,12 +150,28 @@ export function CommandChat({
     <div className={`flex ${heightClass} flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm`}>
       {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-zinc-100 bg-gradient-to-r from-[#0B1F3A] to-[#13315c] px-4 py-3">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <span className="text-sm font-semibold text-white">Rexos</span>
-          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white/80">analyst · read-only</span>
+          {onScopeChange && accounts ? (
+            <select
+              value={scope}
+              onChange={(e) => onScopeChange(e.target.value)}
+              className="max-w-[13rem] truncate rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white focus:outline-none"
+              title="Focus account"
+            >
+              <option value="command-center" className="text-zinc-900">All accounts</option>
+              {accounts.map((a) => (
+                <option key={a.clientId} value={a.clientId} className="text-zinc-900">
+                  {a.company}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white/80">analyst · read-only</span>
+          )}
         </div>
         {messages.length > 0 && (
-          <button onClick={clearChat} className="text-[11px] text-white/60 hover:text-white">
+          <button onClick={clearChat} className="shrink-0 text-[11px] text-white/60 hover:text-white">
             Clear
           </button>
         )}

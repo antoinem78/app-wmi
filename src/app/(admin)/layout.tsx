@@ -13,6 +13,7 @@ import { auth0 } from "@/lib/auth/auth0";
 import { isAgencyAdmin } from "@/lib/auth/roles";
 import { Wordmark } from "@/components/Wordmark";
 import { pendingProposalCount } from "@/lib/proposals";
+import { RexosWidget } from "@/components/RexosWidget";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
@@ -80,6 +81,8 @@ export default async function AdminLayout({
         </div>
       </aside>
       <main className="flex-1 bg-zinc-50">{children}</main>
+      {/* Global analyst — floating, on every admin page, with an account selector. */}
+      <RexosWidget />
     </div>
   );
 }
