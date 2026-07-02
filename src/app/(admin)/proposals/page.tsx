@@ -9,7 +9,7 @@ import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { listProposals, type Proposal, type ProposalType } from "@/lib/proposals";
 import { writeEnabled, allowedCustomers, parseAction } from "@/lib/integrations/google-ads/write";
 import {
-  approveProposal, dismissProposal, deleteProposalAction,
+  approveProposal, dismissProposal, deleteProposalAction, markAppliedAction,
   dryRunProposalAction, applyProposalAction, rollbackProposalAction,
 } from "./actions";
 
@@ -143,9 +143,9 @@ function ApprovedCard({ p, writesOn }: { p: Proposal; writesOn: boolean }) {
       <CardHead p={p} />
       <Body p={p} />
       {!exec ? (
-        <p className="mt-3 text-xs text-zinc-400">Advisory only — apply this one manually in Google Ads.</p>
+        <p className="mt-3 text-xs text-zinc-400">Advisory only — apply this one manually in Google Ads, then mark it applied.</p>
       ) : !writesOn ? (
-        <p className="mt-3 text-xs text-amber-700">Approved. Execution is disabled (write mode off) — apply it in Google Ads, or enable write mode to run it here.</p>
+        <p className="mt-3 text-xs text-amber-700">Approved. Execution is disabled (write mode off) — apply it in Google Ads and mark it applied, or enable write mode to run it here.</p>
       ) : (
         <div className="mt-4 flex items-center gap-2">
           <Form action={dryRunProposalAction} id={p.id} msg="Run a validate-only dry run (no change)?" cls="border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50">Dry-run</Form>
@@ -154,24 +154,39 @@ function ApprovedCard({ p, writesOn }: { p: Proposal; writesOn: boolean }) {
         </div>
       )}
       {lastErr && <p className="mt-2 rounded bg-red-50 px-2 py-1 text-[11px] text-red-700">{lastErr}</p>}
+      <div className="mt-3 flex items-center gap-2 border-t border-zinc-100 pt-3">
+        <Form action={markAppliedAction} id={p.id} msg="Mark this proposal as applied? Use this once you've actioned the change in Google Ads yourself." cls="border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100">Mark as applied</Form>
+        <Form action={deleteProposalAction} id={p.id} msg="Permanently delete this proposal? This only removes our record; it does not undo any change already made in Google Ads." cls="border border-red-200 bg-white text-red-600 hover:bg-red-50">Delete</Form>
+      </div>
     </Card>
   );
 }
 
 function AppliedCard({ p }: { p: Proposal }) {
+  const manual = !!p.execution?.appliedManually;
   const before = JSON.stringify(p.execution?.before ?? {});
   const after = JSON.stringify(p.execution?.after ?? {});
+  const appliedBy = (p.execution?.appliedBy as string) ?? p.decidedBy ?? "—";
   return (
     <Card>
       <CardHead p={p} />
       <Body p={p} />
       <div className="mt-3 space-y-1 rounded-lg bg-zinc-50 p-2 text-[11px] text-zinc-600">
-        <div><span className="text-zinc-400">before:</span> {before}</div>
-        <div><span className="text-zinc-400">after:</span> {after}</div>
-        <div className="text-zinc-400">applied by {(p.execution?.appliedBy as string) ?? "—"}</div>
+        {manual ? (
+          <div className="text-zinc-500">Applied manually in Google Ads by {appliedBy}.</div>
+        ) : (
+          <>
+            <div><span className="text-zinc-400">before:</span> {before}</div>
+            <div><span className="text-zinc-400">after:</span> {after}</div>
+            <div className="text-zinc-400">applied by {appliedBy}</div>
+          </>
+        )}
       </div>
-      <div className="mt-3">
-        <Form action={rollbackProposalAction} id={p.id} msg="Roll back this change (re-validate then reverse it)?" cls="border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100">Rollback</Form>
+      <div className="mt-3 flex items-center gap-2">
+        {!p.execution?.appliedManually && (
+          <Form action={rollbackProposalAction} id={p.id} msg="Roll back this change (re-validate then reverse it)?" cls="border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100">Rollback</Form>
+        )}
+        <Form action={deleteProposalAction} id={p.id} msg="Permanently delete this proposal? This only removes our record; it does not undo any change already made in Google Ads." cls="border border-red-200 bg-white text-red-600 hover:bg-red-50">Delete</Form>
       </div>
       {(p.execution?.lastError as string | undefined) && <p className="mt-2 rounded bg-red-50 px-2 py-1 text-[11px] text-red-700">{p.execution!.lastError as string}</p>}
     </Card>

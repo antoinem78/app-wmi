@@ -114,8 +114,9 @@ export async function pendingProposalCount(): Promise<number> {
   return count ?? 0;
 }
 
-// Permanently remove a proposal. Blocked while a proposal is live-applied — roll
-// it back first so we never delete an active change's audit record.
+// Permanently remove a proposal, in any state. The prior applied change (if the
+// write layer made one) is untouched in Google Ads — deletion only removes our
+// record, so the confirm copy warns when a live change won't be reversed.
 export async function deleteProposal(
   id: string,
   by: string,
@@ -127,14 +128,51 @@ export async function deleteProposal(
     .eq("id", id)
     .single();
   if (!row) return { error: "Proposal not found." };
-  if (row.status === "applied") {
-    return { error: "This proposal is applied to a live account — roll it back before deleting." };
-  }
   const { error } = await supabase.from("optimization_proposals").delete().eq("id", id);
   if (error) return { error: error.message };
   await logActivity({
     clientId: row.client_id as string,
     eventType: "proposal_deleted",
+    actor: `admin:${by}`,
+    payload: { proposal_id: id, type: row.type, title: row.title, prior_status: row.status },
+  });
+  return { ok: true };
+}
+
+// Manually mark an approved proposal as applied — for the propose-only workflow
+// where the change is actioned in Google Ads by hand (write mode off). Records
+// who/when and flags it as a manual application, so it reads "applied" like the
+// write-layer path but carries no rollback data.
+export async function markProposalApplied(
+  id: string,
+  by: string,
+): Promise<{ ok: true } | { error: string }> {
+  const supabase = createSupabaseAdminClient();
+  const { data: row } = await supabase
+    .from("optimization_proposals")
+    .select("client_id, status, title, type, execution")
+    .eq("id", id)
+    .single();
+  if (!row) return { error: "Proposal not found." };
+  if (row.status === "applied") return { error: "Already applied." };
+  if (row.status !== "approved") {
+    return { error: `Approve the proposal first (is ${row.status}).` };
+  }
+  const now = new Date().toISOString();
+  const execution = {
+    ...(((row.execution as Record<string, unknown>) ?? {})),
+    appliedManually: true,
+    appliedBy: by,
+  };
+  const { error } = await supabase
+    .from("optimization_proposals")
+    .update({ status: "applied", applied_at: now, applied_by: by, execution })
+    .eq("id", id)
+    .eq("status", "approved");
+  if (error) return { error: error.message };
+  await logActivity({
+    clientId: row.client_id as string,
+    eventType: "proposal_applied_manually",
     actor: `admin:${by}`,
     payload: { proposal_id: id, type: row.type, title: row.title },
   });
