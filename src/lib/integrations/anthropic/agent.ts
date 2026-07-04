@@ -6,6 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { getDashboard, getWeeklyOptimisations } from "@/lib/integrations/google-ads/reporting";
 import { gaqlSearch, listManagedAccounts } from "@/lib/integrations/google-ads";
+import { getFeedAudit } from "@/lib/integrations/google-ads/feed";
 import { getCommandCenter } from "@/lib/command-center";
 import { createProposal, type ProposalType } from "@/lib/proposals";
 import { entityConfig } from "@/lib/config";
@@ -146,6 +147,11 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: { type: "object", properties: { account: { type: "string", description: "Client name or id" }, days: { type: "number", description: "Look-back window in days (default 30, max 90)" } }, required: ["account"] },
   },
   {
+    name: "get_feed_audit",
+    description: "Google Shopping / feed PERFORMANCE audit for ONE ecommerce account: product-level winners and wasted spend (zero-conversion products), spend concentration, brand and product-type breakdowns, Shopping vs Performance Max split, and computed feed diagnoses. Use for feed/Shopping questions ('audit <client>'s feed', 'where is Shopping wasting spend', 'which products to cut'). Read-only. NOTE: this is feed PERFORMANCE from the Ads API — NOT Merchant Center feed HEALTH (disapprovals / item errors), which isn't available yet.",
+    input_schema: { type: "object", properties: { account: { type: "string", description: "Client name or id" }, days: { type: "number", description: "Look-back window in days (default 30, max 180)" } }, required: ["account"] },
+  },
+  {
     name: "propose_optimization",
     description:
       "File a structured, reviewable optimisation proposal against an account for the human to approve or dismiss. Use when the user asks you to PROPOSE a change, or when you've identified a concrete, figure-backed change worth formalising. This does NOT execute anything — it creates a pending proposal card in the Proposals page. Base it on figures you've fetched. File one proposal per distinct change.",
@@ -187,7 +193,7 @@ const SYSTEM = `You are Rexos, the ${entityConfig.brandName} paid-media ops anal
 
 HOW YOU WORK:
 - Use the tools to fetch REAL figures. Never invent, estimate or recompute a number, %, campaign name or metric. If you don't have it, fetch it.
-- Resolve accounts with list_accounts (you can reference an account by name OR its Google customer id). Use get_account_report for one account, get_all_account_summaries for cross-account questions, get_recent_changes for what was changed, and list_campaigns to get the EXACT campaign names (including paused ones) before filing any executable proposal.
+- Resolve accounts with list_accounts (you can reference an account by name OR its Google customer id). Use get_account_report for one account, get_all_account_summaries for cross-account questions, get_recent_changes for what was changed, get_search_terms for real query data, get_feed_audit for Shopping/feed (ecommerce) questions, and list_campaigns to get the EXACT campaign names (including paused ones) before filing any executable proposal.
 - Figures are ACCOUNT-WIDE across all channel types. Attribute correctly — never call Performance Max / Shopping activity "Search", never call product/listing groups "keywords". Search impression share and search terms are Search-only. Two conversion bases exist (interaction date vs by-time); don't conflate them.
 - Respect each account's own currency; never sum across currencies.
 - Don't narrate your tool use ("let me check…", "I'll look that up"); just call the tools, then give the answer.
@@ -296,6 +302,41 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
         note: "Costs in account major units. Queries with meaningful cost and zero/near-zero conversions are negative-keyword candidates. A wasted query spanning many Search campaigns is a shared-negative candidate; one confined to a single campaign is a campaign-level negative.",
       };
     }
+    case "get_feed_audit": {
+      const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
+      if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
+      const days = Math.min(180, Math.max(7, Math.round(Number(input.days) || 30)));
+      const f = await getFeedAudit(acc.reportingId, days);
+      if (!f.hasShopping) {
+        return { company: acc.company, hasShopping: false, note: "No Shopping/Performance Max activity found for this account in the window — nothing to audit at the feed level." };
+      }
+      const dec = (n: number, dp = 2) => Number(n.toFixed(dp));
+      const trimProduct = (p: import("@/lib/integrations/google-ads/feed").FeedProduct) => ({
+        itemId: p.itemId, title: p.title.slice(0, 80), brand: p.brand, type: p.type,
+        impressions: p.impressions, clicks: p.clicks, cost: dec(p.cost), conversions: dec(p.conversions), convValue: dec(p.convValue), roas: dec(p.roas),
+      });
+      const trimGroup = (g: import("@/lib/integrations/google-ads/feed").FeedGroup) => ({ label: g.label, spend: dec(g.spend), conversions: dec(g.conversions), convValue: dec(g.convValue), roas: dec(g.roas) });
+      return {
+        company: acc.company,
+        currency: f.currency,
+        window: f.window,
+        hasShopping: true,
+        totals: {
+          products: f.totals.products, spend: dec(f.totals.spend), conversions: dec(f.totals.conversions),
+          convValue: dec(f.totals.convValue), roas: dec(f.totals.roas),
+          nonConvertingSpend: dec(f.totals.nonConvertingSpend), nonConvertingSpendPct: dec(f.totals.nonConvertingSpendPct, 1),
+          zeroClickProducts: f.totals.zeroClickProducts, missingBrand: f.totals.missingBrand,
+        },
+        spendConcentrationTop10Pct: dec(f.spendConcentrationTop10Pct, 1),
+        channelSplit: f.channelSplit.map(trimGroup),
+        topProducts: f.topProducts.slice(0, 10).map(trimProduct),
+        wastedProducts: f.wastedProducts.slice(0, 10).map(trimProduct),
+        byBrand: f.byBrand.slice(0, 8).map(trimGroup),
+        byType: f.byType.slice(0, 8).map(trimGroup),
+        diagnoses: f.diagnoses,
+        note: "Feed PERFORMANCE from the Google Ads API — not Merchant Center feed HEALTH (disapprovals/item errors). Costs/values in account currency. Base negative/exclusion or bidding proposals on the wastedProducts + diagnoses.",
+      };
+    }
     case "propose_optimization": {
       const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
       if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
@@ -383,6 +424,7 @@ function statusLabel(name: string, input: Record<string, unknown>): string {
     case "get_all_account_summaries": return "Scanning all accounts…";
     case "get_recent_changes": return `Checking ${acc || "account"} changes…`;
     case "get_search_terms": return `Pulling ${acc || "account"} search terms…`;
+    case "get_feed_audit": return `Auditing ${acc || "account"} feed…`;
     case "propose_optimization": return `Filing proposal${acc ? ` for ${acc}` : ""}…`;
     default: return "Working…";
   }

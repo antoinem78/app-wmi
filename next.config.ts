@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   // fallback if absent).
   outputFileTracingIncludes: {
     "/api/audit/[clientId]": ["./src/lib/audit/assets/**"],
+    "/api/feed-audit/[clientId]": ["./src/lib/audit/assets/**"],
   },
 };
 

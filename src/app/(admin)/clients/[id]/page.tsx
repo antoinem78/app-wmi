@@ -319,6 +319,7 @@ export default async function ClientDetailPage({
               Google Ads linking
             </h2>
             <div className="flex items-center gap-3">
+              {state.ad_link_status === "approved" && <GenerateAuditButton clientId={id} kind="feed" compact />}
               {state.ad_link_status === "approved" && <GenerateAuditButton clientId={id} />}
               <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600">
                 {state.ad_link_status}

@@ -7,19 +7,25 @@ import { useState } from "react";
 export function GenerateAuditButton({
   clientId,
   compact,
+  kind = "ads",
 }: {
   clientId: string;
   compact?: boolean;
+  /** "ads" = full Google Ads audit; "feed" = Google Shopping & feed audit. */
+  kind?: "ads" | "feed";
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const feed = kind === "feed";
+  const endpoint = feed ? `/api/feed-audit/${clientId}` : `/api/audit/${clientId}`;
+  const fallbackName = feed ? "Google Shopping Feed Audit.docx" : "Google Ads Audit.docx";
 
   async function go() {
     if (loading) return;
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`/api/audit/${clientId}`, {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -31,7 +37,7 @@ export function GenerateAuditButton({
       }
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") ?? "";
-      const filename = /filename="?([^"]+)"?/.exec(cd)?.[1] ?? "Google Ads Audit.docx";
+      const filename = /filename="?([^"]+)"?/.exec(cd)?.[1] ?? fallbackName;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -54,10 +60,10 @@ export function GenerateAuditButton({
     <button
       onClick={go}
       disabled={loading}
-      title="Generate a branded Google Ads audit (Word). Takes ~2 minutes."
+      title={feed ? "Generate a branded Google Shopping & feed audit (Word). Takes ~1-2 minutes." : "Generate a branded Google Ads audit (Word). Takes ~2 minutes."}
       className={`${base} border border-zinc-300 bg-white text-[#0B1F3A] hover:bg-zinc-50 disabled:opacity-50`}
     >
-      {loading ? "Generating… (~2 min)" : compact ? "Audit ↓" : "Generate audit (Word)"}
+      {loading ? "Generating…" : compact ? (feed ? "Feed ↓" : "Audit ↓") : feed ? "Generate feed audit (Word)" : "Generate audit (Word)"}
     </button>
   );
   if (compact) {
