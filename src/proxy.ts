@@ -13,7 +13,11 @@ export async function proxy(request: Request) {
 
 export const config = {
   matcher: [
-    // Run on everything except static assets and metadata files.
-    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+    // Run on everything except static assets, metadata files, and the
+    // machine-to-machine endpoints. Webhooks (Stripe/PandaDoc) and crons
+    // authenticate themselves (signature / CRON_SECRET) and must NOT pass
+    // through Auth0 — a session-less POST can otherwise be redirected to the
+    // login flow, which Stripe reports as a delivery failure ("other errors").
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/webhooks|api/cron).*)",
   ],
 };
