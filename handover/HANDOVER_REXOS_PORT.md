@@ -187,6 +187,12 @@ Throwaway harness: `npm i tsx --no-save`; in the script parse `.env.local` manua
 
 **"Campaign <id> not found" at Apply time.** `proposals-execute.ts` `resolveCampaign`/`resolveAdGroup` originally matched by NAME only, so a proposal carrying a numeric campaign id failed. Fixed (app-wmi commit 8af8969): a pure-digits value resolves by `campaign.id`, otherwise by name. If it still "not found" after this, the campaign belongs to a DIFFERENT account than the proposal's resolved customer id — check the account.
 
+**Stripe/PandaDoc webhooks failing (400 "Invalid signature", or Stripe emails "other errors").** ⚠️ **All ports have this latent bug.** The Auth0 middleware (`src/proxy.ts`) matcher ran on `/api/webhooks/*`, so a session-less machine POST passed through Auth0 and its raw body was altered/buffered → HMAC signature verification failed (`constructWebhookEvent` throws → 400), or the request was redirected into the login flow (Stripe reports "other errors"). Symptom: every webhook delivery fails from the day it starts; subscriptions/checkout fulfilment silently stops. **Fix (app-wmi commit afe2e40):** add `api/webhooks` and `api/cron` to the proxy matcher's negative-lookahead so Auth0 never touches them — they self-authenticate (Stripe/PandaDoc signature, `CRON_SECRET`):
+```
+"/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/webhooks|api/cron).*)"
+```
+Also pin both webhook routes to Node crypto: `export const runtime = "nodejs"; export const dynamic = "force-dynamic"; export const maxDuration = 15;`. After deploying, **Resend** the failed events in the Stripe dashboard so clients that paid during the outage get activated. (If it's a genuine `STRIPE_WEBHOOK_SECRET` mismatch instead, the delivery detail shows a persistent 400 even after this fix — copy the destination's `whsec_…` into that app's Vercel and redeploy.)
+
 ## A11. MCC-wide reads (commit a568e9d)
 The agent can analyse ANY leaf under the MCC, not just imported clients — **reads only; writes stay gated to the per-account allowlist.**
 - `loadRoster()` merges the DB roster (imported clients, `clientId` set) with `listManagedAccounts()` (every MCC leaf, `clientId: null`, deduped by customer id).
