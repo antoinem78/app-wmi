@@ -14,7 +14,7 @@ import {
   getWeeklyOptimisations,
   formatWeeklyText,
 } from "@/lib/integrations/google-ads/reporting";
-import { generateNarrative } from "@/lib/integrations/anthropic/narrative";
+import { generateNarrative, stripEmDashes } from "@/lib/integrations/anthropic/narrative";
 
 export const maxDuration = 300;
 
@@ -88,14 +88,14 @@ export async function GET(request: Request) {
       } catch (e) {
         console.error(`Narrative skipped for ${clientId}:`, e);
       }
-      const body = narrative ?? formatWeeklyText(dash.weekly, dash.currency);
+      const body = stripEmDashes(narrative ?? formatWeeklyText(dash.weekly, dash.currency));
 
       let slackOk = true;
       if (slackOn) {
         try {
           const { postMessage } = await import("@/lib/integrations/slack");
           const draft = [
-            `📊 *Weekly report draft — ${companyName}* (${dash.weekly.start} → ${dash.weekly.end})`,
+            `📊 *Weekly report draft: ${companyName}* (${dash.weekly.start} → ${dash.weekly.end})`,
             "",
             body,
             "",
