@@ -30,6 +30,21 @@ export const entityConfig = {
    *  premium clients): no onboarding funnel — only "Add managed account" +
    *  dashboards + weekly reports. The full onboarding portal leaves this off. */
   reportingOnly: process.env.PORTAL_REPORTING_ONLY === "true",
+
+  /** Company registration sentence fragment for the agreement preamble, e.g.
+   *  "a company registered in England & Wales (company number 10264568),
+   *  registered office 124 City Road, London, EC1V 2NX, VAT registration
+   *  GB266586851". Empty = only the legal name is shown. */
+  registrationInfo: process.env.ENTITY_REGISTRATION_INFO ?? "",
+
+  /** Governing law named in the agreement's data-protection and jurisdiction
+   *  clauses, e.g. "England and Wales". */
+  governingLaw: process.env.AGREEMENT_GOVERNING_LAW ?? "England and Wales",
+
+  /** Privacy policy URL referenced by the agreement's data-protection clause. */
+  privacyUrl:
+    process.env.PRIVACY_URL ??
+    `${process.env.APP_BASE_URL ?? ""}/privacy`,
 };
 
 export function formatMoney(amount: number): string {
