@@ -27,6 +27,8 @@ import {
   type DashboardPayload,
 } from "@/lib/integrations/google-ads/reporting";
 import { AdsDashboard } from "@/components/AdsDashboard";
+import { ConversionPanel } from "@/components/ConversionPanel";
+import { ClientFunnel } from "@/components/ClientFunnel";
 import { GenerateAuditButton } from "@/components/GenerateAuditButton";
 import { SendReportButton } from "@/components/SendReportButton";
 
@@ -396,12 +398,18 @@ export default async function ClientDetailPage({
         </section>
       )}
 
-      {/* Performance dashboard */}
+      {/* Performance dashboard (acquisition plane) */}
       {adApproved && (
         <div className="mt-6">
           <AdsDashboard payload={dashboard} basePath={`/clients/${id}`} range={rangeKey(range)} />
         </div>
       )}
+
+      {/* Conversion plane (Engine B) — renders only if this client is mapped to an agent */}
+      <ConversionPanel engineAClientId={id} />
+
+      {/* Unified acquisition -> conversion funnel */}
+      <ClientFunnel engineAClientId={id} range={rangeKey(range)} />
 
       {/* On-demand report → Slack (for the currently selected timeframe) */}
       {adApproved && <SendReportButton clientId={id} range={rangeKey(range)} />}

@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wmi/google-ads-audit/findings-artifact.schema.json",
+  "title": "Google Ads Audit Findings Artifact",
+  "description": "The structured contract between the extraction phase and the writing phase of the Google Ads Audit Agent. The extractor populates this from the live account, website and research; the writer may ONLY use values present here (never invent metrics). Estimated/derived values must set their *_basis or estimated flags so the document can label them honestly.",
+  "type": "object",
+  "required": ["meta", "business", "account", "campaigns", "conversionActions", "diagnoses"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["client", "googleAdsCustomerId", "website", "preparedDate", "currency"],
+      "additionalProperties": false,
+      "properties": {
+        "client": { "type": "string", "examples": ["Communications Software (Airline Systems) Ltd"] },
+        "brandName": { "type": "string", "examples": ["OASES"] },
+        "googleAdsCustomerId": { "type": "string", "examples": ["766-064-2672"] },
+        "website": { "type": "string", "format": "uri" },
+        "socials": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "preparedDate": { "type": "string", "examples": ["June 2026"] },
+        "currency": { "type": "string", "examples": ["GBP"] },
+        "accountStatus": { "type": "string", "enum": ["active", "paused", "mixed"], "description": "e.g. 'paused' = none of the ads are currently running" },
+        "dataDateRangeAllTime": { "type": "string", "examples": ["22 Feb 2021 - 21 Jun 2026"] },
+        "recentActivePeriod": { "type": "string", "description": "window used for 'what is firing now'", "examples": ["1 Aug - 31 Oct 2025"] },
+        "budgetCeilingPerMonth": { "type": "number", "examples": [5000] },
+        "crm": { "type": "string", "examples": ["HubSpot"] },
+        "referenceTemplatesUsed": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "business": {
+      "type": "object",
+      "description": "From website + socials review. Drives campaign themes and ICP messaging.",
+      "additionalProperties": false,
+      "properties": {
+        "summary": { "type": "string" },
+        "products": { "type": "array", "items": { "type": "string" }, "description": "modules/products that become campaign themes", "examples": [["Planning", "Continuing Airworthiness", "Materials Management", "Line Maintenance", "Commercial Management"]] },
+        "buyerTypes": { "type": "array", "items": { "type": "string" }, "examples": [["Airlines", "CAMOs", "Maintenance Organisations"]] },
+        "icpTitles": { "type": "array", "items": { "type": "string" }, "examples": [["Technical Director", "Head of Airworthiness", "CAMO manager"]] },
+        "geography": { "type": "array", "items": { "type": "string" } },
+        "primaryConversion": { "type": "string", "examples": ["demo request"] },
+        "leadFormFields": { "type": "array", "items": { "type": "string" }, "examples": [["Full Name", "Company Email"]] },
+        "trackingStack": { "type": "object", "properties": { "gtmContainer": { "type": "string" }, "ga4": { "type": "boolean" }, "notes": { "type": "string" } } }
+      }
+    },
+    "account": {
+      "type": "object",
+      "description": "Lifetime account totals. Feeds Exhibit 1 and the Account Analysis narrative.",
+      "additionalProperties": false,
+      "properties": {
+        "spend": { "type": "number" },
+        "spendInclRemoved": { "type": "number" },
+        "impressions": { "type": "integer" },
+        "clicks": { "type": "integer" },
+        "ctr": { "type": "string", "examples": ["3.38%"] },
+        "avgCpc": { "type": "number" },
+        "conversions": { "type": "number" },
+        "convRate": { "type": "string" },
+        "costPerConv": { "type": "number" },
+        "convValue": { "type": "number", "description": "~0 indicates no value tracking" },
+        "campaignCount": { "type": "integer" }
+      }
+    },
+    "networks": {
+      "type": "object",
+      "description": "Network split (segment campaigns by 'Network with search partners'). Captures the Search/Search Partners/Display problem.",
+      "properties": {
+        "searchPartnersEnabled": { "type": "boolean" },
+        "displayEnabledInSearch": { "type": "boolean" },
+        "split": { "type": "array", "items": { "type": "object", "properties": { "network": { "type": "string", "enum": ["Google search", "Search partners", "Display", "YouTube", "Other"] }, "spend": { "type": "number" }, "clicks": { "type": "integer" }, "conversions": { "type": "number" } } } }
+      }
+    },
+    "campaigns": {
+      "type": "array",
+      "description": "Per-campaign rows. Feeds Exhibit 2 and structure analysis.",
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "examples": ["Generics | All Solutions [S&D N] [PM] [Other]"] },
+          "type": { "type": "string", "enum": ["Search", "Performance Max", "Smart", "Display", "Video", "Demand Gen", "Shopping", "Other"] },
+          "status": { "type": "string" },
+          "networkTag": { "type": "string", "description": "decoded from name, e.g. 'Search & Display'" },
+          "matchTypeTag": { "type": "string" },
+          "geo": { "type": "string" },
+          "bidStrategy": { "type": "string" },
+          "budgetPerDay": { "type": "number" },
+          "cost": { "type": "number" },
+          "clicks": { "type": "integer" },
+          "impressions": { "type": "integer" },
+          "convRate": { "type": "string" },
+          "conversions": { "type": "number" },
+          "costPerConv": { "type": "number" },
+          "flags": { "type": "array", "items": { "type": "string" }, "examples": [["all asset groups disapproved", "manufactured conversions"]] }
+        }
+      }
+    },
+    "conversionActions": {
+      "type": "array",
+      "description": "Every conversion action for the recent active period. Feeds Exhibits 5 and 6 and the root-cause section.",
+      "items": {
+        "type": "object",
+        "required": ["name", "setting", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "goalGroup": { "type": "string", "examples": ["Submit lead forms", "Page views", "Phone call leads"] },
+          "source": { "type": "string", "enum": ["Website", "GA4", "Google hosted", "Call from Ads", "YouTube", "Floodlight", "Import", "Other"] },
+          "setting": { "type": "string", "enum": ["Primary", "Secondary"] },
+          "status": { "type": "string", "enum": ["Active", "Inactive", "Needs attention", "No recent conversions"] },
+          "campaignsApplied": { "type": "string", "examples": ["0 of 38 campaigns", "38 of 38 campaigns"] },
+          "conversionsInPeriod": { "type": "number" }
+        }
+      }
+    },
+    "conversionSummary": {
+      "type": "object",
+      "properties": {
+        "periodTotalConversions": { "type": "number", "examples": [283] },
+        "totalActionCount": { "type": "integer", "examples": [21] },
+        "topFiringActions": { "type": "array", "items": { "type": "string" }, "examples": [["MRO PPC Form Submission", "Oases Services Form Submit", "Contact Form Submission"]] },
+        "octInPlace": { "type": "boolean" },
+        "floodlightPresent": { "type": "boolean" }
+      }
+    },
+    "searchTerms": {
+      "type": "object",
+      "description": "Evidence of broad/irrelevant matching. Feeds Exhibit 3.",
+      "properties": {
+        "distinctTermCount": { "type": "integer" },
+        "irrelevantExamples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["term", "reason"],
+            "properties": {
+              "term": { "type": "string", "examples": ["aircraft maintenance jobs"] },
+              "classification": { "type": "string", "enum": ["Job seeker", "Broad", "Off-topic", "Competitor brand", "Other"] },
+              "reason": { "type": "string" },
+              "clicks": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
+    "auctionInsights": {
+      "type": "object",
+      "description": "Feeds Exhibit 4 and the competitor bidding strategy.",
+      "properties": {
+        "yourImpressionShare": { "type": "string", "examples": ["< 10%"] },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["domain", "relevance"],
+            "properties": {
+              "domain": { "type": "string" },
+              "relevance": { "type": "string", "enum": ["genuine competitor", "peripheral overlap", "self"] },
+              "impressionShare": { "type": "string" },
+              "overlapRate": { "type": "string" },
+              "positionAboveRate": { "type": "string" },
+              "topOfPageRate": { "type": "string" },
+              "action": { "type": "string", "description": "how to treat them", "examples": ["negative in generics + conquesting campaign", "account negative"] }
+            }
+          }
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "description": "Which extension/asset types are present and approved.",
+      "properties": {
+        "present": { "type": "array", "items": { "type": "string" } },
+        "missing": { "type": "array", "items": { "type": "string" }, "examples": [["sitelinks", "structured snippets", "image", "business logo"]] },
+        "issues": { "type": "array", "items": { "type": "string" }, "examples": [["disapproved assets", "auto-applied assets diluting message"]] }
+      }
+    },
+    "audiences": {
+      "type": "object",
+      "properties": {
+        "remarketingLists": { "type": "array", "items": { "type": "string" } },
+        "observationSegments": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "string" }
+      }
+    },
+    "competitors": {
+      "type": "array",
+      "description": "Named competitive field for Part A. Reconcile with auctionInsights.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "positioning": { "type": "string" },
+          "relevance": { "type": "string", "enum": ["direct peer", "premium leader", "enterprise", "adjacent", "peripheral"] },
+          "paidSearchBehaviour": { "type": "string" }
+        }
+      }
+    },
+    "keywords": {
+      "type": "array",
+      "description": "Estimated keyword research. estimated=true so the writer labels it as estimates refined at onboarding.",
+      "items": {
+        "type": "object",
+        "required": ["keyword", "estimated"],
+        "properties": {
+          "keyword": { "type": "string" },
+          "group": { "type": "string", "enum": ["core", "module", "compliance", "competitor", "brand"] },
+          "monthlySearches": { "type": "string", "examples": ["~720"] },
+          "competition": { "type": "string", "enum": ["Low", "Medium", "High"] },
+          "cpcRange": { "type": "string", "examples": ["£3 to £8"] },
+          "estimated": { "type": "boolean", "default": true }
+        }
+      }
+    },
+    "negativeStrategy": {
+      "type": "object",
+      "properties": {
+        "accountLevelLists": { "type": "array", "items": { "type": "object", "properties": { "listName": { "type": "string" }, "examples": { "type": "array", "items": { "type": "string" } } } } },
+        "competitorNegatives": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "forecast": {
+      "type": "object",
+      "description": "Bottom-up, Google Ads focused. Show the arithmetic; never round optimistically.",
+      "properties": {
+        "scenarios": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "mediaPerMonth", "avgCpc", "demoCvr"],
+            "properties": {
+              "name": { "type": "string", "enum": ["Conservative", "Base case", "Stretch"] },
+              "mediaPerMonth": { "type": "number" },
+              "avgCpc": { "type": "number" },
+              "clicksPerMonth": { "type": "integer", "description": "= mediaPerMonth / avgCpc" },
+              "demoCvr": { "type": "string", "examples": ["2.75%"] },
+              "demoRequestsPerMonth": { "type": "integer", "description": "= clicksPerMonth * demoCvr" },
+              "costPerDemo": { "type": "number" }
+            }
+          }
+        },
+        "constraintNote": { "type": "string", "examples": ["search volume is the binding constraint; CRO is the biggest lever"] }
+      }
+    },
+    "management": {
+      "type": "object",
+      "properties": {
+        "setupFee": { "type": "number", "examples": [1500] },
+        "monthlyManagement": { "type": "number", "examples": [850] },
+        "recommendedStartingMedia": { "type": "string", "examples": ["£3,000 to £3,500"] }
+      }
+    },
+    "croObservations": {
+      "type": "array",
+      "description": "Website findings for the CRO document. Each becomes an Observation/Recommendation/Rationale item.",
+      "items": {
+        "type": "object",
+        "required": ["title", "observation", "recommendation", "rationale"],
+        "properties": {
+          "title": { "type": "string" },
+          "observation": { "type": "string" },
+          "recommendation": { "type": "string" },
+          "rationale": { "type": "string" },
+          "priority": { "type": "string", "enum": ["high", "medium", "low"] },
+          "exhibit": { "type": "string", "description": "optional reference to a reproduced live-element panel" }
+        }
+      }
+    },
+    "diagnoses": {
+      "type": "array",
+      "description": "The audit's conclusions, each tied to evidence already in this artifact. The writer turns these into the findings narrative.",
+      "items": {
+        "type": "object",
+        "required": ["pattern", "evidence", "fix", "severity"],
+        "properties": {
+          "pattern": { "type": "string", "enum": ["search-on-display-and-partners", "wrong-primary-conversions", "conversion-action-sprawl", "no-value-no-oct", "broad-unprotected-keywords", "generic-structure", "brand-on-smart", "pmax-manufactured-conversions", "thin-assets", "other"] },
+          "evidence": { "type": "string", "description": "the real figure/query/domain that proves it" },
+          "fix": { "type": "string" },
+          "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] }
+        }
+      }
+    }
+  }
+}
