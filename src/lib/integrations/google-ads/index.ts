@@ -200,7 +200,12 @@ export async function uploadClickConversions(
         ],
         events: list.map((c) => ({
           adIdentifiers: { gclid: c.gclid },
-          eventTimestamp: c.conversionDateTime ?? new Date().toISOString(),
+          // eventSource is required; these are web-click (gclid) conversions.
+          eventSource: "WEB",
+          // Default slightly in the past — Google rejects future timestamps and
+          // clock skew can put a fresh "now" over the line (EVENT_TIME_INVALID).
+          eventTimestamp:
+            c.conversionDateTime ?? new Date(Date.now() - 2 * 60 * 1000).toISOString(),
           ...(c.conversionValue != null
             ? { conversionValue: c.conversionValue, currency: c.currencyCode ?? "GBP" }
             : {}),
