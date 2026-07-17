@@ -151,24 +151,22 @@ export interface ClickConversion {
   gclid: string;
   /** Conversion action resource id (numeric part) in the target account. */
   conversionActionId: string;
-  /** "yyyy-MM-dd HH:mm:ss+00:00" — defaults to now (UTC) when omitted. */
+  /** RFC 3339 (e.g. "2026-07-18T14:00:00Z") — defaults to now when omitted. */
   conversionDateTime?: string;
   conversionValue?: number;
   currencyCode?: string;
 }
 
-/** Format a Date the way ConversionUploadService expects. */
-function conversionDateTimeNow(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}+00:00`;
-}
-
 /**
- * Offline conversion upload (ConversionUploadService.UploadClickConversions).
- * Sends gclid-keyed conversions to the client account. partialFailure is always
- * on: Google accepts what it can and reports the rest in partialFailureError —
- * callers must surface that instead of assuming all-or-nothing.
+ * Offline conversion upload via the Data Manager API (events:ingest).
+ * ConversionUploadService.UploadClickConversions is closed to new integrations
+ * (verified live 2026-07-18: "limited to existing users"), so gclid conversions
+ * go through datamanager.googleapis.com instead. Same OAuth client/refresh
+ * token as the Ads API, but the token must carry the additional
+ * https://www.googleapis.com/auth/datamanager scope.
+ *
+ * Events are grouped per conversion action (one destination each). Returns the
+ * per-action results; a failed action does not block the others.
  */
 export async function uploadClickConversions(
   customerId: string,
@@ -177,32 +175,54 @@ export async function uploadClickConversions(
   results?: Array<Record<string, unknown>>;
   partialFailureError?: { message?: string };
 }> {
-  const res = await fetch(`${API}/customers/${customerId}:uploadClickConversions`, {
-    method: "POST",
-    headers: await adsHeaders(),
-    body: JSON.stringify({
-      conversions: conversions.map((c) => ({
-        gclid: c.gclid,
-        conversionAction: `customers/${customerId}/conversionActions/${c.conversionActionId}`,
-        conversionDateTime: c.conversionDateTime ?? conversionDateTimeNow(),
-        ...(c.conversionValue != null
-          ? { conversionValue: c.conversionValue, currencyCode: c.currencyCode ?? "GBP" }
-          : {}),
-      })),
-      partialFailure: true,
-    }),
-  });
-  const body = await res.json();
-  if (!res.ok) {
-    const text = JSON.stringify(body);
-    const invalid =
-      res.status === 404 ||
-      /NOT_FOUND|INVALID_CUSTOMER|USER_PERMISSION_DENIED|CUSTOMER_NOT_FOUND/i.test(text);
-    throw new GoogleAdsError(extractAdsError(body), invalid);
+  const mcc = requireEnv("GOOGLE_ADS_LOGIN_CUSTOMER_ID").replace(/\D/g, "");
+  const token = await getAccessToken();
+  const byAction = new Map<string, ClickConversion[]>();
+  for (const c of conversions) {
+    const list = byAction.get(c.conversionActionId) ?? [];
+    list.push(c);
+    byAction.set(c.conversionActionId, list);
   }
-  return body as {
-    results?: Array<Record<string, unknown>>;
-    partialFailureError?: { message?: string };
+
+  const results: Array<Record<string, unknown>> = [];
+  const failures: string[] = [];
+  for (const [actionId, list] of byAction) {
+    const res = await fetch("https://datamanager.googleapis.com/v1/events:ingest", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        destinations: [
+          {
+            operatingAccount: { accountType: "GOOGLE_ADS", accountId: customerId },
+            loginAccount: { accountType: "GOOGLE_ADS", accountId: mcc },
+            productDestinationId: actionId,
+          },
+        ],
+        events: list.map((c) => ({
+          adIdentifiers: { gclid: c.gclid },
+          eventTimestamp: c.conversionDateTime ?? new Date().toISOString(),
+          ...(c.conversionValue != null
+            ? { conversionValue: c.conversionValue, currency: c.currencyCode ?? "GBP" }
+            : {}),
+        })),
+      }),
+    });
+    const body = (await res.json().catch(() => ({}))) as {
+      requestId?: string;
+      error?: { message?: string };
+    };
+    if (!res.ok) {
+      failures.push(`action ${actionId}: ${body.error?.message ?? `HTTP ${res.status}`}`);
+    } else {
+      results.push({ conversionActionId: actionId, requestId: body.requestId, count: list.length });
+    }
+  }
+  if (results.length === 0 && failures.length > 0) {
+    throw new GoogleAdsError(failures.join("; "), false);
+  }
+  return {
+    results,
+    partialFailureError: failures.length ? { message: failures.join("; ") } : undefined,
   };
 }
 
