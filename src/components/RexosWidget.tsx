@@ -36,6 +36,9 @@ export function RexosWidget() {
     })();
   }, [open, accounts]);
 
+  // Bernard's page is Bernard's — the analyst launcher stays off it.
+  if (pathname?.startsWith("/bernard")) return null;
+
   if (!open) {
     return (
       <button
