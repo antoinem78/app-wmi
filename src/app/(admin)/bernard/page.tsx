@@ -3,6 +3,7 @@
 // All data arrives through Bernard's authed n8n endpoints (src/lib/bernard.ts);
 // the (admin) layout has already enforced agency_admin before this renders.
 import { bernardConfigured, getBernardStatus, type BernardStatus } from "@/lib/bernard";
+import { BernardChat } from "@/components/BernardChat";
 import { decideFixAction, standDownAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,8 @@ export default async function BernardPage() {
 
   return (
     <div className="p-10">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">Bernard</h1>
@@ -163,6 +166,13 @@ export default async function BernardPage() {
           </p>
         </>
       )}
+      </div>
+
+      {/* Talk to Bernard — sticky chat column on wide screens, stacked below on narrow */}
+      <div className="xl:sticky xl:top-6 xl:self-start">
+        <BernardChat heightClass="h-[32rem] xl:h-[calc(100vh-6rem)]" />
+      </div>
+      </div>
     </div>
   );
 }
