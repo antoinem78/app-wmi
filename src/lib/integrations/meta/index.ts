@@ -130,6 +130,25 @@ function compactTargeting(t: unknown) {
   };
 }
 
+interface TrendPoint { date: string; spend: number; actions: Record<string, number> }
+// Long windows get a weekly trend (13 buckets for 90d) instead of 90 daily
+// rows — smaller payload, and weekly pacing reads better over a quarter.
+function compactTrend(points: TrendPoint[], days: number): (TrendPoint & { granularity?: string })[] {
+  if (days <= 45 || points.length <= 45) return points;
+  const buckets: TrendPoint[] = [];
+  for (let i = 0; i < points.length; i += 7) {
+    const week = points.slice(i, i + 7);
+    const actions: Record<string, number> = {};
+    for (const p of week) for (const [k, v] of Object.entries(p.actions)) actions[k] = (actions[k] ?? 0) + v;
+    buckets.push({
+      date: `${week[0].date} (week)`,
+      spend: Number(week.reduce((s, p) => s + p.spend, 0).toFixed(2)),
+      actions,
+    });
+  }
+  return buckets;
+}
+
 /**
  * Full read-only audit dataset for one account over `days` (vs the prior
  * window). Every section is best-effort: a failed read appears as
@@ -210,9 +229,12 @@ export async function getMetaAuditData(accountRef: string, days = 30) {
       }, {}),
       sample: rows(ads).slice(0, 25).map((a) => ({ name: a.name, effectiveStatus: a.effective_status, created: a.created_time })),
     },
-    dailyTrend: daily.error ? { error: daily.error } : rows(daily).map((d) => ({
-      date: d.date_start, spend: Number(d.spend ?? 0), actions: compactActions(d.actions),
-    })),
+    dailyTrend: daily.error ? { error: daily.error } : compactTrend(
+      rows(daily).map((d) => ({
+        date: String(d.date_start ?? ""), spend: Number(d.spend ?? 0), actions: compactActions(d.actions),
+      })),
+      days,
+    ),
     pixels: pixels.error ? { error: pixels.error } : rows(pixels).map((p) => ({
       id: p.id, name: p.name, lastFired: p.last_fired_time,
     })),

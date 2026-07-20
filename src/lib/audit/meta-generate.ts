@@ -17,7 +17,8 @@ RULES:
 - Use the account's own currency for money figures.
 - Do not mention APIs, tokens, JSON, tools, or how the data was obtained. This reads as a hands-on account review.
 - No em dashes anywhere; use commas, colons or plain hyphens.
-- Write in clear professional English, direct and specific, no filler.
+- Write in clear professional English, direct and specific, no filler. Keep the whole document to roughly 1,200-1,800 words.
+- The daily trend may arrive in weekly buckets on longer windows; describe pacing at that granularity.
 
 OUTPUT: Markdown only, using exactly this structure:
 ## Executive Summary
@@ -86,7 +87,9 @@ export interface MetaAuditResult {
 
 export async function generateMetaAudit(accountRef: string, days = 30): Promise<MetaAuditResult> {
   const { digits } = normalizeActId(accountRef);
+  const tData = Date.now();
   const data = await getMetaAuditData(digits, days);
+  console.log(`[meta-audit] ${digits} days=${days} data assembly ${Date.now() - tData}ms`);
   const accountObj = data.account as Record<string, unknown>;
   if (accountObj.error) {
     throw new Error(`Could not read account ${digits}: ${String(accountObj.error)}`);
@@ -94,15 +97,23 @@ export async function generateMetaAudit(accountRef: string, days = 30): Promise<
   const accountName = typeof accountObj.name === "string" && accountObj.name ? accountObj.name : `Account ${digits}`;
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
-  const msg = await client.beta.messages.create({
+  // Streamed so long generations can't trip response timeouts; generous
+  // max_tokens because Fable 5's (always-on) thinking spends from the same
+  // budget as the visible text.
+  const tNarrative = Date.now();
+  const stream = client.beta.messages.stream({
     model: MODEL,
-    max_tokens: 8000,
+    max_tokens: 16000,
     output_config: { effort: "medium" },
     betas: ["server-side-fallback-2026-06-01"],
     fallbacks: [{ model: FALLBACK_MODEL }],
     system: NARRATIVE_SYSTEM,
     messages: [{ role: "user", content: `DATA:\n${JSON.stringify(data)}` }],
   });
+  const msg = await stream.finalMessage();
+  console.log(
+    `[meta-audit] ${digits} days=${days} narrative ${Date.now() - tNarrative}ms stop=${msg.stop_reason} out=${msg.usage.output_tokens}`,
+  );
   if (msg.stop_reason === "refusal") {
     throw new Error("The audit narrative was declined by a safety check — try again.");
   }
@@ -111,7 +122,7 @@ export async function generateMetaAudit(accountRef: string, days = 30): Promise<
     .map((b) => b.text)
     .join("")
     .trim();
-  if (!md) throw new Error("The audit narrative came back empty — try again.");
+  if (!md) throw new Error(`The audit narrative came back empty (stop_reason: ${msg.stop_reason}) — try again.`);
 
   const dateStr = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
   const title = `Meta Ads Account Audit`;
