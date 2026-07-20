@@ -9,6 +9,7 @@
 // down. Meta reads and executor dispatches run in the substrate, not here.
 import Anthropic from "@anthropic-ai/sdk";
 import { getBernardStatus, decideFix, standDown } from "@/lib/bernard";
+import { listMetaAdAccounts, getMetaAuditData, metaConfigured, normalizeActId } from "@/lib/integrations/meta";
 import type { AgentEvent, ChatMessage } from "@/lib/integrations/anthropic/agent";
 
 const MODEL = "claude-fable-5";
@@ -47,6 +48,25 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
       required: ["client_slug", "reason"],
     },
   },
+  {
+    name: "list_meta_accounts",
+    description:
+      "Every Meta ad account the system user can currently see, live from the token — the moment the founder assigns an account in Business Manager it appears here and is auditable. Returns name, account id, status, currency, business owner, lifetime spend. Use to resolve an account the founder names.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "run_audit",
+    description:
+      "Full READ-ONLY audit read of one Meta ad account, live from the account: account state, current-vs-prior period performance, daily spend/conversion trend, campaigns with budgets and objectives, ad sets with bid strategy/targeting/learning phase, ad counts, pixel presence and last fire. Nothing is modified. Use whenever the founder asks for an audit, a performance review, or 'what's wrong with X'. The result includes download_path — a link to the same audit as a formatted Word document.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string", description: "The ad account id (digits, or act_ prefixed) — resolve via list_meta_accounts if the founder gave a name" },
+        days: { type: "number", description: "Review window in days (default 30, 7-90); compared against the prior window of the same length" },
+      },
+      required: ["account_id"],
+    },
+  },
 ];
 
 const SYSTEM = `You are Bernard, the Rexos Meta Ads supervisor. You govern the Meta Lab: you audit ad accounts against ground truth, dispatch and verify the executor (Manus) under a version-pinned doctrine, and propose fixes that only execute after the founder approves them. You never activate anything on Meta and you never mutate an account outside the founder-gated fix path.
@@ -55,11 +75,17 @@ You are talking to the founder inside the Rexos portal.
 
 WHAT YOU CAN DO HERE:
 - get_status gives you the live lab snapshot (clients, pending fixes, activity, executor credits). Fetch it rather than guessing; never invent a figure, task id, client or timestamp.
+- list_meta_accounts shows every ad account the system user can see, live. Any account there is yours to read and audit immediately — assignment in Business Manager is the onboarding for reads. (Executor dispatch for a client still requires lab registration in the substrate.)
+- run_audit reads one account's full ground truth (read-only) so you can audit it right here in chat. Lead with the verdict and the strongest evidence; keep the chat version tight. The tool result carries download_path — ALWAYS give the founder that link at the end of an audit, on its own line, e.g. "Word document: /api/bernard/audit/123456?days=30". The document is generated fresh from the same live data when they click it.
 - decide_fix records the founder's approve/reject on a specific pending fix. The founder's word in this chat IS the approval gate — so only call it on an explicit, unambiguous instruction naming (or clearly identifying) one fix. If they say "approve it" and more than one fix is pending, ask which.
 - stand_down is the emergency brake for one client. Explicit orders only. Confirm you understood ("Standing down <client> — all executor work halts") after doing it, not before.
 
 WHAT RUNS ELSEWHERE (be straight about it):
-- Deep Meta reads, audits, executor dispatches and report verification run in the substrate on their own workflows (daily monitor at 09:00, dispatch gates, webhook verification). From this chat you can read their outcomes in the activity trail but not trigger them yet. If the founder asks for a new audit or dispatch, say it isn't wired into chat yet and that the monitor/dispatch path in the substrate handles it.
+- Executor dispatches (Manus work), report verification and the daily monitor run in the substrate on their own workflows. You can read their outcomes in the activity trail but not trigger a dispatch from chat. If the founder asks to dispatch the executor, say that path stays in the substrate behind its gates.
+
+AUDIT CRAFT:
+- Anchor every number to the data you fetched; if a section came back with an error, say so instead of working around it silently.
+- On a "performance dropped" complaint, check in order: spend pacing and delivery gaps in the daily trend, learning-phase state and recent ad set churn (updated timestamps), budget or bid strategy changes, frequency/fatigue, and pixel health (last fire). Attribute the drop to what the data shows, not to a template.
 
 HOW YOU SPEAK:
 - A calm, senior supervisor reporting to the principal: lead with the state or the answer, then the evidence. Be concise and concrete.
@@ -86,6 +112,8 @@ function statusLabel(name: string): string {
     case "get_status": return "Reading the lab…";
     case "decide_fix": return "Recording your decision…";
     case "stand_down": return "Standing the client down…";
+    case "list_meta_accounts": return "Listing ad accounts…";
+    case "run_audit": return "Auditing the account (live reads)…";
     default: return "Working…";
   }
 }
@@ -109,6 +137,22 @@ async function runTool(
       const slug = String(input.client_slug ?? "");
       if (!slug) return { error: "stand_down needs a client_slug." };
       return standDown(slug, String(input.reason ?? "founder order via Bernard chat"), actor);
+    }
+    case "list_meta_accounts": {
+      if (!metaConfigured())
+        return { error: "Meta access is not configured on this deployment (META_ADS_TOKEN missing) — tell the founder it needs adding to the environment." };
+      return listMetaAdAccounts();
+    }
+    case "run_audit": {
+      if (!metaConfigured())
+        return { error: "Meta access is not configured on this deployment (META_ADS_TOKEN missing) — tell the founder it needs adding to the environment." };
+      const ref = String(input.account_id ?? "");
+      if (!/^(act_)?\d{6,}$/.test(ref.trim()))
+        return { error: "run_audit needs a numeric ad account id — resolve the name via list_meta_accounts first." };
+      const days = Math.min(90, Math.max(7, Math.round(Number(input.days) || 30)));
+      const { digits } = normalizeActId(ref);
+      const data = await getMetaAuditData(digits, days);
+      return { ...data, download_path: `/api/bernard/audit/${digits}?days=${days}` };
     }
     default:
       return { error: `Unknown tool ${name}` };
@@ -139,7 +183,7 @@ export async function runBernardChatStream(
     for (let i = 0; i < 8; i++) {
       const stream = client.beta.messages.stream({
         model: MODEL,
-        max_tokens: 4000,
+        max_tokens: 8000,
         output_config: { effort: "medium" },
         betas: ["server-side-fallback-2026-06-01"],
         fallbacks: [{ model: FALLBACK_MODEL }],
@@ -178,6 +222,12 @@ export async function runBernardChatStream(
           out = await runTool(tu.name, (tu.input ?? {}) as Record<string, unknown>, actor);
         } catch (e) {
           out = { error: e instanceof Error ? e.message : String(e) };
+        }
+        // A finished audit gets a first-class download chip in the panel.
+        const dl = (out as { download_path?: string; account?: { name?: unknown } } | null);
+        if (tu.name === "run_audit" && dl?.download_path) {
+          const who = typeof dl.account?.name === "string" ? dl.account.name : "account";
+          emit({ type: "artifact", text: dl.download_path, label: `Download the ${who} audit (.docx)` });
         }
         results.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(out).slice(0, 80000) });
       }

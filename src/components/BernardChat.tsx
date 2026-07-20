@@ -7,12 +7,33 @@
 import { useEffect, useRef, useState } from "react";
 
 interface Msg { role: "user" | "assistant"; content: string }
+interface Artifact { href: string; label: string }
+
+// Bernard hands out download paths (e.g. the Word audit) — make them clickable.
+function renderWithLinks(text: string) {
+  const parts = text.split(/(https?:\/\/[^\s)]+|\/api\/[^\s)]+)/g);
+  return parts.map((p, i) =>
+    /^(https?:\/\/|\/api\/)/.test(p) ? (
+      <a
+        key={i}
+        href={p}
+        target="_blank"
+        rel="noreferrer"
+        className="font-medium underline decoration-dotted underline-offset-2"
+      >
+        {p}
+      </a>
+    ) : (
+      p
+    ),
+  );
+}
 
 const SUGGESTIONS = [
   "Give me the state of the lab",
+  "Which ad accounts can you see?",
   "Anything waiting for my approval?",
   "What happened in the last 24 hours?",
-  "How many executor credits are left?",
 ];
 
 export function BernardChat({
@@ -21,6 +42,7 @@ export function BernardChat({
   heightClass?: string;
 }) {
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -56,6 +78,7 @@ export function BernardChat({
 
   async function clearChat() {
     setMessages([]);
+    setArtifacts([]);
     try {
       await fetch("/api/bernard/chat", { method: "DELETE" });
     } catch {
@@ -105,10 +128,15 @@ export function BernardChat({
           const line = buf.slice(0, nl).trim();
           buf = buf.slice(nl + 1);
           if (!line) continue;
-          let ev: { type: string; text?: string };
+          let ev: { type: string; text?: string; label?: string };
           try { ev = JSON.parse(line); } catch { continue; }
           if (ev.type === "delta" && ev.text) { setStatus(null); appendDelta(ev.text); scrollSoon(); }
           else if (ev.type === "status" && ev.text) { setStatus(ev.text); }
+          else if (ev.type === "artifact" && ev.text) {
+            const href = ev.text;
+            const label = ev.label ?? "Download";
+            setArtifacts((a) => (a.some((x) => x.href === href) ? a : [...a, { href, label }]));
+          }
           else if (ev.type === "reset") {
             setMessages((m) => {
               const copy = m.slice();
@@ -155,7 +183,8 @@ export function BernardChat({
           <div className="text-sm text-zinc-500">
             <p className="font-medium text-zinc-700">Talk to Bernard.</p>
             <p className="mt-1 text-xs text-zinc-400">
-              I read the lab live, record your approve/reject on proposed fixes and can stand a
+              I read the lab live, audit any ad account the system user can see (with a Word
+              document to download), record your approve/reject on proposed fixes and can stand a
               client down on your order. I never touch Meta outside the approved fix path.
             </p>
             <div className="mt-4 flex flex-col gap-2">
@@ -181,7 +210,7 @@ export function BernardChat({
                     : "border border-zinc-200 bg-zinc-50 text-zinc-800"
                 }`}
               >
-                {m.content}
+                {m.role === "assistant" ? renderWithLinks(m.content) : m.content}
               </div>
             </div>
           ),
@@ -201,6 +230,22 @@ export function BernardChat({
         )}
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
+
+      {/* Deliverables — download chips for docs Bernard produced this session */}
+      {artifacts.length > 0 && (
+        <div className="flex flex-wrap gap-2 border-t border-zinc-100 px-3 py-2">
+          {artifacts.map((a) => (
+            <a
+              key={a.href}
+              href={a.href}
+              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#0B1F3A] hover:text-[#0B1F3A]"
+            >
+              <DocIcon />
+              {a.label}
+            </a>
+          ))}
+        </div>
+      )}
 
       {/* Composer */}
       <form
@@ -233,4 +278,18 @@ export function BernardChat({
 
 function Dot() {
   return <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400" />;
+}
+
+function DocIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M14 3v5h5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
 }

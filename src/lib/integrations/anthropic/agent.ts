@@ -22,6 +22,7 @@ export type AgentEvent =
   | { type: "status"; text: string } // a tool is running
   | { type: "delta"; text: string } // a chunk of the answer
   | { type: "reset" } // discard any text streamed during a tool-use turn (preamble)
+  | { type: "artifact"; text: string; label?: string } // a downloadable deliverable (href)
   | { type: "done" }
   | { type: "error"; text: string };
 
