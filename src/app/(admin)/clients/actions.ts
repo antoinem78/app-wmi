@@ -12,7 +12,7 @@ import {
   formatWeeklyText,
   parseRange,
 } from "@/lib/integrations/google-ads/reporting";
-import { generateNarrative, periodForRange } from "@/lib/integrations/anthropic/narrative";
+import { generateNarrative, periodForRange, stripEmDashes } from "@/lib/integrations/anthropic/narrative";
 
 // Create a client record + its onboarding state, then jump to the client page
 // (where the shareable onboarding link lives). Admin-only.
@@ -599,12 +599,12 @@ export async function sendReportToSlack(
     } catch (e) {
       console.error("On-demand narrative failed:", e);
     }
-    const body = narrative ?? formatWeeklyText(dash.weekly, dash.currency);
+    const body = stripEmDashes(narrative ?? formatWeeklyText(dash.weekly, dash.currency));
 
     const base = process.env.APP_BASE_URL ?? "https://app.wmiltd.com";
     const { postMessage } = await import("@/lib/integrations/slack");
     const draft = [
-      `📊 *Report draft — ${companyName}* (${dash.range.start} → ${dash.range.end})`,
+      `📊 *Report draft: ${companyName}* (${dash.range.start} → ${dash.range.end})`,
       "",
       body,
       "",

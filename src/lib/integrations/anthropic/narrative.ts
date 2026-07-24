@@ -12,6 +12,18 @@ import { entityConfig } from "@/lib/config";
 
 const MODEL = "claude-opus-4-8";
 
+// WMI house style has no em dashes. Deterministically replace em dashes (and the
+// rarer horizontal bar) with a comma, then tidy the punctuation — a guarantee on
+// top of the system-prompt rule, since models still slip them in. En dashes are
+// left alone (they carry the Swydo date ranges, e.g. "Jun 8 – 14").
+export function stripEmDashes(text: string): string {
+  return text
+    .replace(/\s*[—―]\s*/g, ", ")     // em dash / horizontal bar -> comma
+    .replace(/\s+,/g, ",")             // "word ," -> "word,"
+    .replace(/,\s*([.;:!?])/g, "$1")   // ", ." -> "."
+    .replace(/,\s*,/g, ", ");          // ", ," -> ", "
+}
+
 // Describes the reporting window in words so the narrative reads naturally for
 // a week, a calendar month, a rolling window, or a custom range.
 export interface ReportPeriod {
@@ -49,7 +61,7 @@ export function periodForRange(range: DashRange): ReportPeriod {
         unit: "period",
         prior: "prior period",
         span: `the last ${range.days} days`,
-        optimisationsHeading: `Optimisations — last ${range.days} days`,
+        optimisationsHeading: `Optimisations (last ${range.days} days)`,
       };
     case "custom":
       return {
@@ -167,7 +179,7 @@ function factsBlock(
     lines.push(``, `TOP CONVERTING CAMPAIGNS THIS ${PU} (ranked by conversions):`);
     for (const c of converting) {
       lines.push(
-        `- ${c.name} [${c.channel ?? "—"}]: ${dec(c.conversions)} conversions, spend ${money(c.spend)}, ${money(c.costPerConv, 2)}/conv`,
+        `- ${c.name} [${c.channel ?? "other"}]: ${dec(c.conversions)} conversions, spend ${money(c.spend)}, ${money(c.costPerConv, 2)}/conv`,
       );
     }
   } else {
@@ -178,7 +190,7 @@ function factsBlock(
     lines.push(``, `ALL CAMPAIGNS THIS ${PU} (by spend):`);
     for (const c of p.byCampaign.slice(0, 8)) {
       lines.push(
-        `- ${c.name} [${c.channel ?? "—"}]: spend ${money(c.spend)}, ${dec(c.conversions)} conversions, ${money(c.costPerConv, 2)}/conv`,
+        `- ${c.name} [${c.channel ?? "other"}]: spend ${money(c.spend)}, ${dec(c.conversions)} conversions, ${money(c.costPerConv, 2)}/conv`,
       );
     }
   }
@@ -244,6 +256,7 @@ HARD RULES:
 - Tell the story, don't dump data: the Summary surfaces only the one or two changes that actually matter and explains WHY they happened (tie them to the logged optimisations / clear seasonality), rather than walking through every metric. The scorecard already carries the full numbers.
 - Keep it grounded — if ${period.span} was quiet, keep it short; don't pad or invent.
 - The "A note from your account manager" placeholder must be emitted as the exact literal bracketed text given — NEVER fill it in, paraphrase it, or invent manual context for it. It is for the human reviewer.
+- NEVER use em dashes (—) or en dashes (–) in the prose. This is a firm WMI house-style rule: use commas, or parentheses, or restructure the sentence. (Hyphens in compound words are fine.)
 - This is a DRAFT a human reviews and may edit before it reaches the client.
 
 OUTPUT — exactly this structure and order. Slack formatting (*bold* titles, "- " bullets), no markdown headers (#), no tables:
@@ -315,7 +328,7 @@ export async function generateNarrative(
       .map((b) => b.text)
       .join("")
       .trim();
-    return text || null;
+    return text ? stripEmDashes(text) : null;
   } catch (e) {
     console.error("Narrative generation failed (falling back to template):", e);
     return null;

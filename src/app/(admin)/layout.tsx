@@ -19,6 +19,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/clients", label: "Clients" },
   { href: "/proposals", label: "Proposals" },
+  { href: "/bernard", label: "Bernard" },
 ];
 
 export default async function AdminLayout({

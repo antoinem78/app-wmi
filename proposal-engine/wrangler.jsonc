@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "proposal-engine",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "proposal-engine",
+      // Replace with the real ID printed by: npx wrangler d1 create proposal-engine
+      "database_id": "5d50a599-28bf-45b6-b8e9-a2559e66d9e2"
+    }
+  ],
+  "vars": {
+    // Public base URL used to build proposal links returned by the API.
+    "APP_URL": "https://proposals.webmarketinginternational.com"
+  },
+  "routes": [{ "pattern": "proposals.webmarketinginternational.com/*", "zone_name": "webmarketinginternational.com" }]
+  //
+  // Secrets (set via: npx wrangler secret put NAME):
+  //   API_TOKEN    required, protects /api/* and /admin
+  //   WEBHOOK_URL  optional, n8n webhook that receives proposal events
+}

@@ -12,6 +12,12 @@ import {
   markSubscriptionEnded,
 } from "@/lib/integrations/stripe";
 
+// Signature verification uses Node crypto — pin the Node runtime (never Edge).
+// Never cache; give the handler headroom over Stripe's delivery timeout.
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 15;
+
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
   if (!signature) {

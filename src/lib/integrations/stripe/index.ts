@@ -36,6 +36,11 @@ export async function createCheckoutSessionForClient(client: {
   const stripe = getStripe();
   const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
 
+  // Prices are quoted ex-VAT (net). Stripe Tax adds VAT as a separate line on a
+  // compliant invoice (with the entity's VAT number, configured in the Stripe
+  // dashboard). tax_behavior "exclusive" = the unit_amount is net; VAT is added
+  // on top. Collecting a business VAT id lets Stripe apply reverse charge for
+  // valid non-UK businesses instead of wrongly charging UK VAT.
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [
@@ -45,10 +50,14 @@ export async function createCheckoutSessionForClient(client: {
           unit_amount: client.custom_monthly_price * 100,
           recurring: { interval: "month" as const },
           product_data: { name: CUSTOM_PLAN_NAME },
+          tax_behavior: "exclusive",
         },
         quantity: 1,
       },
     ],
+    automatic_tax: { enabled: true },
+    billing_address_collection: "required",
+    tax_id_collection: { enabled: true },
     customer_email: client.contact_email,
     client_reference_id: client.id,
     metadata: { client_id: client.id },

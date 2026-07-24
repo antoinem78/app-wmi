@@ -869,7 +869,7 @@ export function formatWeeklyText(weekly: WeeklySummary, currency: string): strin
     ? `Changes this week: ${weekly.changeLines.join(", ")}.`
     : "No account changes this week.";
   return [
-    `📈 *Weekly update* (${weekly.start} → ${weekly.end}) — all campaign types`,
+    `📈 *Weekly update* (${weekly.start} → ${weekly.end}) · all campaign types`,
     `• Spend: ${money(weekly.spend.value)}${delta(weekly.spend)}`,
     `• Conversions: ${dec1(weekly.conversions.value)}${delta(weekly.conversions)}`,
     `• ${changes}`,

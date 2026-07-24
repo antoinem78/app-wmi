@@ -1,7 +1,11 @@
 // Role helpers. Roles are stamped into the login token by an Auth0 post-login
 // Action under this namespaced claim (must match the Action code in the Auth0
-// dashboard exactly).
-export const ROLES_CLAIM = "https://ppcmastery.app/roles";
+// dashboard exactly). Auth0 requires custom claims to be URL-shaped strings;
+// the value is only a key inside the token, never fetched. The default is the
+// legacy namespace the original (PPC Mastery era) tenant's Action stamps;
+// per-entity deployments set AUTH0_ROLES_CLAIM to their own tenant's value.
+export const ROLES_CLAIM =
+  process.env.AUTH0_ROLES_CLAIM || "https://ppcmastery.app/roles";
 
 export type AppRole = "agency_admin" | "client";
 
