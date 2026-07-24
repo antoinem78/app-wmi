@@ -1,6 +1,6 @@
 # Design Note: Console Write Surfaces & Growth Operations
 
-**Date:** 2026-07-24. **Author:** Code. **Status:** For founder review — nothing in (a)–(d) builds or deploys before sign-off (per CODE_BRIEF_GROWTH_LEAKAGE_PHASE1 §3).
+**Date:** 2026-07-24. **Author:** Code. **Status:** APPROVED by founder 2026-07-24, with two amendments folded in below: (i) every Tier B apply automatically runs the smoke-probe battery post-apply (§4.3) — verified-not-assumed applies to config changes; (ii) every console write, all tiers, is task-logged (§2, §4).
 **Covers:** (a) the Step 5 console→substrate config-write path, (b) the Bernard cockpit pane, (c) the growth_action view + Growth Operations UI, (d) the Growth Assistant guard.
 **Grounding:** written against the live substrate schema (tasks, action_log, operators, clients.config) and the code now on main (src/lib/platform/config-write.ts, src/lib/bernard.ts) — every mapping below was checked against real columns and real status values, not the canon's memory of them.
 
@@ -29,9 +29,9 @@ Two independent layers on every path; both must pass.
 
 ## 2. Audit logging of console-originated writes
 
-Every write that originates in a console lands, atomically with its effect, as:
-- one `action_log` row: `workflow='CONSOLE'`, `step=<writable key or action>`, `tool='config_write' | 'bernard_fix' | 'standdown'`, `status`, `input_ref=<Auth0 actor email>`, `output_ref=<summary of old→new>`, `client_id`.
-- and, for anything that is an *action* rather than a setting (fix approvals, stand-downs, staged applies): the existing `tasks` row carries the state change, with the actor recorded in `result` (current live pattern for BERNARD fix decisions).
+Every write that originates in a console lands, atomically with its effect, as **both**:
+- one `tasks` row (`operator_id='CONSOLE'`) — all tiers, no exceptions (founder amendment 2026-07-24). Tier A writes create the task directly in `status='applied'` (single act); Tier B tasks travel `staged → applied` (§4); fix approvals and stand-downs keep their existing task rows. This makes the growth_action view (§5) automatically cover every console write.
+- one `action_log` row: `workflow='CONSOLE'`, `step=<writable key or action>`, `tool='config_write' | 'bernard_fix' | 'standdown'`, `status`, `input_ref=<Auth0 actor email>`, `output_ref=<summary of old→new>`, `client_id`, keyed to that task.
 
 Nothing writes config without the paired audit row — the n8n webhook does both in one transaction (already its design). The console never writes audit rows directly; it can't, it has no write role.
 
@@ -53,7 +53,9 @@ Tier B changes are two acts separated by a human reading a diff:
 1. **Stage:** console calls `dryRun` → webhook returns `{current, proposed}`; console renders the diff. The staged change is recorded as a `tasks` row: `operator_id='CONSOLE'`, `status='staged'`, `request={key, proposed, actor}`. Staging expires (webhook rejects applies against stale stages after 24h or any intervening change to the same key).
 2. **Apply:** a second call referencing the staged task id → webhook re-validates current==staged.current (optimistic lock), writes config + audit, flips the task to `status='applied'`.
 
-Tier A skips the task row (the action_log row is the record). Rejected/expired stages flip to `status='stage_expired'` — nothing is deleted.
+Rejected/expired stages flip to `status='stage_expired'` — nothing is deleted. (Tier A creates its task row directly in `'applied'`, per §2.)
+
+**4.3 Post-apply verification (founder amendment 2026-07-24).** Applying any Tier B staged change automatically runs the tenant's smoke-probe battery immediately after the write — the same probe pattern used at gate testing (canned probe conversations against the live config, checked for floor/gate/disclosure behaviour and answer sanity). Results land in the task's `result.probes`; on any probe failure the task flips to `status='applied_probe_failed'` and an alert fires to #alerts with the diff and the failing probe, so the founder decides revert-or-accept with evidence in hand. Verified-not-assumed applies to config changes exactly as it does to executor reports: an apply without a green probe battery is not "done".
 
 ## 5. growth_action: lifecycle mapping (no new spine)
 
