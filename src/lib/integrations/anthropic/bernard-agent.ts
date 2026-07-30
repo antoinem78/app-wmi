@@ -11,6 +11,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { getBernardStatus, decideFix, standDown } from "@/lib/bernard";
 import { listMetaAdAccounts, getMetaAuditData, metaConfigured, normalizeActId } from "@/lib/integrations/meta";
 import type { AgentEvent, ChatMessage } from "@/lib/integrations/anthropic/agent";
+import type { Attachment } from "@/lib/attachments";
 
 const MODEL = "claude-fable-5";
 const FALLBACK_MODEL = "claude-opus-4-8";
@@ -166,6 +167,7 @@ export async function runBernardChatStream(
   history: ChatMessage[],
   actor: string,
   emit: (ev: AgentEvent) => void,
+  attachments: Attachment[] = [],
 ): Promise<void> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -178,6 +180,30 @@ export async function runBernardChatStream(
     role: m.role,
     content: m.content,
   }));
+
+  // Files ride on the turn they were sent with, as document blocks ahead of the
+  // founder's text so Bernard reads them before the instruction about them.
+  // Extracted text also lands in the stored transcript (see transcriptNote), so
+  // it survives into later turns; a PDF does not, because we hold only the bytes
+  // for the length of this request. Re-attach if a PDF is needed again later.
+  if (attachments.length && messages.length) {
+    const last = messages[messages.length - 1];
+    const blocks: Anthropic.Beta.BetaContentBlockParam[] = attachments.map((a) =>
+      a.kind === "pdf"
+        ? {
+            type: "document",
+            title: a.name,
+            source: { type: "base64", media_type: "application/pdf", data: a.base64 },
+          }
+        : {
+            type: "document",
+            title: a.name,
+            source: { type: "text", media_type: "text/plain", data: a.text },
+          },
+    );
+    blocks.push({ type: "text", text: typeof last.content === "string" ? last.content : "" });
+    messages[messages.length - 1] = { role: "user", content: blocks };
+  }
 
   try {
     for (let i = 0; i < 8; i++) {
