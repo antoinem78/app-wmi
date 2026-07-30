@@ -30,7 +30,15 @@ These are founder rulings, not preferences to weigh. They apply to both tracks.
 
 **Meta is read-only for Claude.** Ruled 2026-07-24 after a denied script. Every Graph API call Claude makes is a GET. Writes go via Manus under Bernard's doctrine (created PAUSED, founder activates), the founder-gated `BERNARD_fix` path, or the founder by hand. Never offer to do a Meta write directly.
 
-**Manus is the executor, not a colleague to trust.** Everything it builds is PAUSED at creation and only the founder activates or touches billing. It has produced two verified false claims, so read back ground truth rather than accepting its report of success.
+**Meta writes have three possible paths, and Manus is only one of them.** In order of preference:
+
+1. **The substrate** (`BERNARD_build` for campaign construction, `BERNARD_fix` for a founder-approved single mutation). Deterministic, zero executor credits, no false-claim risk. This is the default.
+2. **The founder by hand** in Ads Manager, for anything UI-only.
+3. **Manus**, IF still subscribed. **Subscription status unresolved as of 2026-07-30**: on 24 July the founder said he was tempted to cancel and asked whether he could downgrade; the recommendation was downgrade rather than cancel; no confirmation either way is on record. Do not assume Manus is available. Ask before designing a dispatch around it.
+
+Whichever path, **everything is created PAUSED and only the founder activates or touches billing.** Manus has produced two verified false claims, so any executor report is read back against ground truth rather than believed.
+
+**Open canon item, needs a founder ruling.** If Manus is dormant or gone, Bernard's role simplifies to spec-writer, verifier and gatekeeper with the substrate as executor, and the executor contract plus R15 need updating, since both currently assume an external executor. This was flagged on 26 July and has not been ruled.
 
 **Client documents are written as Anthony**, first person, in his voice. Never mention APIs, tooling, endpoints, field names or how data was obtained. He is selling his expertise, not a generated report.
 
