@@ -2,7 +2,7 @@
 
 **Purpose.** This is the handoff file between parallel Claude Code sessions and between Claude Code and Claude Chat. It holds what neither the code nor the git history tells you: what is live versus staged, what is blocked and on whom, rulings the founder has made, and what comes next. It is not a changelog. If something here contradicts the code, the code is right and this file is stale, so fix it.
 
-**Last updated:** 2026-07-30 (Oscar named, agent_memory shared)
+**Last updated:** 2026-07-30 (Oscar named, agent_memory shared, commerce substrate verification, stale-string sweep)
 
 **If you are a fresh session, read §1 and §2 always.** Then read only your track: §4 for lead generation, §5 for ecommerce. §3 (the named agents) is vertical-agnostic and belongs to both.
 
@@ -41,13 +41,15 @@ These are founder rulings, not preferences to weigh. They apply to both tracks.
 
 **Manus: cancelled, founder-confirmed 2026-07-30.** Do not design anything around it. Note the capability this loses: Manus could browse, drive a UI and improvise around an undocumented obstacle, and `BERNARD_build` cannot. A task genuinely needing those is now a human-tier item for the founder rather than an executor task, and should be named as such in `actions_not_taken`.
 
-*Reconciling the API evidence, since a parallel session found it and it looks contradictory.* The `Manus usage` node in `BERNARD_monitor` returned 200 with live data on the morning of 2026-07-30, including a 3,068 credit grant labelled "Upgrade plan" timestamped 2026-07-24T21:33Z. That is consistent rather than conflicting: the founder said "I have upgraded" on 24 July, which is that grant, and the cancellation came after. A cancelled subscription normally keeps answering until the paid period lapses, so a 200 from the usage endpoint is not evidence of an active subscription. **The founder's statement governs. Expect the usage node to start failing when the period ends, and retire it rather than treating that as an incident.**
+*Reconciling the API evidence, since a parallel session found it and it looks contradictory.* The `Manus usage` node in `BERNARD_monitor` returned 200 with live data on the morning of 2026-07-30, including a 3,068 credit grant labelled "Upgrade plan" timestamped 2026-07-24T21:33Z. That is consistent rather than conflicting: the founder said "I have upgraded" on 24 July, which is that grant, and the cancellation came after. A cancelled subscription normally keeps answering until the paid period lapses, so a 200 from the usage endpoint is not evidence of an active subscription. **The founder's statement governs.** The `Manus usage` node was already removed from `BERNARD_monitor` on 2026-07-30 as part of the gate fix, so nothing polls that endpoint any more; the remaining Manus surface is `RCV_manus_events`, covered by the canon note below.
 
 Whichever path, **everything is created PAUSED and only the founder activates or touches billing.** Any executor report is still read back against ground truth. That rule outlived its original reason (Manus produced two verified false claims) and now guards our own bugs, partial failures and races against founder edits made in Ads Manager. Claimed is still not true until read.
 
 Bernard's role is therefore spec-writer, verifier and gatekeeper, with the substrate as executor.
 
 **Canon updated 2026-07-30.** `~/Downloads/WMI_META_LAB_EXECUTOR_CONTRACT_v2.md` supersedes v1: transport is substrate-internal, the Manus skill doctrine-carriage mechanism is void because doctrine is now code rather than instructions, and four controls upgrade from declared-and-audited to machine-enforced (report shape, write budget, gate hold, stand-down). `RCV_manus_events` is now dead code and should be retired rather than left listening for a vendor we no longer use.
+
+**BERNARD_build hardened 2026-07-31, after its record was actually read: 2 built, 1 built_with_problems, 6 build_failed across 9 lifetime attempts.** Three changes, live in n8n and verified. (1) Gate hold is now pre-flight: any envelope `gate_conditions` entry not explicitly `met` returns GATE_BLOCKED before any Meta call; proven with a deliberately blocked live envelope, zero Meta writes confirmed by read-back, rejection logged. (2) Error capture rebuilt: Graph returns a NULL element for ops whose dependency failed (previously stored as the useless `code null {}`), Meta's actionable text lives in `error_user_msg` and `error_data` blame fields (previously dropped, leaving bare "Invalid parameter"), and a top-level batch failure returns an object not an array (previously smeared across op slots). All three shapes unit-tested. (3) Write-budget pre-flight turned out to already exist; the contract had under-credited it. Failures are now diagnosable from the task row alone.
 
 **One open founder ruling.** `~/Downloads/R15_AMENDMENT_2026-07-30.md`. R15's quarantine language ("an isolated, swappable execution substrate") described a real vendor boundary that no longer exists now the executor is our own infrastructure. R15.1 is drafted to make the quarantine attach to the capability rather than the executor's identity, and to keep it until evidence-proven. One word adopts.
 
@@ -73,11 +75,11 @@ Bernard is the **senior paid social strategist and media buyer**, ruled 2026-07-
 
 **Tools.** `get_status`, `decide_fix`, `stand_down`, `list_meta_accounts`, `run_audit`, plus `remember`, `revise_memory`, `forget`.
 
-**Memory (live as of 2026-07-30).** Table `agent_memory` (was `bernard_memory`; generalised in migration 0003 so Oscar shares it, scoped by an `agent` column). Migration 0002 applied; **0003 pending founder, and it must run against the PORTAL database, not the substrate**, see `docs/substrate-migrations/README.md`. Deliberately separate from `agent_conversations` so clearing the chat drops the transcript and leaves what he knows intact. Read fresh each turn and injected into his system prompt grouped by subject with ids. Seeded with 20 foundational memories. Capped at 150 rows / 24k chars, at which point he is told to consolidate.
+**Memory (live as of 2026-07-30).** Table `agent_memory` (was `bernard_memory`; generalised in migration 0003 so Oscar shares it, scoped by an `agent` column). Migrations 0002 and 0003 both applied, **both against the PORTAL database, not the substrate**, see `docs/substrate-migrations/README.md`. Deliberately separate from `agent_conversations` so clearing the chat drops the transcript and leaves what he knows intact. Read fresh each turn and injected into his system prompt grouped by subject with ids. Seeded with 20 foundational memories. Capped at 150 rows / 24k chars, at which point he is told to consolidate.
 
 **Attachments (live as of 2026-07-30).** PDF goes to Claude as a native document block; .docx text is extracted from the OOXML via jszip; .md, .txt and .csv decode directly. Legacy .doc is refused with a message rather than half-parsed. Limits are 5 files, 3.5MB each, 4MB combined, set by Vercel's body ceiling. Extracted text persists into the transcript; **PDF bytes do not**, so a long PDF thread needs re-attaching.
 
-**Substrate workflows.** `BERNARD_dispatch`, `BERNARD_fix`, `BERNARD_monitor` (daily 09:00), `BERNARD_standdown`, `BERNARD_build`, `RCV_manus_events` (RSA-SHA256 signature verification proven live).
+**Substrate workflows.** `BERNARD_dispatch`, `BERNARD_fix`, `BERNARD_monitor` (daily 09:00), `BERNARD_standdown`, `BERNARD_build`. `RCV_manus_events` is dead code per the §2 canon note and awaits retirement (as of 2026-07-30 both copies are still on the instance, one active); its raw-body RSA-SHA256 verification is the reference pattern for any future signed inbound, documented in the substrate verification report.
 
 **Ad accounts he can currently see** (system user, read-only):
 
@@ -130,6 +132,8 @@ Open: as at 2026-07-30 the leads campaign had produced no leads on roughly 15 cl
 Done: sending domain `mail.kst-accountants.co.uk` live at IONOS, all six records verified authoritatively and propagated, warm-up Stage 1, SSL issued, From set to Kris Thiemelay / info@kst-accountants.co.uk. Root domain untouched (Microsoft 365 behind MailAnyone). Three GHL workflows exist: two OCT stage workflows and Website Lead Notifications.
 
 Blocked: the nurture sequence is written (`~/Documents/KST_NURTURE_SEQUENCE.md`, six emails over fifteen days) but **not built**, because every email points at a consultation booking page that does not exist and we have no access to Kris's calendar. Parked by the founder.
+
+**OCT unblocked for KST, triaged 2026-07-31.** The 1,191 malformed OCT tasks are a bounded, closed incident: 13 to 25 June only, nothing since, and 1,177 of them belong to **shallowford-smiles** with zero KST rows. The request payloads are OpenDental sync-trigger envelopes (`{"run":"opendental_sync","client_slug":"shallowford-smiles"}`), not conversion data at all, so they are sync runs mislabelled into an OCT failure status rather than genuine OCT failures. OCT itself dispatched successfully 22 times in July. The founder's hold ("do not activate KST OCT on an unclassified failure pattern") is therefore satisfied: the pattern is classified. Caveat recorded honestly: `result` is null on every affected row, so the mechanism is read from the request shape, not from a stored error.
 
 Outstanding: **capture KST as a GHL snapshot.** `snapshotId` is empty, so nothing there is portable, which defeats the blueprint purpose. Grows harder with every hand-built addition. Also note GHL workflow creation is UI-only; `POST /workflows/` returns 404, and no scope grant changes that.
 
@@ -188,6 +192,8 @@ Two corrections to the audit's supporting figures. Audience Network lifetime is 
 
 **Corrected 2026-07-30: catalog diagnostics are available, and they are worth running.** This file previously said diagnostics were unavailable for both Shopify clients because the catalogs were not properly shared or synced. The Atelier Brunos catalog returns a full `diagnostics` payload on request, and that is where the out-of-stock and single-image faults above came from. WMI also holds ADVERTISE and MANAGE on both Monde du Tabouret catalogs. So the read access is there; nobody had asked. The useful read set is `owned_product_catalogs`, then per catalog `external_event_sources`, `product_sets`, `agencies`, `diagnostics`, and a `products` page for `item_group_id`, `availability`, `size`, `color` and the link host. This is the diagnostic worth packaging, and the two clients between them supply both a healthy case and a shell case to test it against.
 
+**Commerce ingestion programme (new, substrate-wide).** CODE_BRIEF_1b (substrate-side shape verification for the Shopify commerce build) was executed 2026-07-30 by the ecommerce session. Report: `~/Documents/REPORT_commerce_substrate_shape_verification_2026-07-30.md`. Every item resolved LIVE-VERIFIED, nothing unreachable. Headlines a fresh session should not rediscover: raw-body HMAC in n8n is viable and already proven live (`RCV_manus_events`, `rawBody: true` + crypto in a Code node); the live `RCV_ghl_stage_event` is NOT ack-first (`responseNode` after the DB write), so the commerce receiver must choose ack-first deliberately; `GHL_contact_caller_TEMPLATE` is not on the live instance, only the Shallowford instantiation; the n8n `postgres` role has `rolbypassrls = true`, so tenant RLS binds read roles only; there is no DEV database on the conversion plane; OCT Route 1 dispatches through two Make.com webhooks (a dependency absent from canon) and Route 2's endpoint is this repo's `src/app/api/oct/upload/route.ts`; the live `RCV_form_routing` still carries a raw Shallowford PIT inline (DEV caller version ready, cutover never happened); n8n is 2.31.5. The Phase A build brief is Chat's to write from that report.
+
 ---
 
 ## 6. Deployed, staged, blocked
@@ -216,8 +222,8 @@ Two corrections to the audit's supporting figures. Audience Network lifetime is 
 Both sessions share this repo, the substrate, Supabase, the GHL account and Bernard. So:
 
 - **Coordinate through this file.** Update it when something lands, gets blocked, or a ruling is made. That is the whole mechanism.
-- **Bernard's memory is the other shared surface.** If you learn something durable about an account, it belongs in `bernard_memory` so the other session's Bernard has it too.
+- **Agent memory is the other shared surface.** If you learn something durable about an account, it belongs in `agent_memory` (portal DB, scoped by the `agent` column: `bernard` for Meta, `oscar` for Google) so the other session's agent has it too.
 - **Watch for collisions on shared files.** `src/lib/integrations/anthropic/`, `src/lib/bernard*.ts` and the substrate workflows are touched by both tracks. Check `git status` and recent commits before editing.
-- **Migrations are numbered sequentially** in `docs/substrate-migrations/`. Two sessions creating `0003_` simultaneously will conflict, so claim the number here when you start one.
+- **Migrations are numbered sequentially** in `docs/substrate-migrations/` (0001 to 0003 taken; **0004 claimed by the ecommerce session 2026-07-31** for `0004_commerce_schema.sql`, target substrate; next free is `0005_`). Two sessions creating the same number will conflict, so claim it here when you start one, and state the target database in the file header per the README.
 - Client documents live in `~/Documents/`, not in the repo.
 - Credentials are in `~/.config/singularweb/substrate.env` (chmod 600) and `.env.local`. Reference them by variable name; never echo values.
