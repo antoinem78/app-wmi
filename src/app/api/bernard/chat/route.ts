@@ -8,6 +8,12 @@ import { isAgencyAdmin } from "@/lib/auth/roles";
 import type { AgentEvent, ChatMessage } from "@/lib/integrations/anthropic/agent";
 import { runBernardChatStream } from "@/lib/integrations/anthropic/bernard-agent";
 import { loadConversation, appendTurns, clearConversation } from "@/lib/agent-conversations";
+import {
+  attachmentsFromFormData,
+  transcriptNote,
+  AttachmentError,
+  type Attachment,
+} from "@/lib/attachments";
 
 export const maxDuration = 120;
 
@@ -44,11 +50,36 @@ export async function POST(request: Request) {
   if (gate.error) return gate.error;
   const actor = gate.actor!;
 
+  // Two request shapes: JSON (text only) and multipart/form-data (text plus
+  // attachments), the latter carrying the history as a "messages" JSON field.
   let body: { messages?: unknown };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
+  let attachments: Attachment[] = [];
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (contentType.includes("multipart/form-data")) {
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return NextResponse.json({ error: "Could not read the upload." }, { status: 400 });
+    }
+    try {
+      body = JSON.parse(String(form.get("messages") ?? "{}")) as { messages?: unknown };
+    } catch {
+      return NextResponse.json({ error: "Invalid messages payload." }, { status: 400 });
+    }
+    try {
+      attachments = await attachmentsFromFormData(form);
+    } catch (e) {
+      const msg = e instanceof AttachmentError ? e.message : "That file could not be read.";
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
+  } else {
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
+    }
   }
 
   const raw = Array.isArray(body.messages) ? body.messages : [];
@@ -79,13 +110,18 @@ export async function POST(request: Request) {
         }
       };
       try {
-        await runBernardChatStream(messages, actor, send);
+        await runBernardChatStream(messages, actor, send, attachments);
       } catch (e) {
         console.error("Bernard chat failed:", e);
         send({ type: "error", text: "Bernard hit an error. Try again." });
       } finally {
+        // Store the attachments alongside the founder's text: extracted text
+        // inline so later turns still have it, PDFs as a filename marker only.
+        const stored = attachments.length
+          ? [...attachments.map(transcriptNote), userTurn.content].join("\n\n")
+          : userTurn.content;
         const toStore: { role: "user" | "assistant"; content: string }[] = [
-          { role: "user", content: userTurn.content },
+          { role: "user", content: stored },
         ];
         if (assistantText.trim()) toStore.push({ role: "assistant", content: assistantText });
         await appendTurns(SCOPE, null, toStore, actor);

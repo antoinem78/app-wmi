@@ -5,6 +5,7 @@
 // Same streaming NDJSON contract and visual language as CommandChat; the
 // conversation persists server-side under the "bernard" scope.
 import { useEffect, useRef, useState } from "react";
+import { ACCEPT_ATTR, MAX_FILES } from "@/lib/attachments";
 
 interface Msg { role: "user" | "assistant"; content: string }
 interface Artifact { href: string; label: string }
@@ -48,6 +49,9 @@ export function BernardChat({
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [pending, setPending] = useState<File[]>([]); // files staged for the next send
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollSoon = () =>
     requestAnimationFrame(() => scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight));
@@ -86,22 +90,52 @@ export function BernardChat({
     }
   }
 
+  function addFiles(list: FileList | null) {
+    if (!list?.length) return;
+    setError(null);
+    setPending((p) => {
+      const merged = [...p, ...Array.from(list)];
+      if (merged.length > MAX_FILES) {
+        setError(`Bernard takes up to ${MAX_FILES} files at a time.`);
+        return merged.slice(0, MAX_FILES);
+      }
+      return merged;
+    });
+  }
+
   async function send(text: string) {
     const content = text.trim();
-    if (!content || loading) return;
+    // A file on its own is a valid turn; give Bernard a default instruction.
+    if ((!content && pending.length === 0) || loading) return;
+    const files = pending;
+    const shown = content || (files.length === 1 ? "Read this and tell me what you make of it." : "Read these and tell me what you make of them.");
     setError(null);
-    const next = [...messages, { role: "user" as const, content }];
+    const label = files.length
+      ? `${shown}\n\n${files.map((f) => `[attached ${f.name}]`).join("\n")}`
+      : shown;
+    const next = [...messages, { role: "user" as const, content: label }];
     setMessages(next);
     setInput("");
+    setPending([]);
     setLoading(true);
     setStatus(null);
     scrollSoon();
     try {
-      const res = await fetch("/api/bernard/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: next }),
-      });
+      // History always carries the plain text; files ride as multipart parts.
+      const history = [...messages, { role: "user" as const, content: shown }];
+      let res: Response;
+      if (files.length) {
+        const form = new FormData();
+        form.set("messages", JSON.stringify({ messages: history }));
+        for (const f of files) form.append("files", f);
+        res = await fetch("/api/bernard/chat", { method: "POST", body: form });
+      } else {
+        res = await fetch("/api/bernard/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: history }),
+        });
+      }
       if (!res.ok || !res.body) {
         let msg = "Request failed";
         try { msg = (await res.json())?.error ?? msg; } catch { /* non-JSON */ }
@@ -250,9 +284,56 @@ export function BernardChat({
       {/* Composer */}
       <form
         onSubmit={(e) => { e.preventDefault(); send(input); }}
-        className="border-t border-zinc-100 p-3"
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          addFiles(e.dataTransfer.files);
+        }}
+        className={`border-t p-3 ${dragging ? "border-[#0B1F3A] bg-zinc-50" : "border-zinc-100"}`}
       >
+        {pending.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {pending.map((f, i) => (
+              <span
+                key={`${f.name}-${i}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-2.5 py-1 text-xs text-zinc-700"
+              >
+                <DocIcon />
+                <span className="max-w-[16rem] truncate">{f.name}</span>
+                <span className="text-zinc-400">{(f.size / 1000).toFixed(0)}KB</span>
+                <button
+                  type="button"
+                  onClick={() => setPending((p) => p.filter((_, j) => j !== i))}
+                  aria-label={`Remove ${f.name}`}
+                  className="ml-0.5 text-zinc-400 hover:text-zinc-900"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex items-end gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            accept={ACCEPT_ATTR}
+            className="hidden"
+            onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={loading}
+            title="Attach a PDF, Word document, Markdown or text file"
+            aria-label="Attach a file"
+            className="shrink-0 rounded-lg border border-zinc-300 px-2.5 py-2 text-zinc-600 hover:border-[#0B1F3A] hover:text-[#0B1F3A] disabled:opacity-40"
+          >
+            <ClipIcon />
+          </button>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -260,12 +341,12 @@ export function BernardChat({
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); }
             }}
             rows={1}
-            placeholder="Ask Bernard…"
+            placeholder={pending.length ? "Ask Bernard about the attached…" : "Ask Bernard…"}
             className="max-h-32 flex-1 resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[#0B1F3A] focus:outline-none"
           />
           <button
             type="submit"
-            disabled={loading || !input.trim()}
+            disabled={loading || (!input.trim() && pending.length === 0)}
             className="shrink-0 rounded-lg bg-[#0B1F3A] px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
           >
             Send
@@ -278,6 +359,20 @@ export function BernardChat({
 
 function Dot() {
   return <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400" />;
+}
+
+function ClipIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M21.4 11.05l-8.49 8.49a5 5 0 0 1-7.07-7.07l8.49-8.49a3 3 0 0 1 4.24 4.24l-8.48 8.49a1 1 0 0 1-1.42-1.42l7.79-7.78"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 function DocIcon() {
