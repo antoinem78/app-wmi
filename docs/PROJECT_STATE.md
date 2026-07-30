@@ -2,9 +2,9 @@
 
 **Purpose.** This is the handoff file between parallel Claude Code sessions and between Claude Code and Claude Chat. It holds what neither the code nor the git history tells you: what is live versus staged, what is blocked and on whom, rulings the founder has made, and what comes next. It is not a changelog. If something here contradicts the code, the code is right and this file is stale, so fix it.
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-30 (Oscar named, agent_memory shared)
 
-**If you are a fresh session, read §1 and §2 always.** Then read only your track: §4 for lead generation, §5 for ecommerce. §3 (Bernard) is vertical-agnostic and belongs to both.
+**If you are a fresh session, read §1 and §2 always.** Then read only your track: §4 for lead generation, §5 for ecommerce. §3 (the named agents) is vertical-agnostic and belongs to both.
 
 **Two Supabase projects exist and they are easy to confuse.** The portal DB (`SUPABASE_URL` in `.env.local`) holds everything the Next.js app reads. The substrate DB (`SUBSTRATE_DB_URL`) holds what n8n reads. `docs/substrate-migrations/` contains migrations for both despite its name, and on 2026-07-30 a rename meant for the portal was pointed at the substrate. Read `docs/substrate-migrations/README.md` before running any migration.
 
@@ -65,7 +65,7 @@ Bernard's role is therefore spec-writer, verifier and gatekeeper, with the subst
 
 ---
 
-## 3. Bernard (vertical-agnostic, shared by both tracks)
+## 3. The named agents (vertical-agnostic, shared by both tracks)
 
 Bernard is the **senior paid social strategist and media buyer**, ruled 2026-07-30. Auditing and campaign building are things he does, not what he is. He is intrinsically neither ecommerce nor lead generation, so both tracks use him and both should keep his memory current.
 
@@ -88,6 +88,30 @@ Bernard is the **senior paid social strategist and media buyer**, ruled 2026-07-
 | act_575423175548816 Tropical Oasis | Ace Nutrition | ecommerce |
 | act_1801857321221826 Luca Summer | Atelier Brunos | ecommerce |
 | act_27875735492115545 Mondedutabouret | monde_du_tabouret | ecommerce |
+
+### Oscar (Google Ads and Shopping), live 2026-07-30
+
+**Renamed from "Ask Rexos" on 2026-07-30.** The platform's name was attached to a single-channel specialist: every one of that agent's eight tools is Google Ads (search terms, Merchant Center feed audits, GAQL reads). Founder ruling: the agent is Oscar, Rexos means the platform, and there is no concierge layer because there would be nothing left in it. **Do not call him Rexos in code, UI or writing.**
+
+**Where he lives.** The floating "Ask Oscar" launcher on every admin page (`src/components/RexosWidget.tsx`, still the filename) plus the panel in `src/components/CommandChat.tsx`. Brain is `src/lib/integrations/anthropic/agent.ts`, endpoint `/api/agent/chat`, Claude Opus 4.8.
+
+**Tools.** `list_accounts`, `list_campaigns`, `get_account_report`, `get_all_account_summaries`, `get_recent_changes`, `get_search_terms`, `get_feed_audit`, `propose_optimization`, plus `remember`, `revise_memory`, `forget`. He cannot execute: `propose_optimization` files a reviewable card and the founder approves.
+
+**Persona.** Senior paid search strategist, same seniority framing as Bernard. Owns Google Ads and Shopping across every client, expected to hold a view and defend it.
+
+**Memory: shared table, isolated per agent.** He has zero memories as of 2026-07-30 and will accrue them. Worth seeding him deliberately the way Bernard was, since an empty memory is the slowest way to start.
+
+**Conversation scope is still `command-center`.** Deliberate: renaming the scope would orphan the existing history. Only the persona and the UI strings changed.
+
+**Outstanding from the build plan:** audit-to-Word, so Oscar can produce a downloadable Google Ads audit the way Bernard does for Meta. Not started.
+
+### Shared memory infrastructure
+
+Table **`agent_memory`** in the **portal** database, migration 0003, applied and verified 2026-07-30. One row per memory, scoped by an `agent` column (`bernard`, `oscar`). Scoped on reads and writes both, so neither agent can revise or forget the other's memories: a conclusion about Meta delivery rarely transfers to a search auction. Deliberately separate from `agent_conversations`, so clearing a chat drops the transcript and leaves what the agent knows intact.
+
+Verified at merge: 20 memories, all attributed to bernard, isolation confirmed by attempting a cross-agent update and getting a zero row count.
+
+**If you add a third agent**, it needs a name that is not "Rexos", an `AGENT` constant, and its memories are free: pass its name to the same four functions in `src/lib/agent-memory.ts`.
 
 ---
 
@@ -168,7 +192,9 @@ Two corrections to the audit's supporting figures. Audience Network lifetime is 
 
 | Thing | State |
 |---|---|
-| Bernard attachments + memory | **Live on production** (main, 2026-07-30). Migration 0002 applied, 20 memories seeded. |
+| Bernard attachments + memory | **Live on production** (main, 2026-07-30). 20 memories seeded. |
+| Oscar (renamed from Ask Rexos) + shared `agent_memory` | **Live on production** (main, 2026-07-30). Migration 0003 applied and verified. |
+| Oscar audit-to-Word | Not started. The remaining piece of his build plan. |
 | `growth_action` view, read-only role | Applied (migration 0001) |
 | DM.ai campaigns | Live and spending |
 | KST sending domain | Live and verified |
