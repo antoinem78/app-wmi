@@ -20,8 +20,9 @@ import {
   forgetMemory,
   MEMORY_KINDS,
   type MemoryKind,
-} from "@/lib/bernard-memory";
+} from "@/lib/agent-memory";
 
+const AGENT = "bernard";
 const MODEL = "claude-fable-5";
 const FALLBACK_MODEL = "claude-opus-4-8";
 
@@ -243,17 +244,17 @@ async function runTool(
         return { error: `kind must be one of: ${MEMORY_KINDS.join(", ")}` };
       const content = String(input.content ?? "");
       if (!content.trim()) return { error: "remember needs content." };
-      return remember(kind as MemoryKind, String(input.subject ?? "global"), content, actor);
+      return remember(AGENT, kind as MemoryKind, String(input.subject ?? "global"), content, actor);
     }
     case "revise_memory": {
       const id = String(input.memory_id ?? "");
       if (!id) return { error: "revise_memory needs a memory_id from your memory block." };
-      return reviseMemory(id, String(input.content ?? ""));
+      return reviseMemory(AGENT, id, String(input.content ?? ""));
     }
     case "forget": {
       const id = String(input.memory_id ?? "");
       if (!id) return { error: "forget needs a memory_id from your memory block." };
-      return forgetMemory(id, String(input.reason ?? "founder asked me to forget it"));
+      return forgetMemory(AGENT, id, String(input.reason ?? "founder asked me to forget it"));
     }
     default:
       return { error: `Unknown tool ${name}` };
@@ -278,7 +279,7 @@ export async function runBernardChatStream(
   const client = new Anthropic({ apiKey });
   // Memory is read fresh each turn, so anything Bernard remembered a moment ago
   // is already in scope, and a founder edit lands without a restart.
-  const system = buildSystem(renderMemories(await loadMemories()));
+  const system = buildSystem(renderMemories(await loadMemories(AGENT)));
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m) => ({
     role: m.role,
     content: m.content,

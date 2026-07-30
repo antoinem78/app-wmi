@@ -1,6 +1,7 @@
 "use client";
 
-// Global Rexos analyst — a floating launcher + chat panel available on EVERY
+// Global launcher for Oscar, the paid search strategist: a floating button plus
+// chat panel available on EVERY
 // admin page. Carries an account selector (All accounts ↔ any client), and
 // auto-focuses the account when you're on that client's page. Each account keeps
 // its own persistent thread (scope), so switching accounts swaps conversations.
@@ -44,10 +45,10 @@ export function RexosWidget() {
       <button
         onClick={() => setOpen(true)}
         className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full bg-[#0B1F3A] px-4 py-3 text-sm font-medium text-white shadow-lg ring-1 ring-black/5 transition-opacity hover:opacity-90"
-        aria-label="Ask Rexos"
+        aria-label="Ask Oscar"
       >
         <ChatIcon />
-        Ask Rexos
+        Ask Oscar
       </button>
     );
   }
@@ -58,7 +59,7 @@ export function RexosWidget() {
         <button
           onClick={() => setOpen(false)}
           className="absolute -right-2 -top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white text-zinc-500 shadow ring-1 ring-zinc-200 transition-colors hover:text-zinc-900"
-          aria-label="Close Rexos"
+          aria-label="Close Oscar"
         >
           ✕
         </button>

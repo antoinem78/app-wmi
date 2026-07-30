@@ -1,11 +1,15 @@
-// Bernard's durable memory. Deliberately separate from agent_conversations:
-// clearing the chat drops the transcript and must leave what Bernard KNOWS
-// intact. Founder ruling 2026-07-30 — Bernard is the senior paid social
-// strategist, so he carries client context and prior decisions across sessions
-// indefinitely and forgets only on instruction.
+// Durable per-agent memory. Deliberately separate from agent_conversations:
+// clearing the chat drops the transcript and must leave what the agent KNOWS
+// intact. Founder ruling 2026-07-30: these are senior strategists, so they carry
+// client context and prior decisions across sessions indefinitely and forget only
+// on instruction.
 //
-// Best-effort throughout, matching agent-conversations: if migration 0002 has
-// not been applied, reads return empty and writes report a failure Bernard can
+// Scoped by `agent` ('bernard' for Meta, 'oscar' for Google Ads). Memories are
+// never shared implicitly: Bernard should not inherit Oscar's conclusions about a
+// different platform.
+//
+// Best-effort throughout, matching agent-conversations: if migration 0003 has not
+// been applied, reads return empty and writes report a failure the agent can
 // relay, rather than throwing and killing the turn.
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -42,12 +46,13 @@ const MAX_CHARS = 24_000;
 
 /** Every live memory, oldest first within each subject so a subject reads as a
  *  small narrative rather than a shuffled pile. */
-export async function loadMemories(): Promise<Memory[]> {
+export async function loadMemories(agent: string): Promise<Memory[]> {
   try {
     const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase
-      .from("bernard_memory")
+      .from("agent_memory")
       .select("id, kind, subject, content, created_at")
+      .eq("agent", agent)
       .is("forgotten_at", null)
       .order("subject", { ascending: true })
       .order("created_at", { ascending: true })
@@ -101,6 +106,7 @@ export function renderMemories(memories: Memory[]): string {
 }
 
 export async function remember(
+  agent: string,
   kind: MemoryKind,
   subject: string,
   content: string,
@@ -111,8 +117,8 @@ export async function remember(
   try {
     const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase
-      .from("bernard_memory")
-      .insert({ kind, subject: subject.trim() || "global", content: text, actor })
+      .from("agent_memory")
+      .insert({ agent, kind, subject: subject.trim() || "global", content: text, actor })
       .select("id")
       .single();
     if (error || !data) {
@@ -127,6 +133,7 @@ export async function remember(
 /** Correct a memory in place. Used when a fact changes rather than turning out
  *  to have been wrong; for wrong, forget it and say why. */
 export async function reviseMemory(
+  agent: string,
   id: string,
   content: string,
 ): Promise<{ ok: boolean; error?: string }> {
@@ -135,12 +142,13 @@ export async function reviseMemory(
   try {
     const supabase = createSupabaseAdminClient();
     const { error, count } = await supabase
-      .from("bernard_memory")
+      .from("agent_memory")
       .update({ content: text, updated_at: new Date().toISOString() }, { count: "exact" })
       .eq("id", id)
+      .eq("agent", agent)
       .is("forgotten_at", null);
     if (error) return { ok: false, error: error.message };
-    if (!count) return { ok: false, error: "No live memory with that id." };
+    if (!count) return { ok: false, error: "No live memory with that id for this agent." };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Memory revision failed." };
@@ -150,21 +158,23 @@ export async function reviseMemory(
 /** Soft delete. Nothing is destroyed: a memory the founder asked Bernard to drop
  *  is still evidence of what he believed and when. */
 export async function forgetMemory(
+  agent: string,
   id: string,
   reason: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const supabase = createSupabaseAdminClient();
     const { error, count } = await supabase
-      .from("bernard_memory")
+      .from("agent_memory")
       .update(
         { forgotten_at: new Date().toISOString(), forgotten_reason: reason.trim() || null },
         { count: "exact" },
       )
       .eq("id", id)
+      .eq("agent", agent)
       .is("forgotten_at", null);
     if (error) return { ok: false, error: error.message };
-    if (!count) return { ok: false, error: "No live memory with that id." };
+    if (!count) return { ok: false, error: "No live memory with that id for this agent." };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Forget failed." };

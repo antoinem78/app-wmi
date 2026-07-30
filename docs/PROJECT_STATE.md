@@ -6,6 +6,10 @@
 
 **If you are a fresh session, read §1 and §2 always.** Then read only your track: §4 for lead generation, §5 for ecommerce. §3 (Bernard) is vertical-agnostic and belongs to both.
 
+**Two Supabase projects exist and they are easy to confuse.** The portal DB (`SUPABASE_URL` in `.env.local`) holds everything the Next.js app reads. The substrate DB (`SUBSTRATE_DB_URL`) holds what n8n reads. `docs/substrate-migrations/` contains migrations for both despite its name, and on 2026-07-30 a rename meant for the portal was pointed at the substrate. Read `docs/substrate-migrations/README.md` before running any migration.
+
+**The agents are named. Rexos is not one of them.** Bernard owns Meta (§3). Oscar owns Google Ads and Shopping, renamed from the misleading "Ask Rexos" on 2026-07-30 because the platform's name was standing in for a single-channel specialist. Rexos is the platform they both live inside.
+
 ---
 
 ## 1. Entities, and which one you are acting for
@@ -69,7 +73,7 @@ Bernard is the **senior paid social strategist and media buyer**, ruled 2026-07-
 
 **Tools.** `get_status`, `decide_fix`, `stand_down`, `list_meta_accounts`, `run_audit`, plus `remember`, `revise_memory`, `forget`.
 
-**Memory (live as of 2026-07-30).** Table `bernard_memory`, migration `docs/substrate-migrations/0002_bernard_memory.sql`, applied. Deliberately separate from `agent_conversations` so clearing the chat drops the transcript and leaves what he knows intact. Read fresh each turn and injected into his system prompt grouped by subject with ids. Seeded with 20 foundational memories. Capped at 150 rows / 24k chars, at which point he is told to consolidate.
+**Memory (live as of 2026-07-30).** Table `agent_memory` (was `bernard_memory`; generalised in migration 0003 so Oscar shares it, scoped by an `agent` column). Migration 0002 applied; **0003 pending founder, and it must run against the PORTAL database, not the substrate**, see `docs/substrate-migrations/README.md`. Deliberately separate from `agent_conversations` so clearing the chat drops the transcript and leaves what he knows intact. Read fresh each turn and injected into his system prompt grouped by subject with ids. Seeded with 20 foundational memories. Capped at 150 rows / 24k chars, at which point he is told to consolidate.
 
 **Attachments (live as of 2026-07-30).** PDF goes to Claude as a native document block; .docx text is extracted from the OOXML via jszip; .md, .txt and .csv decode directly. Legacy .doc is refused with a message rather than half-parsed. Limits are 5 files, 3.5MB each, 4MB combined, set by Vercel's body ceiling. Extracted text persists into the transcript; **PDF bytes do not**, so a long PDF thread needs re-attaching.
 
@@ -117,7 +121,21 @@ Two campaign shells exist and are PAUSED, structure verified independently by th
 
 **Corrected 2026-07-30: "no product feed" is not a valid test for whether a Shopify sync is live.** This file previously read the missing feed as proof of a hand-made catalog. It is not. The Atelier Brunos catalog is a fully working Shopify sync with 220 products and it also reports `feed_count: 0` and zero `product_feeds`, because the Shopify app syncs through a commerce-merchant connection rather than a scheduled feed file. Further, MDT's single product is a genuine Shopify product (a mondedutabouret.fr product URL, a Shopify CDN image, EUR 180, in stock) and the catalog carries a `commerce_merchant_settings` record, so it reads as a stalled or partial sync, not something hand-built. **The fields that actually separate a live sync from a shell are `external_event_sources` (is a pixel attached) and `product_count`.** The gate stays shut on those two; only the reasoning was wrong.
 
-**The Phase 0 monitor is one condition away from a false green, as at 2026-07-30.** `BERNARD_monitor` (n8n `RGKYojPeH06ALtLC`, cron `0 9 * * *`) does run and complete daily, verified against execution history. But its `catalog_ok` test is `product_count > 0`, which the 1-product shell already satisfies, so `catalog_ok` is TRUE today and only `pixel_ok: false` is holding the gate. When the client's app install creates the pixel, the monitor will post a green light to #alerts against a 1-product catalog, which is the outcome the ruling above forbids. It also has no negative or heartbeat branch, so silence means both "still blocked" and "workflow broken", and its `Meta check` HTTP node has no error handling, so one failed Graph call kills the run before both the log and the Slack node. **Awaiting a founder go to amend it** (live workflow, so R7 requires the ask).
+**The Phase 0 monitor was one condition away from a false green. Fixed and live 2026-07-30, founder-approved.** `BERNARD_monitor` (n8n `RGKYojPeH06ALtLC`, cron `0 9 * * *`, Europe/London, error workflow `MAINT_error_alert`) always ran reliably; the defect was what it tested. Its `catalog_ok` was `product_count > 0`, which the 1-product shell already satisfied, so only `pixel_ok: false` was holding the gate and the client's app install would have tripped a green light against a one-product catalog.
+
+The gate is now three clauses, all of which must hold:
+
+1. a pixel exists on the ad account or the client business,
+2. a catalog carries **at least 20 products** (founder-set floor) **and** has that pixel attached as an `external_event_sources` entry, so dynamic ads have something to retarget against,
+3. no check failed.
+
+Clause 3 matters because the Meta HTTP nodes run `onError: continueRegularOutput`, so a failed read returns empty data rather than throwing. That fails closed, which is safe against false greens, but it made a permission breakage indistinguishable from "still blocked". Failed checks are now collected per client and surfaced as a red CHECK FAILED line.
+
+Notification changed from green-only to state-change. A new `Prev state` node reads the last `daily_monitor` verdict out of `action_log` and the run posts to #alerts only when the verdict changes or a check fails, so silence now means "nothing has moved" rather than "possibly broken". The `Manus usage` node is removed, per the cancellation in §2.
+
+Verified before and after deploy: nine offline scenarios against real Graph payloads (including the exact false-green case, the floor boundary at 19/20, an unlinked catalog, and a permission error), both SQL statements against the live database with the insert rolled back, all three Slack templates rendered, then a live scheduled execution with the Slack nodes disabled. That run computed `catalog_ok: false` where the old code computed `true`, and both IF nodes routed correctly. Backup of the previous definition and the build script are in the session scratchpad; the nightly `Daily Backup to GitHub v2` also covers it.
+
+**One consequence to expect:** the verification run wrote a `daily_monitor` row in the new format, so the 31 July 09:00 run will compute an unchanged verdict and stay silent by design. That is correct behaviour, not a failure.
 
 Phase 1, when unblocked: four product sets, four ad sets in the existing campaign `120250024094940369`, four Advantage+ catalog carousel ads, all PAUSED. Product-set filters must come from real feed fields; skip and flag anything that cannot be expressed rather than approximating.
 
@@ -140,7 +158,9 @@ Two corrections to the audit's supporting figures. Audience Network lifetime is 
 
 **Tropical Oasis** (act_575423175548816, Ace Nutrition). Audit delivered previously. Awaiting client reply.
 
-**Patterns this track will need that the lead gen track does not:** catalog and feed health, Advantage+ Shopping, dynamic product retargeting, `Purchase` and value optimisation rather than `Lead`, ROAS and AOV rather than cost per lead. Catalog diagnostics are currently unavailable for both Shopify clients because catalogs are not properly shared or synced, so that is the recurring first blocker to check.
+**Patterns this track will need that the lead gen track does not:** catalog and feed health, Advantage+ Shopping, dynamic product retargeting, `Purchase` and value optimisation rather than `Lead`, ROAS and AOV rather than cost per lead.
+
+**Corrected 2026-07-30: catalog diagnostics are available, and they are worth running.** This file previously said diagnostics were unavailable for both Shopify clients because the catalogs were not properly shared or synced. The Atelier Brunos catalog returns a full `diagnostics` payload on request, and that is where the out-of-stock and single-image faults above came from. WMI also holds ADVERTISE and MANAGE on both Monde du Tabouret catalogs. So the read access is there; nobody had asked. The useful read set is `owned_product_catalogs`, then per catalog `external_event_sources`, `product_sets`, `agencies`, `diagnostics`, and a `products` page for `item_group_id`, `availability`, `size`, `color` and the link host. This is the diagnostic worth packaging, and the two clients between them supply both a healthy case and a shell case to test it against.
 
 ---
 
@@ -155,7 +175,7 @@ Two corrections to the audit's supporting figures. Audience Network lifetime is 
 | KST nurture sequence | Written, not built. Blocked on a booking page. |
 | KST GHL snapshot | Not started. Blocks the blueprint purpose. |
 | MDT Phase 1 | Shells PAUSED. Blocked on client Shopify app setup. |
-| MDT Phase 0 monitor | Live and firing daily, but `catalog_ok` already true on the 1-product shell. Will false-green on pixel creation. Fix awaiting founder go. |
+| MDT Phase 0 monitor | **Fixed and live** (2026-07-30, founder-approved). Gate is now pixel + 20-product floor + pixel linked as event source + no failed checks. Posts on state change, not green only. Manus node removed. |
 | Atelier Brunos account | Dark since 27 July, all ad sets paused. Awaiting founder decision plus Shopify and GA4 access. |
 | AB catalog `item_group_id` | Empty on all 220 products, and 51% out of stock. Client-side Shopify fix, blocks effective dynamic retargeting. |
 | Twilio UK number | Decided, blocked on credentials |

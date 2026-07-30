@@ -1,5 +1,7 @@
 -- 0002_bernard_memory.sql
 --
+-- TARGET DATABASE: **PORTAL** (see README in this directory).
+--
 -- Bernard's durable memory. Distinct from agent_conversations on purpose:
 -- clearing the chat wipes the transcript, and must NOT wipe what Bernard knows.
 -- The founder's ruling (2026-07-30): Bernard is the senior paid social
