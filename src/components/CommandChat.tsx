@@ -8,6 +8,27 @@
 import { useEffect, useRef, useState } from "react";
 
 interface Msg { role: "user" | "assistant"; content: string }
+interface Artifact { href: string; label: string }
+
+// Oscar hands out download paths (the Google Ads audit) — make them clickable.
+function renderWithLinks(text: string) {
+  const parts = text.split(/(https?:\/\/[^\s)]+|\/api\/[^\s)]+)/g);
+  return parts.map((p, i) =>
+    /^(https?:\/\/|\/api\/)/.test(p) ? (
+      <a
+        key={i}
+        href={p}
+        target="_blank"
+        rel="noreferrer"
+        className="font-medium underline decoration-dotted underline-offset-2"
+      >
+        {p}
+      </a>
+    ) : (
+      p
+    ),
+  );
+}
 
 const SUGGESTIONS = [
   "Where am I wasting budget? Propose fixes",
@@ -39,6 +60,7 @@ export function CommandChat({
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollSoon = () =>
@@ -70,6 +92,7 @@ export function CommandChat({
 
   async function clearChat() {
     setMessages([]);
+    setArtifacts([]);
     try {
       await fetch(`/api/agent/chat?scope=${encodeURIComponent(scope)}`, { method: "DELETE" });
     } catch {
@@ -119,7 +142,7 @@ export function CommandChat({
           const line = buf.slice(0, nl).trim();
           buf = buf.slice(nl + 1);
           if (!line) continue;
-          let ev: { type: string; text?: string };
+          let ev: { type: string; text?: string; label?: string };
           try { ev = JSON.parse(line); } catch { continue; }
           if (ev.type === "delta" && ev.text) { setStatus(null); appendDelta(ev.text); scrollSoon(); }
           else if (ev.type === "status" && ev.text) { setStatus(ev.text); }
@@ -131,6 +154,11 @@ export function CommandChat({
               if (copy[li]?.role === "assistant") copy[li] = { ...copy[li], content: "" };
               return copy;
             });
+          }
+          else if (ev.type === "artifact" && ev.text) {
+            const href = ev.text;
+            const label = ev.label ?? "Download";
+            setArtifacts((a) => (a.some((x) => x.href === href) ? a : [...a, { href, label }]));
           }
           else if (ev.type === "error" && ev.text) { setError(ev.text); }
         }
@@ -209,7 +237,7 @@ export function CommandChat({
                     : "border border-zinc-200 bg-zinc-50 text-zinc-800"
                 }`}
               >
-                {m.content}
+                {m.role === "assistant" ? renderWithLinks(m.content) : m.content}
               </div>
             </div>
           ),
@@ -229,6 +257,24 @@ export function CommandChat({
         )}
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
+
+      {/* Prepared downloads (the Google Ads audit) */}
+      {artifacts.length > 0 && (
+        <div className="flex flex-wrap gap-2 border-t border-zinc-100 px-3 py-2">
+          {artifacts.map((a) => (
+            <a
+              key={a.href}
+              href={a.href}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#0B1F3A] hover:text-[#0B1F3A]"
+            >
+              <DocIcon />
+              {a.label}
+            </a>
+          ))}
+        </div>
+      )}
 
       {/* Composer */}
       <form
@@ -261,4 +307,18 @@ export function CommandChat({
 
 function Dot() {
   return <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400" />;
+}
+
+function DocIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M14 3v5h5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
 }

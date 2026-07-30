@@ -103,7 +103,9 @@ Bernard is the **senior paid social strategist and media buyer**, ruled 2026-07-
 
 **Conversation scope is still `command-center`.** Deliberate: renaming the scope would orphan the existing history. Only the persona and the UI strings changed.
 
-**Outstanding from the build plan:** audit-to-Word, so Oscar can produce a downloadable Google Ads audit the way Bernard does for Meta. Not started.
+**Audit document, live 2026-07-30.** `run_audit` hands the founder a link to the existing Google Ads Audit and Growth Research .docx. Worth knowing that the generator was already there (`src/lib/audit/generate.ts`, with account-type detection, a severity-graded diagnosis pass and a forecast) and already reachable from the client page via `GenerateAuditButton`. **The only gap was that it could not be reached from a conversation**, so nothing was rebuilt: `/api/audit/[clientId]` gained a GET handler alongside its POST (a link is a GET; the button still POSTs, both share one implementation), and Oscar's panel gained link rendering and a download chip, which it had never had.
+
+Constraint to know: the audit is keyed by **client id**, so it only covers imported clients. A bare MCC account visible under the roster has no client record to attach one to, and Oscar is told to say so plainly rather than invent an id.
 
 ### Shared memory infrastructure
 
@@ -194,7 +196,7 @@ Two corrections to the audit's supporting figures. Audience Network lifetime is 
 |---|---|
 | Bernard attachments + memory | **Live on production** (main, 2026-07-30). 20 memories seeded. |
 | Oscar (renamed from Ask Rexos) + shared `agent_memory` | **Live on production** (main, 2026-07-30). Migration 0003 applied and verified. |
-| Oscar audit-to-Word | Not started. The remaining piece of his build plan. |
+| Oscar audit document via chat | **Live on production** (main, 2026-07-30). Reuses the existing generator; only the chat route to it was missing. |
 | `growth_action` view, read-only role | Applied (migration 0001) |
 | DM.ai campaigns | Live and spending |
 | KST sending domain | Live and verified |

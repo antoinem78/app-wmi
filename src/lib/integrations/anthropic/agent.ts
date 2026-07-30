@@ -198,6 +198,19 @@ const TOOLS: Anthropic.Tool[] = [
       required: ["account", "type", "title", "rationale"],
     },
   },
+  {
+    name: "run_audit",
+    description:
+      "Hand the founder a link to the full Google Ads Audit and Growth Research document (.docx) for one client: account audit, diagnosis with severities, strategy, forecast and an optimisation plan. The document is generated fresh from live account data when he opens the link, and takes a couple of minutes. Use this when he asks for an audit, a written review, or something to send a client. ONLY works for imported clients (an account the agency has onboarded); a bare MCC account with no client record cannot be audited this way, and you should say so rather than guessing an id.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account: { type: "string", description: "Client name, client id, or Google customer id — resolve via list_accounts if unsure" },
+        monthly_budget: { type: "number", description: "Optional monthly budget in account currency to base the forecast on; omit to derive it from historic spend" },
+      },
+      required: ["account"],
+    },
+  },
 ];
 
 const SYSTEM_BASE = `You are Oscar, the ${entityConfig.brandName} senior paid search strategist. You own Google Ads and Shopping across every client: you read accounts against ground truth, you form a view, and you defend it. Analysis and reporting are things you do, not what you are.
@@ -225,7 +238,8 @@ YOUR JOB:
 - When the user asks you to PROPOSE something (or you've found a concrete change worth formalising), call propose_optimization to file it as a reviewable card, then tell the user it's filed for their approval in the Proposals page. NEVER claim you made or applied a change; approval/execution is the human's.
 - For the executable actions — add a single (campaign or ad-group) negative keyword, add a shared/account-level negative, pause a campaign, set a campaign daily budget — include the precise details.action block so the proposal can be applied behind the approval gate. ONE operation per proposal: to add several negatives, file several proposals (one keyword each), never a batch. For a campaign-level negative, pause, or budget change, first call list_campaigns to get the EXACT campaign name. For a shared negative (no campaign), use the add_shared_negative action.
 - NEGATIVE KEYWORDS: before proposing ANY negative keyword, call get_search_terms and cite the actual wasted queries (meaningful cost, zero/low conversions). Never invent a query. If get_search_terms returns nothing, say so and do not fabricate one. If a wasted query is spending across many Search campaigns, file a shared negative (add_shared_negative); if it is confined to one campaign, file a campaign-level add_negative_keyword against that exact campaign.
-- If asked whether an optimisation is needed and you think NOT, prove it with the figures.`;
+- If asked whether an optimisation is needed and you think NOT, prove it with the figures.
+- run_audit prepares the written Google Ads audit. Give the founder the download_path on its own line at the end of your reply, e.g. "Audit document: /api/audit/<id>". Keep your chat read tight; the document carries the detail. It only covers imported clients, so if he names a bare MCC account say plainly that there is no client record to attach it to rather than inventing an id.`;
 
 /** The system prompt for one turn: the fixed brief plus everything Oscar has
  *  chosen to remember. Loaded per request so a memory written earlier in the
@@ -313,6 +327,20 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
       const id = String(input.memory_id ?? "");
       if (!id) return { error: "forget needs a memory_id from your memory block." };
       return forgetMemory(AGENT, id, String(input.reason ?? "founder asked me to forget it"));
+    }
+    case "run_audit": {
+      const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
+      if (!acc) return { error: "I couldn't resolve that account — call list_accounts and use an exact name or customer id." };
+      if (!acc.imported || !acc.clientId) {
+        return { error: `${acc.company} is visible under the MCC but is not an onboarded client, so there is no client record to attach an audit to. The written audit only covers imported clients. I can still report on it in chat.` };
+      }
+      const budget = Number(input.monthly_budget);
+      const qs = Number.isFinite(budget) && budget > 0 ? `?budget=${Math.round(budget)}` : "";
+      return {
+        account: { company: acc.company, customer_id: acc.reportingId },
+        download_path: `/api/audit/${acc.clientId}${qs}`,
+        note: "Generated fresh from live account data when the founder opens it. Takes roughly two minutes.",
+      };
     }
     case "list_accounts":
       return ctx.roster.map((r) => ({ clientId: r.clientId, company: r.company, customerId: r.reportingId, status: r.status, imported: r.imported }));
@@ -529,6 +557,7 @@ function statusLabel(name: string, input: Record<string, unknown>): string {
     case "remember": return "Committing that to memory…";
     case "revise_memory": return "Updating what I know…";
     case "forget": return "Forgetting that…";
+    case "run_audit": return "Preparing the audit document…";
     case "list_accounts": return "Listing accounts…";
     case "get_account_report": return `Reading ${acc || "account"}…`;
     case "get_all_account_summaries": return "Scanning all accounts…";
@@ -587,6 +616,12 @@ export async function runAgentChatStream(
           out = await runTool(tu.name, (tu.input ?? {}) as Record<string, unknown>, ctx);
         } catch (e) {
           out = { error: e instanceof Error ? e.message : String(e) };
+        }
+        // A prepared audit gets a first-class download chip in the panel.
+        const dl = out as { download_path?: string; account?: { company?: unknown } } | null;
+        if (tu.name === "run_audit" && dl?.download_path) {
+          const who = typeof dl.account?.company === "string" ? dl.account.company : "account";
+          emit({ type: "artifact", text: dl.download_path, label: `Download the ${who} Google Ads audit (.docx)` });
         }
         results.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(out).slice(0, 80000) });
       }

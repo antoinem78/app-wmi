@@ -19,16 +19,34 @@ function loadLogo(): Buffer | undefined {
   }
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ clientId: string }> }) {
+// Oscar hands the founder a link to this in chat, and a link is a GET. The
+// client page's GenerateAuditButton still POSTs, so both entry points share one
+// implementation rather than drifting apart.
+export async function GET(request: Request, ctx: { params: Promise<{ clientId: string }> }) {
+  const url = new URL(request.url);
+  const budgetRaw = Number(url.searchParams.get("budget"));
+  return buildAudit(ctx, {
+    budget: Number.isFinite(budgetRaw) && budgetRaw > 0 ? budgetRaw : undefined,
+    website: url.searchParams.get("website") ?? undefined,
+  });
+}
+
+export async function POST(request: Request, ctx: { params: Promise<{ clientId: string }> }) {
+  let body: { budget?: number; website?: string } = {};
+  try { body = await request.json(); } catch { /* empty body is fine */ }
+  return buildAudit(ctx, body);
+}
+
+async function buildAudit(
+  { params }: { params: Promise<{ clientId: string }> },
+  body: { budget?: number; website?: string },
+) {
   const session = await auth0.getSession();
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   if (!isAgencyAdmin(session.user as Record<string, unknown>)) {
     return NextResponse.json({ error: "Agency admin only." }, { status: 403 });
   }
   const { clientId } = await params;
-
-  let body: { budget?: number; website?: string } = {};
-  try { body = await request.json(); } catch { /* empty body is fine */ }
 
   const supabase = createSupabaseAdminClient();
   const { data: state } = await supabase
