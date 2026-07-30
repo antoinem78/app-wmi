@@ -28,7 +28,7 @@ The "Mastery" brands are outside SingularWeb. See the memory note on the brand a
 
 These are founder rulings, not preferences to weigh. They apply to both tracks.
 
-**Meta is read-only for Claude.** Ruled 2026-07-24 after a denied script. Every Graph API call Claude makes is a GET. Writes go via Manus under Bernard's doctrine (created PAUSED, founder activates), the founder-gated `BERNARD_fix` path, or the founder by hand. Never offer to do a Meta write directly.
+**Meta is read-only for Claude.** Ruled 2026-07-24 after a denied script. Every Graph API call Claude makes is a GET. Never offer to do a Meta write directly; the write paths are below.
 
 **Meta writes have three possible paths, and Manus is only one of them.** In order of preference:
 
