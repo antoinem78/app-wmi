@@ -30,15 +30,22 @@ These are founder rulings, not preferences to weigh. They apply to both tracks.
 
 **Meta is read-only for Claude.** Ruled 2026-07-24 after a denied script. Every Graph API call Claude makes is a GET. Never offer to do a Meta write directly; the write paths are below.
 
-**Meta writes have three possible paths, and Manus is only one of them.** In order of preference:
+**Meta writes have two paths. Manus is cancelled.** In order of preference:
 
-1. **The substrate** (`BERNARD_build` for campaign construction, `BERNARD_fix` for a founder-approved single mutation). Deterministic, zero executor credits, no false-claim risk. This is the default.
+1. **The substrate** (`BERNARD_build` for campaign construction, `BERNARD_fix` for a founder-approved single mutation). Deterministic, zero executor credits, no false-claim risk. This is now the only automated path.
 2. **The founder by hand** in Ads Manager, for anything UI-only.
-3. **Manus**, IF still subscribed. On 24 July the founder said he was tempted to cancel and asked whether he could downgrade; the recommendation was downgrade rather than cancel. **New evidence 2026-07-30, awaiting founder confirmation**: the `Manus usage` node inside `BERNARD_monitor` returned 200 with live data on that morning's run, including a credit grant of 3,068 labelled "Upgrade plan" timestamped 2026-07-24T21:33Z, the same day the question was raised. So the account is answering and was topped up rather than cancelled. Treat this as strong evidence, not a ruling: confirm with the founder before designing a dispatch around Manus.
 
-Whichever path, **everything is created PAUSED and only the founder activates or touches billing.** Manus has produced two verified false claims, so any executor report is read back against ground truth rather than believed.
+**Manus: cancelled, founder-confirmed 2026-07-30.** Do not design anything around it. Note the capability this loses: Manus could browse, drive a UI and improvise around an undocumented obstacle, and `BERNARD_build` cannot. A task genuinely needing those is now a human-tier item for the founder rather than an executor task, and should be named as such in `actions_not_taken`.
 
-**Open canon item, needs a founder ruling.** If Manus is dormant or gone, Bernard's role simplifies to spec-writer, verifier and gatekeeper with the substrate as executor, and the executor contract plus R15 need updating, since both currently assume an external executor. This was flagged on 26 July and has not been ruled.
+*Reconciling the API evidence, since a parallel session found it and it looks contradictory.* The `Manus usage` node in `BERNARD_monitor` returned 200 with live data on the morning of 2026-07-30, including a 3,068 credit grant labelled "Upgrade plan" timestamped 2026-07-24T21:33Z. That is consistent rather than conflicting: the founder said "I have upgraded" on 24 July, which is that grant, and the cancellation came after. A cancelled subscription normally keeps answering until the paid period lapses, so a 200 from the usage endpoint is not evidence of an active subscription. **The founder's statement governs. Expect the usage node to start failing when the period ends, and retire it rather than treating that as an incident.**
+
+Whichever path, **everything is created PAUSED and only the founder activates or touches billing.** Any executor report is still read back against ground truth. That rule outlived its original reason (Manus produced two verified false claims) and now guards our own bugs, partial failures and races against founder edits made in Ads Manager. Claimed is still not true until read.
+
+Bernard's role is therefore spec-writer, verifier and gatekeeper, with the substrate as executor.
+
+**Canon updated 2026-07-30.** `~/Downloads/WMI_META_LAB_EXECUTOR_CONTRACT_v2.md` supersedes v1: transport is substrate-internal, the Manus skill doctrine-carriage mechanism is void because doctrine is now code rather than instructions, and four controls upgrade from declared-and-audited to machine-enforced (report shape, write budget, gate hold, stand-down). `RCV_manus_events` is now dead code and should be retired rather than left listening for a vendor we no longer use.
+
+**One open founder ruling.** `~/Downloads/R15_AMENDMENT_2026-07-30.md`. R15's quarantine language ("an isolated, swappable execution substrate") described a real vendor boundary that no longer exists now the executor is our own infrastructure. R15.1 is drafted to make the quarantine attach to the capability rather than the executor's identity, and to keep it until evidence-proven. One word adopts.
 
 **Client documents are written as Anthony**, first person, in his voice. Never mention APIs, tooling, endpoints, field names or how data was obtained. He is selling his expertise, not a generated report.
 
