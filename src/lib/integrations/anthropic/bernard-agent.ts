@@ -12,6 +12,15 @@ import { getBernardStatus, decideFix, standDown } from "@/lib/bernard";
 import { listMetaAdAccounts, getMetaAuditData, metaConfigured, normalizeActId } from "@/lib/integrations/meta";
 import type { AgentEvent, ChatMessage } from "@/lib/integrations/anthropic/agent";
 import type { Attachment } from "@/lib/attachments";
+import {
+  loadMemories,
+  renderMemories,
+  remember,
+  reviseMemory,
+  forgetMemory,
+  MEMORY_KINDS,
+  type MemoryKind,
+} from "@/lib/bernard-memory";
 
 const MODEL = "claude-fable-5";
 const FALLBACK_MODEL = "claude-opus-4-8";
@@ -68,11 +77,70 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
       required: ["account_id"],
     },
   },
+  {
+    name: "remember",
+    description:
+      "Write something to your permanent memory. Your memory survives the founder clearing the chat and every future session, so use it for anything you would be embarrassed to have forgotten next week: how a client operates, an account's baselines and quirks, a ruling the founder made and why, a standing preference about how he wants you to work, a strategic position you have taken. Do NOT store things you can look up live (current spend, today's status, pending fixes) — store the judgement, not the reading. Check your existing memory first: if a memory is merely out of date, use revise_memory instead of adding a second version.",
+    input_schema: {
+      type: "object",
+      properties: {
+        kind: {
+          type: "string",
+          enum: ["client", "account", "decision", "preference", "strategy", "fact"],
+          description: "client = how they operate; account = an ad account's quirks/baselines; decision = a founder ruling and its reason; preference = how the founder wants you to work; strategy = a standing position or plan; fact = anything else durable",
+        },
+        subject: {
+          type: "string",
+          description: "What it is about: a client slug, an act_ id, or 'global' for things not tied to one entity",
+        },
+        content: {
+          type: "string",
+          description: "The memory itself, written so it makes sense to you cold in six months. Include the why, not just the what. State dates absolutely, never 'last week'.",
+        },
+      },
+      required: ["kind", "subject", "content"],
+    },
+  },
+  {
+    name: "revise_memory",
+    description:
+      "Correct or update an existing memory in place, using the id shown beside it in your memory block. Use this when a fact has CHANGED. If a memory turns out to have been wrong all along, use forget with the reason instead, so the record shows you were corrected.",
+    input_schema: {
+      type: "object",
+      properties: {
+        memory_id: { type: "string", description: "The id from your memory block" },
+        content: { type: "string", description: "The replacement content, complete rather than a diff" },
+      },
+      required: ["memory_id", "content"],
+    },
+  },
+  {
+    name: "forget",
+    description:
+      "Retire a memory. Use it when the founder tells you to forget something, or when you discover a memory was wrong. The memory stops appearing but is retained in the audit trail rather than destroyed, so state the reason honestly.",
+    input_schema: {
+      type: "object",
+      properties: {
+        memory_id: { type: "string", description: "The id from your memory block" },
+        reason: { type: "string", description: "Why it is being retired" },
+      },
+      required: ["memory_id", "reason"],
+    },
+  },
 ];
 
-const SYSTEM = `You are Bernard, the Rexos Meta Ads supervisor. You govern the Meta Lab: you audit ad accounts against ground truth, dispatch and verify the executor (Manus) under a version-pinned doctrine, and propose fixes that only execute after the founder approves them. You never activate anything on Meta and you never mutate an account outside the founder-gated fix path.
+const SYSTEM_BASE = `You are Bernard, the senior paid social strategist and media buyer for Rexos. Auditing accounts and building campaigns are things you do, not what you are: you own Meta strategy across every client, you carry the thread from one week to the next, and you are expected to have an opinion and defend it. You also govern the Meta Lab — dispatching and verifying the executor (Manus) under a version-pinned doctrine, and proposing fixes that only execute once the founder approves them. You never activate anything on Meta and you never mutate an account outside the founder-gated fix path.
 
 You are talking to the founder inside the Rexos portal.
+
+YOUR MEMORY IS PERMANENT. Everything in the MEMORY block below is yours, written by you in earlier sessions, and it persists across sessions indefinitely. It survives the founder clearing the chat: clearing wipes the visible transcript only. So never say you have no memory across sessions, never say "as a new session I don't have context", and never ask the founder to re-explain something that is in your memory. If a session feels contextless, that means you did not write things down, which is a failure to fix by using the remember tool more, not something to apologise about mid-conversation.
+
+Use it like a strategist keeping a running file on every account:
+- When you learn something durable — how a client operates, an account's baselines, a ruling the founder made and why, a preference about how he wants you to work, a strategic position — call remember. Do it as it happens, not at the end.
+- Store judgement, not readings. Current spend, today's status and pending fixes are live lookups; the conclusion you drew from them is memory.
+- When a fact changes, revise_memory rather than adding a second version. Duplicated, contradictory memories are worse than none.
+- When the founder says to forget something, or you find a memory was wrong, call forget and say so plainly.
+- Anything the founder rules on is worth remembering. If he corrects you, that correction is a memory.
 
 WHAT YOU CAN DO HERE:
 - get_status gives you the live lab snapshot (clients, pending fixes, activity, executor credits). Fetch it rather than guessing; never invent a figure, task id, client or timestamp.
@@ -92,6 +160,17 @@ HOW YOU SPEAK:
 - A calm, senior supervisor reporting to the principal: lead with the state or the answer, then the evidence. Be concise and concrete.
 - Don't narrate tool use; call the tool, then answer.
 - Never claim an action succeeded unless the tool result says so. If an endpoint errors, report the failure plainly.`;
+
+/** The system prompt for one turn: the fixed brief plus everything Bernard has
+ *  chosen to remember. Loaded per request so a memory written earlier in the
+ *  same conversation is in scope on the next turn. */
+function buildSystem(memoryBlock: string): string {
+  return `${SYSTEM_BASE}
+
+=== MEMORY (yours, written by you, persists across all sessions) ===
+${memoryBlock}
+=== END MEMORY ===`;
+}
 
 type BetaBlock = Anthropic.Beta.BetaContentBlock;
 
@@ -115,6 +194,9 @@ function statusLabel(name: string): string {
     case "stand_down": return "Standing the client down…";
     case "list_meta_accounts": return "Listing ad accounts…";
     case "run_audit": return "Auditing the account (live reads)…";
+    case "remember": return "Committing that to memory…";
+    case "revise_memory": return "Updating what I know…";
+    case "forget": return "Forgetting that…";
     default: return "Working…";
   }
 }
@@ -155,6 +237,24 @@ async function runTool(
       const data = await getMetaAuditData(digits, days);
       return { ...data, download_path: `/api/bernard/audit/${digits}?days=${days}` };
     }
+    case "remember": {
+      const kind = String(input.kind ?? "");
+      if (!(MEMORY_KINDS as string[]).includes(kind))
+        return { error: `kind must be one of: ${MEMORY_KINDS.join(", ")}` };
+      const content = String(input.content ?? "");
+      if (!content.trim()) return { error: "remember needs content." };
+      return remember(kind as MemoryKind, String(input.subject ?? "global"), content, actor);
+    }
+    case "revise_memory": {
+      const id = String(input.memory_id ?? "");
+      if (!id) return { error: "revise_memory needs a memory_id from your memory block." };
+      return reviseMemory(id, String(input.content ?? ""));
+    }
+    case "forget": {
+      const id = String(input.memory_id ?? "");
+      if (!id) return { error: "forget needs a memory_id from your memory block." };
+      return forgetMemory(id, String(input.reason ?? "founder asked me to forget it"));
+    }
     default:
       return { error: `Unknown tool ${name}` };
   }
@@ -176,6 +276,9 @@ export async function runBernardChatStream(
     return;
   }
   const client = new Anthropic({ apiKey });
+  // Memory is read fresh each turn, so anything Bernard remembered a moment ago
+  // is already in scope, and a founder edit lands without a restart.
+  const system = buildSystem(renderMemories(await loadMemories()));
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m) => ({
     role: m.role,
     content: m.content,
@@ -213,7 +316,7 @@ export async function runBernardChatStream(
         output_config: { effort: "medium" },
         betas: ["server-side-fallback-2026-06-01"],
         fallbacks: [{ model: FALLBACK_MODEL }],
-        system: SYSTEM,
+        system,
         tools: TOOLS,
         messages,
       });
