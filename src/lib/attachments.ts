@@ -11,19 +11,13 @@
 // nothing in the tree reads it, and a silent empty extraction would look like
 // Bernard ignoring the file.
 import JSZip from "jszip";
+import { MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_BYTES } from "@/lib/attachment-limits";
 
-/** Per-file ceiling. Vercel caps a serverless request body around 4.5MB, and the
- *  whole multipart payload (files + history) has to fit inside that. */
-export const MAX_FILE_BYTES = 3_500_000;
-/** Total across all files in one turn, leaving room for the message history. */
-export const MAX_TOTAL_BYTES = 4_000_000;
-export const MAX_FILES = 5;
+export { MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_BYTES, ACCEPT_ATTR } from "@/lib/attachment-limits";
 
 export type Attachment =
   | { name: string; kind: "text"; text: string }
   | { name: string; kind: "pdf"; base64: string };
-
-export const ACCEPT_ATTR = ".pdf,.docx,.md,.markdown,.txt,.csv";
 
 function extensionOf(name: string): string {
   const dot = name.lastIndexOf(".");

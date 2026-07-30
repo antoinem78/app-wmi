@@ -5,7 +5,7 @@
 // Same streaming NDJSON contract and visual language as CommandChat; the
 // conversation persists server-side under the "bernard" scope.
 import { useEffect, useRef, useState } from "react";
-import { ACCEPT_ATTR, MAX_FILES } from "@/lib/attachments";
+import { ACCEPT_ATTR, MAX_FILES } from "@/lib/attachment-limits";
 
 interface Msg { role: "user" | "assistant"; content: string }
 interface Artifact { href: string; label: string }
@@ -91,16 +91,18 @@ export function BernardChat({
   }
 
   function addFiles(list: FileList | null) {
-    if (!list?.length) return;
-    setError(null);
-    setPending((p) => {
-      const merged = [...p, ...Array.from(list)];
-      if (merged.length > MAX_FILES) {
-        setError(`Bernard takes up to ${MAX_FILES} files at a time.`);
-        return merged.slice(0, MAX_FILES);
-      }
-      return merged;
-    });
+    // Copy eagerly. A FileList is live-bound to its input element, so resetting
+    // the input's value (which we do straight after, to allow re-picking the
+    // same file) empties it. Reading it inside the setState updater, which React
+    // defers, meant the files had already vanished by the time it ran.
+    const incoming = list ? Array.from(list) : [];
+    if (!incoming.length) return;
+    const room = Math.max(0, MAX_FILES - pending.length);
+    setError(
+      incoming.length > room ? `Bernard takes up to ${MAX_FILES} files at a time.` : null,
+    );
+    if (!room) return;
+    setPending((p) => [...p, ...incoming.slice(0, room)]);
   }
 
   async function send(text: string) {
