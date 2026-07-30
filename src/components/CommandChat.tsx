@@ -1,6 +1,7 @@
 "use client";
 
-// Rexos chat panel — "ask about your accounts". Talks to /api/agent/chat
+// Oscar chat panel: the senior paid search strategist. Talks to /api/agent/chat.
+// Oscar is an agent inside Rexos, not Rexos itself; Rexos is the platform.
 // (read-only tool-use agent). Proposes optimisations; never executes.
 // The conversation is persisted server-side per `scope` (parity P2), so it
 // reloads across page navigation and reloads.
@@ -151,7 +152,7 @@ export function CommandChat({
       {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-zinc-100 bg-gradient-to-r from-[#0B1F3A] to-[#13315c] px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="text-sm font-semibold text-white">Rexos</span>
+          <span className="text-sm font-semibold text-white">Oscar</span>
           {onScopeChange && accounts ? (
             <select
               value={scope}

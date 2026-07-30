@@ -3,6 +3,15 @@
 // optimisations, but it cannot execute anything (no mutate layer exists; every
 // change is a recommendation for human approval).
 import Anthropic from "@anthropic-ai/sdk";
+import {
+  loadMemories,
+  renderMemories,
+  remember,
+  reviseMemory,
+  forgetMemory,
+  MEMORY_KINDS,
+  type MemoryKind,
+} from "@/lib/agent-memory";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { getDashboard, getWeeklyOptimisations } from "@/lib/integrations/google-ads/reporting";
 import { gaqlSearch, listManagedAccounts } from "@/lib/integrations/google-ads";
@@ -11,6 +20,7 @@ import { getCommandCenter } from "@/lib/command-center";
 import { createProposal, type ProposalType } from "@/lib/proposals";
 import { entityConfig } from "@/lib/config";
 
+const AGENT = "oscar";
 const MODEL = "claude-opus-4-8";
 
 export interface ChatMessage {
@@ -190,7 +200,17 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-const SYSTEM = `You are Rexos, the ${entityConfig.brandName} paid-media ops analyst inside the PPC Ops Command Center. You help the agency team understand and optimise their Google Ads accounts.
+const SYSTEM_BASE = `You are Oscar, the ${entityConfig.brandName} senior paid search strategist. You own Google Ads and Shopping across every client: you read accounts against ground truth, you form a view, and you defend it. Analysis and reporting are things you do, not what you are.
+
+You are NOT Rexos. Rexos is the platform you work inside, the same way Bernard (your counterpart on Meta) works inside it. Never refer to yourself as Rexos. If someone calls you Rexos, answer to it once and carry on as Oscar rather than correcting them at length.
+
+YOUR MEMORY IS PERMANENT. Everything in the MEMORY block below is yours, written by you in earlier sessions, and it persists across sessions indefinitely. It survives the chat being cleared: clearing wipes the visible transcript only. So never say you have no memory across sessions, and never ask for something to be re-explained that is already in your memory. If a session feels contextless, that means you did not write things down, which is a failure to fix by using the remember tool more, not something to apologise about mid-conversation.
+
+Use it like a strategist keeping a running file on every account:
+- When you learn something durable, call remember. How an account is structured and why, its baselines, a ruling the founder made, a preference about how he wants you to work, a strategic position you have taken. Do it as it happens.
+- Store judgement, not readings. Yesterday's spend and today's impression share are live lookups; the conclusion you drew from them is memory.
+- When a fact changes, revise_memory rather than adding a second version. Contradictory memories are worse than none.
+- Your memory is yours alone. Bernard has his own and you cannot see it, because a conclusion about Meta delivery rarely transfers to a search auction. If something genuinely spans both, say so and let the founder carry it across.
 
 HOW YOU WORK:
 - Use the tools to fetch REAL figures. Never invent, estimate or recompute a number, %, campaign name or metric. If you don't have it, fetch it.
@@ -207,9 +227,93 @@ YOUR JOB:
 - NEGATIVE KEYWORDS: before proposing ANY negative keyword, call get_search_terms and cite the actual wasted queries (meaningful cost, zero/low conversions). Never invent a query. If get_search_terms returns nothing, say so and do not fabricate one. If a wasted query is spending across many Search campaigns, file a shared negative (add_shared_negative); if it is confined to one campaign, file a campaign-level add_negative_keyword against that exact campaign.
 - If asked whether an optimisation is needed and you think NOT, prove it with the figures.`;
 
+/** The system prompt for one turn: the fixed brief plus everything Oscar has
+ *  chosen to remember. Loaded per request so a memory written earlier in the
+ *  same conversation is in scope on the next turn. */
+function buildSystem(memoryBlock: string): string {
+  return `${SYSTEM_BASE}
+
+=== MEMORY (yours, written by you, persists across all sessions) ===
+${memoryBlock}
+=== END MEMORY ===`;
+}
+
+const MEMORY_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "remember",
+    description:
+      "Write something to your permanent memory. It survives the chat being cleared and every future session, so use it for anything you would be embarrassed to have forgotten next week: how an account is structured and why, its baselines, a ruling the founder made, a standing preference about how he wants you to work, a strategic position you have taken. Do NOT store things you can look up live (yesterday's spend, current impression share) — store the judgement, not the reading. Check your existing memory first: if a memory is merely out of date, use revise_memory rather than adding a second version.",
+    input_schema: {
+      type: "object",
+      properties: {
+        kind: {
+          type: "string",
+          enum: ["client", "account", "decision", "preference", "strategy", "fact"],
+          description: "client = how they operate; account = a Google Ads account's structure/baselines/quirks; decision = a founder ruling and its reason; preference = how the founder wants you to work; strategy = a standing position or plan; fact = anything else durable",
+        },
+        subject: {
+          type: "string",
+          description: "What it is about: a client name or slug, a Google customer id, or 'global' for things not tied to one entity",
+        },
+        content: {
+          type: "string",
+          description: "The memory itself, written so it makes sense to you cold in six months. Include the why, not just the what. State dates absolutely, never 'last week'.",
+        },
+      },
+      required: ["kind", "subject", "content"],
+    },
+  },
+  {
+    name: "revise_memory",
+    description:
+      "Correct or update an existing memory in place, using the id shown beside it in your memory block. Use this when a fact has CHANGED. If a memory turns out to have been wrong all along, use forget with the reason instead, so the record shows you were corrected.",
+    input_schema: {
+      type: "object",
+      properties: {
+        memory_id: { type: "string", description: "The id from your memory block" },
+        content: { type: "string", description: "The replacement content, complete rather than a diff" },
+      },
+      required: ["memory_id", "content"],
+    },
+  },
+  {
+    name: "forget",
+    description:
+      "Retire a memory. Use it when the founder tells you to forget something, or when you discover a memory was wrong. It stops appearing but is retained in the audit trail rather than destroyed, so state the reason honestly.",
+    input_schema: {
+      type: "object",
+      properties: {
+        memory_id: { type: "string", description: "The id from your memory block" },
+        reason: { type: "string", description: "Why it is being retired" },
+      },
+      required: ["memory_id", "reason"],
+    },
+  },
+];
+
+const ALL_TOOLS: Anthropic.Tool[] = [...TOOLS, ...MEMORY_TOOLS];
+
 interface ToolContext { roster: RosterEntry[]; actor: string }
 async function runTool(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<unknown> {
   switch (name) {
+    case "remember": {
+      const kind = String(input.kind ?? "");
+      if (!(MEMORY_KINDS as string[]).includes(kind))
+        return { error: `kind must be one of: ${MEMORY_KINDS.join(", ")}` };
+      const content = String(input.content ?? "");
+      if (!content.trim()) return { error: "remember needs content." };
+      return remember(AGENT, kind as MemoryKind, String(input.subject ?? "global"), content, ctx.actor);
+    }
+    case "revise_memory": {
+      const id = String(input.memory_id ?? "");
+      if (!id) return { error: "revise_memory needs a memory_id from your memory block." };
+      return reviseMemory(AGENT, id, String(input.content ?? ""));
+    }
+    case "forget": {
+      const id = String(input.memory_id ?? "");
+      if (!id) return { error: "forget needs a memory_id from your memory block." };
+      return forgetMemory(AGENT, id, String(input.reason ?? "founder asked me to forget it"));
+    }
     case "list_accounts":
       return ctx.roster.map((r) => ({ clientId: r.clientId, company: r.company, customerId: r.reportingId, status: r.status, imported: r.imported }));
     case "list_campaigns": {
@@ -376,7 +480,9 @@ export async function runAgentChat(
   if (!apiKey) return { reply: "The assistant isn't configured (no ANTHROPIC_API_KEY)." };
   const client = new Anthropic({ apiKey });
   const ctx: ToolContext = { roster: await loadRoster(), actor };
-  const system = SYSTEM + focusNote(ctx.roster, focusClientId);
+  // Memory is read fresh each turn, so a memory written a moment ago is already
+  // in scope, and it is scoped to Oscar so Bernard's notes never leak in.
+  const system = buildSystem(renderMemories(await loadMemories(AGENT))) + focusNote(ctx.roster, focusClientId);
 
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
 
@@ -385,7 +491,7 @@ export async function runAgentChat(
       model: MODEL,
       max_tokens: 2000,
       system,
-      tools: TOOLS,
+      tools: ALL_TOOLS,
       messages,
     });
     const toolUses = resp.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
@@ -420,6 +526,9 @@ export async function runAgentChat(
 function statusLabel(name: string, input: Record<string, unknown>): string {
   const acc = typeof input?.account === "string" ? input.account : "";
   switch (name) {
+    case "remember": return "Committing that to memory…";
+    case "revise_memory": return "Updating what I know…";
+    case "forget": return "Forgetting that…";
     case "list_accounts": return "Listing accounts…";
     case "get_account_report": return `Reading ${acc || "account"}…`;
     case "get_all_account_summaries": return "Scanning all accounts…";
@@ -447,7 +556,9 @@ export async function runAgentChatStream(
   }
   const client = new Anthropic({ apiKey });
   const ctx: ToolContext = { roster: await loadRoster(), actor };
-  const system = SYSTEM + focusNote(ctx.roster, focusClientId);
+  // Memory is read fresh each turn, so a memory written a moment ago is already
+  // in scope, and it is scoped to Oscar so Bernard's notes never leak in.
+  const system = buildSystem(renderMemories(await loadMemories(AGENT))) + focusNote(ctx.roster, focusClientId);
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
 
   try {
@@ -456,7 +567,7 @@ export async function runAgentChatStream(
         model: MODEL,
         max_tokens: 2000,
         system,
-        tools: TOOLS,
+        tools: ALL_TOOLS,
         messages,
       });
       stream.on("text", (t) => emit({ type: "delta", text: t }));
