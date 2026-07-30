@@ -26,7 +26,17 @@ Three distinct numbers in the 423 area code for one dental practice, two on the 
 
 To resolve, one of: ask the practice which number their front desk actually answers; or check the GHL location's Settings, Phone Numbers page, which shows anything provisioned through LC Phone; or dial each and listen to where it lands. The bracketed `tel:%5B4235315000%5D` is a broken template variable on their site regardless, and worth fixing whoever owns it.
 
+## Scope ruling (founder, 2026-07-31), which retires most of the gaps below
+
+**Twilio numbers are UK-only.** WMI UK does not buy US numbers for US clients; US clients buy their own, and we set up CallRail for them when that conversation happens, which is not now. Shallowford is therefore **out of scope for our Twilio build entirely**: the three-number finding above stands as a warning for whoever does touch it, and nothing more.
+
+**KST call tracking is green-lit.** It is the clean case and proceeds once the Twilio account is wired.
+
+**The WMI agency number is not for the website.** Its purpose is outbound: calling and texting UK prospects on their mobiles from Dubai, presenting a UK number. Nothing to swap anywhere, no inbound expectations to design for beyond a sensible voicemail.
+
 ## Gaps, stated plainly
+
+(Items 1 and 2 ruled irrelevant by the founder given the UK-only scope; kept for the record. Item 3 resolved: a Twilio account exists, founder logging in.)
 
 1. **GHL provisioned-number inventory is unreadable via API.** `phone-system/numbers` returns 401 on all three location tokens; the scope is not grantable on the Private Integration settings we hold. So whether any location already owns an LC Phone number (the Shallowford third number is a candidate) needs a founder look at Settings, Phone Numbers, in each location UI. Sixty seconds per location.
 2. **Google Business Profile numbers are not covered.** KST and Shallowford both likely have GBP listings whose number field is independent of the site, and a mismatch there splits tracking. No API access from here.
