@@ -2,7 +2,7 @@
 
 **Purpose.** This is the handoff file between parallel Claude Code sessions and between Claude Code and Claude Chat. It holds what neither the code nor the git history tells you: what is live versus staged, what is blocked and on whom, rulings the founder has made, and what comes next. It is not a changelog. If something here contradicts the code, the code is right and this file is stale, so fix it.
 
-**Last updated:** 2026-07-31 (Twilio UK Local bundle submitted, BERNARD_build hardened, KST OCT unblocked, RCV_manus_events retired, number map done)
+**Last updated:** 2026-07-31 (VIP Accounting onboarding opened: blueprint run 1; Twilio bundle in-review)
 
 **If you are a fresh session, read §1 and §2 always.** Then read only your track: §4 for lead generation, §5 for ecommerce. §3 (the named agents) is vertical-agnostic and belongs to both.
 
@@ -140,6 +140,8 @@ Outstanding: **capture KST as a GHL snapshot.** `snapshotId` is empty, so nothin
 **Steffen Foerster.** High-ticket Galapagos photography workshops, $15,900-25,900, October charter-commitment deadline. Audit delivered (`~/Documents/SF_GALAPAGOS_META_AUDIT_JULY26.docx`). Root cause is a signal problem: everything optimises to the pixel Lead event with nothing downstream fed back, so Meta cannot distinguish a qualified buyer from a browser. Google and Microsoft Ads research went to Cowork. Awaiting his response.
 
 **Call tracking number map, done 2026-07-31** (`docs/CALL_TRACKING_NUMBER_MAP.md`). KST is clean: one landline everywhere plus Kris's mobile, no existing tracking layer, so a tracking number is a one-edit swap in the site repo. **Shallowford has three distinct 423 numbers** (two on the site, a third in the GHL record), the footprint of a pre-existing tracking or forwarding layer: touch nothing there until a human identifies the real front-desk line. The DM funnel deliberately has no phone. Three founder-side checks remain (GHL Settings then Phone Numbers per location, since the API scope 401s; Google Business Profile numbers; any legacy CallRail or Twilio account), and none of them blocks the WMI agency number purchase.
+
+**VIP Accounting: the blueprint's first real run, opened 2026-07-31.** VIP ACCOUNTING LTD (15887435, active, Benfleet, Essex SS7 5XU, incorporated August 2024). Google Search only by client choice, £1,500/month rising ~£2,500, Essex, limited-company owners, conversions are phone calls and Calendly bookings. Full runbook: `docs/VIP_ACCOUNTING_ONBOARDING.md`; questionnaire: `~/Downloads/Google Ads Questionnaire Vipaccounting.md`. Sequence: founder snapshots KST as "Accountancy Blueprint v1", creates the VIP sub-account from it, mints `GHL_VIP_PIT`; then clone verification, client_slug rewires (snapshots copy webhook payloads verbatim, so the cloned OCT workflows still say kst until fixed), substrate tenant `vip-accounting`, Google Ads foundation. The VIP call-tracking number queues behind the Twilio bundle approval. Note for the nurture: VIP has Calendly, a real booking link, so the sequence KST could not ship can ship here first. This is primarily Oscar's client, the first since he was named.
 
 **Twilio, agency level. Scope ruled 2026-07-31: UK numbers only.** WMI UK does not purchase US numbers; US clients buy their own (CallRail setup for them is a later conversation, not now). Shallowford is out of Twilio scope entirely. Architecture stands: own Twilio account, sub-account per client, GHL `twilioRebilling` on. Legality verified in `~/Documents/TWILIO_UK_FROM_UAE_RESEARCH.md`.
 
