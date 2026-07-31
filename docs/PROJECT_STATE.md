@@ -2,7 +2,7 @@
 
 **Purpose.** This is the handoff file between parallel Claude Code sessions and between Claude Code and Claude Chat. It holds what neither the code nor the git history tells you: what is live versus staged, what is blocked and on whom, rulings the founder has made, and what comes next. It is not a changelog. If something here contradicts the code, the code is right and this file is stale, so fix it.
 
-**Last updated:** 2026-07-30 (Oscar named, agent_memory shared, commerce substrate verification, stale-string sweep)
+**Last updated:** 2026-07-31 (Twilio UK Local bundle submitted, BERNARD_build hardened, KST OCT unblocked, RCV_manus_events retired, number map done)
 
 **If you are a fresh session, read §1 and §2 always.** Then read only your track: §4 for lead generation, §5 for ecommerce. §3 (the named agents) is vertical-agnostic and belongs to both.
 
