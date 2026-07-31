@@ -51,6 +51,19 @@ KST's location holds the accountancy-shaped assets: the pipeline, the two OCT st
    - **Calendly**: keep Calendly, do not force a calendar migration during onboarding; a working client flow beats platform purity. Wire Calendly's webhook into the substrate (the `RCV_dm_ghl_events` pattern), upsert the contact into GHL, and fire the OCT task on booking. Migration to GHL calendar is a later conversation if ever.
 4. **Campaign build**: Search-only, Essex, Mon-Fri 9-19, the questionnaire's USPs as ad-copy raw material. Everything created paused; founder activates. Target economics to sanity-check with the client: at £1,500 and plausible accountancy CPCs, expect tens of clicks a week, so the plan should promise learning pace honestly rather than lead volume.
 
+## Progress log
+
+**2026-08-01, clone verified and tenant provisioned.**
+- Location `2acFC47p3x6Qdoqm7JWN` live, `GHL_VIP_PIT` minted (first paste was the location id, not the token; a PIT starts `pit-`).
+- Clone verified against KST: all 3 workflows published, full 8-stage pipeline, all 11 custom fields. VIP stage ids captured in this repo's history and in the pipeline read; pipeline id `0R3fryVBUk2liqLbiC3w`.
+- Substrate tenant `vip-accounting` provisioned, id `862f63e8-131c-4f33-90dd-5f31ebf0ee56`, agent config cloned from KST with VIP identity, `enabled: false`, and deliberately EMPTY widget credentials (never clone widget tokens across tenants).
+- **Founder rulings since the runbook was written:** MCC access to the client's existing Google Ads account is pending (answers §5 Q2). **Call tracking is CallTrackingMetrics, not GHL-native and not our Twilio**: the VIP tracking number leaves the Twilio purchase queue, and CTM's own Google Ads integration will carry call conversions. Open sub-question: is CTM under VIP's account or a WMI agency account? Decides who owns the number and where the Google Ads link authorises.
+
+**Remaining founder UI items (workflow editing has no API):**
+1. In each of the 3 VIP workflows, open the webhook action and change `client_slug` from `kst` to `vip-accounting`. Until then, VIP events would land on KST's tenant.
+2. Check the notification workflow's Slack target while in there (it will still point at KST's channel).
+3. Cosmetic but client-visible: rename the 3 workflows and the pipeline to drop the "KST" prefix.
+
 ## 5. Questions for the founder or client (only real blockers)
 
 1. **Website domain**, and `dig NS` before anything DNS-shaped is requested of anyone (standing rule).
