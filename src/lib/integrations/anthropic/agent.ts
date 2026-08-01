@@ -17,7 +17,8 @@ import { getDashboard, getWeeklyOptimisations } from "@/lib/integrations/google-
 import { gaqlSearch, listManagedAccounts } from "@/lib/integrations/google-ads";
 import { getFeedAudit } from "@/lib/integrations/google-ads/feed";
 import { getCommandCenter } from "@/lib/command-center";
-import { createProposal, type ProposalType } from "@/lib/proposals";
+import { createProposal, decideProposal, listProposals, type ProposalType, type ProposalStatus } from "@/lib/proposals";
+import { applyProposal, dryRunProposal } from "@/lib/proposals-execute";
 import { entityConfig } from "@/lib/config";
 
 const AGENT = "oscar";
@@ -222,7 +223,8 @@ YOUR MEMORY IS PERMANENT. Everything in the MEMORY block below is yours, written
 Use it like a strategist keeping a running file on every account:
 - When you learn something durable, call remember. How an account is structured and why, its baselines, a ruling the founder made, a preference about how he wants you to work, a strategic position you have taken. Do it as it happens.
 - Store judgement, not readings. Yesterday's spend and today's impression share are live lookups; the conclusion you drew from them is memory.
-- When a fact changes, revise_memory rather than adding a second version. Contradictory memories are worse than none.
+- Memories can be SHARED across agents. Anything marked "SHARED by <agent>" in your memory block was written by a colleague: treat it as their testimony about their channel, trust it for client-level facts, and do not repeat their platform tactics on yours without thinking. Share your own client-level learnings back (the shared flag on remember); a multi-channel client should never depend on the founder ferrying facts between you.
+- When a fact changes, revise_memory rather than adding a second version. You cannot edit a colleague's shared memory: write your own shared correction and say so. Contradictory memories are worse than none.
 - Your memory is yours alone. Bernard has his own and you cannot see it, because a conclusion about Meta delivery rarely transfers to a search auction. If something genuinely spans both, say so and let the founder carry it across.
 
 HOW YOU WORK:
@@ -235,7 +237,7 @@ HOW YOU WORK:
 YOUR JOB:
 - Be concise, specific and actionable — a senior analyst talking to a peer. Lead with the answer, then the evidence.
 - You may PROPOSE optimisations (negatives to add, budget reallocations, RSA improvements, campaigns/ad groups to pause) with clear, figure-backed rationale. But you CANNOT execute anything.
-- When the user asks you to PROPOSE something (or you've found a concrete change worth formalising), call propose_optimization to file it as a reviewable card, then tell the user it's filed for their approval in the Proposals page. NEVER claim you made or applied a change; approval/execution is the human's.
+- When the user asks you to PROPOSE something (or you've found a concrete change worth formalising), call propose_optimization to file it as a reviewable card, then tell the user it is filed. The founder can approve and apply WITHOUT leaving this chat: on his explicit word, decide_proposal records the approval and apply_proposal executes it behind the same guardrails as the Proposals page. Offer dry_run_proposal when he hesitates. NEVER claim a change was made unless apply_proposal returned success; execution authority is his word, never your inference.
 - For the executable actions — add a single (campaign or ad-group) negative keyword, add a shared/account-level negative, pause a campaign, set a campaign daily budget — include the precise details.action block so the proposal can be applied behind the approval gate. ONE operation per proposal: to add several negatives, file several proposals (one keyword each), never a batch. For a campaign-level negative, pause, or budget change, first call list_campaigns to get the EXACT campaign name. For a shared negative (no campaign), use the add_shared_negative action.
 - NEGATIVE KEYWORDS: before proposing ANY negative keyword, call get_search_terms and cite the actual wasted queries (meaningful cost, zero/low conversions). Never invent a query. If get_search_terms returns nothing, say so and do not fabricate one. If a wasted query is spending across many Search campaigns, file a shared negative (add_shared_negative); if it is confined to one campaign, file a campaign-level add_negative_keyword against that exact campaign.
 - If asked whether an optimisation is needed and you think NOT, prove it with the figures.
@@ -251,6 +253,38 @@ function buildSystem(memoryBlock: string): string {
 ${memoryBlock}
 === END MEMORY ===`;
 }
+
+const EXEC_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "list_proposals",
+    description: "List optimisation proposals (id, title, type, status, client). Use to resolve which proposal the founder means before deciding or applying, and to answer what is pending.",
+    input_schema: { type: "object", properties: {
+      status: { type: "string", enum: ["pending", "approved", "dismissed", "applied"], description: "Filter by status; omit for all recent" },
+    } },
+  },
+  {
+    name: "decide_proposal",
+    description: "Record the founder's decision on a specific proposal. ONLY call this when the founder has explicitly and unambiguously approved or dismissed a SPECIFIC proposal in this conversation. His word in this chat IS the approval gate. If more than one proposal could match, list them and ask which.",
+    input_schema: { type: "object", properties: {
+      proposal_id: { type: "string" },
+      decision: { type: "string", enum: ["approved", "dismissed"] },
+    }, required: ["proposal_id", "decision"] },
+  },
+  {
+    name: "apply_proposal",
+    description: "Execute an APPROVED executable proposal against Google Ads. The worker re-checks approval status and every guardrail (write kill switch, customer allow-list, budget caps) before any mutate, exactly as the Proposals page Apply button does. ONLY call after the founder explicitly says to apply, and only on a proposal that is already approved (approve first via decide_proposal if he says approve-and-apply). Report the result verbatim; never claim success the result does not show.",
+    input_schema: { type: "object", properties: {
+      proposal_id: { type: "string" },
+    }, required: ["proposal_id"] },
+  },
+  {
+    name: "dry_run_proposal",
+    description: "Preview exactly what applying a proposal would change, without changing anything. Cheap and safe; offer it when the founder hesitates.",
+    input_schema: { type: "object", properties: {
+      proposal_id: { type: "string" },
+    }, required: ["proposal_id"] },
+  },
+];
 
 const MEMORY_TOOLS: Anthropic.Tool[] = [
   {
@@ -272,6 +306,10 @@ const MEMORY_TOOLS: Anthropic.Tool[] = [
         content: {
           type: "string",
           description: "The memory itself, written so it makes sense to you cold in six months. Include the why, not just the what. State dates absolutely, never 'last week'.",
+        },
+        shared: {
+          type: "boolean",
+          description: "Set true to make this memory visible to every agent, not just you. Share client-level facts (business model, offer, fee model, CRM and tracking state), founder rulings, and cross-channel strategy. Keep platform-specific tactics private: your channel's mechanics rarely transfer. You stay the owner either way; other agents can read a shared memory but never edit it.",
         },
       },
       required: ["kind", "subject", "content"],
@@ -305,18 +343,39 @@ const MEMORY_TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-const ALL_TOOLS: Anthropic.Tool[] = [...TOOLS, ...MEMORY_TOOLS];
+const ALL_TOOLS: Anthropic.Tool[] = [...TOOLS, ...EXEC_TOOLS, ...MEMORY_TOOLS];
 
 interface ToolContext { roster: RosterEntry[]; actor: string }
 async function runTool(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<unknown> {
   switch (name) {
+    case "list_proposals": {
+      const st = input.status ? String(input.status) as ProposalStatus : undefined;
+      return listProposals(st ? { status: st } : undefined);
+    }
+    case "decide_proposal": {
+      const id = String(input.proposal_id ?? "");
+      const d = String(input.decision ?? "");
+      if (!id || (d !== "approved" && d !== "dismissed"))
+        return { error: "decide_proposal needs a proposal_id and decision of approved|dismissed." };
+      return decideProposal(id, d as "approved" | "dismissed", ctx.actor);
+    }
+    case "apply_proposal": {
+      const id = String(input.proposal_id ?? "");
+      if (!id) return { error: "apply_proposal needs a proposal_id." };
+      return applyProposal(id, ctx.actor);
+    }
+    case "dry_run_proposal": {
+      const id = String(input.proposal_id ?? "");
+      if (!id) return { error: "dry_run_proposal needs a proposal_id." };
+      return dryRunProposal(id);
+    }
     case "remember": {
       const kind = String(input.kind ?? "");
       if (!(MEMORY_KINDS as string[]).includes(kind))
         return { error: `kind must be one of: ${MEMORY_KINDS.join(", ")}` };
       const content = String(input.content ?? "");
       if (!content.trim()) return { error: "remember needs content." };
-      return remember(AGENT, kind as MemoryKind, String(input.subject ?? "global"), content, ctx.actor);
+      return remember(AGENT, kind as MemoryKind, String(input.subject ?? "global"), content, ctx.actor, input.shared === true);
     }
     case "revise_memory": {
       const id = String(input.memory_id ?? "");
@@ -510,7 +569,7 @@ export async function runAgentChat(
   const ctx: ToolContext = { roster: await loadRoster(), actor };
   // Memory is read fresh each turn, so a memory written a moment ago is already
   // in scope, and it is scoped to Oscar so Bernard's notes never leak in.
-  const system = buildSystem(renderMemories(await loadMemories(AGENT))) + focusNote(ctx.roster, focusClientId);
+  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT)) + focusNote(ctx.roster, focusClientId);
 
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
 
@@ -554,6 +613,10 @@ export async function runAgentChat(
 function statusLabel(name: string, input: Record<string, unknown>): string {
   const acc = typeof input?.account === "string" ? input.account : "";
   switch (name) {
+    case "list_proposals": return "Listing proposals…";
+    case "decide_proposal": return "Recording your decision…";
+    case "apply_proposal": return "Applying the change (guardrails re-checked)…";
+    case "dry_run_proposal": return "Dry-running the change…";
     case "remember": return "Committing that to memory…";
     case "revise_memory": return "Updating what I know…";
     case "forget": return "Forgetting that…";
@@ -587,7 +650,7 @@ export async function runAgentChatStream(
   const ctx: ToolContext = { roster: await loadRoster(), actor };
   // Memory is read fresh each turn, so a memory written a moment ago is already
   // in scope, and it is scoped to Oscar so Bernard's notes never leak in.
-  const system = buildSystem(renderMemories(await loadMemories(AGENT))) + focusNote(ctx.roster, focusClientId);
+  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT)) + focusNote(ctx.roster, focusClientId);
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
 
   try {
