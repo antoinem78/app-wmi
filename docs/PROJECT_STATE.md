@@ -2,7 +2,7 @@
 
 **Purpose.** This is the handoff file between parallel Claude Code sessions and between Claude Code and Claude Chat. It holds what neither the code nor the git history tells you: what is live versus staged, what is blocked and on whom, rulings the founder has made, and what comes next. It is not a changelog. If something here contradicts the code, the code is right and this file is stale, so fix it.
 
-**Last updated:** 2026-08-01 (chat-native execution for both agents; shared memory pool pending migration 0004; VIP live and registered)
+**Last updated:** 2026-08-01 (GOOGLE_build live; shared memory live and seeded; both agents execute from chat)
 
 **If you are a fresh session, read §1 and §2 always.** Then read only your track: §4 for lead generation, §5 for ecommerce. §3 (the named agents) is vertical-agnostic and belongs to both.
 
@@ -111,7 +111,7 @@ Constraint to know: the audit is keyed by **client id**, so it only covers impor
 
 ### Chat-native execution, live 2026-08-01
 
-Both agents now execute from the portal chat, on the founder's explicit word, behind unchanged machine gates. **Bernard: `dispatch_build`** sends an agreed spec to `BERNARD_build` (entities PAUSED, pre-flight gate holds, write budget, allow-list, build_ref idempotency, read-back-verified report). **Oscar: `list_proposals`, `decide_proposal`, `apply_proposal`, `dry_run_proposal`**, calling the exact functions behind the Proposals page buttons; `applyProposal` re-checks approval and every guardrail before any mutate. **Oscar still cannot create campaigns**: no campaign-creation mutate exists for Google Ads. The clean fix is a `GOOGLE_build` executor in the substrate mirroring `BERNARD_build` (deterministic spec-to-campaign, everything paused, verified by re-read); proposed, awaiting founder go.
+Both agents now execute from the portal chat, on the founder's explicit word, behind unchanged machine gates. **Bernard: `dispatch_build`** sends an agreed spec to `BERNARD_build` (entities PAUSED, pre-flight gate holds, write budget, allow-list, build_ref idempotency, read-back-verified report). **Oscar: `list_proposals`, `decide_proposal`, `apply_proposal`, `dry_run_proposal`**, calling the exact functions behind the Proposals page buttons; `applyProposal` re-checks approval and every guardrail before any mutate. **GOOGLE_build live 2026-08-01**: Oscar builds full Search campaigns from chat via `dispatch_build` (`src/lib/integrations/google-ads/build.ts`). It lives in the portal because that is where the Google credentials live, but holds the executor contract: campaign always created PAUSED, gates in code (kill switch, customer allowlist, budget hard cap, op budget, RSA limits, duplicate-name refusal), atomic single-mutate build (partialFailure false, so all-or-nothing), verified by re-read of status and entity counts, every attempt in `write_audit`. `validate_only` is the founder-facing dry run through Google's own validator. Search only; PMax, Demand Gen and Shopping are named not-buildable. Operation shapes proven against the live v24 validator (8/8 accepted, nothing created). NOTE: a real build for a customer requires that customer id in `GOOGLE_ADS_WRITE_CUSTOMERS` on Vercel; as of 2026-08-01 the allowlist holds one id and VIP (6719680160) is NOT on it.
 
 ### Shared memory infrastructure
 
@@ -119,7 +119,7 @@ Table **`agent_memory`** in the **portal** database, migration 0003, applied and
 
 Verified at merge: 20 memories, all attributed to bernard, isolation confirmed by attempting a cross-agent update and getting a zero row count.
 
-**Shared pool added 2026-08-01 (migration 0004, PORTAL, pending founder).** `shared boolean` on `agent_memory`: ownership and edit rights stay with the writing agent; `shared=true` makes a memory visible to all agents with provenance shown ("SHARED by bernard"). Prompts teach the split: client-level facts, founder rulings and cross-channel strategy shared; platform tactics private. The loader falls back to per-agent queries until the migration runs, so the code is already live safely.
+**Shared pool LIVE 2026-08-01 (migration 0004 applied).** 13 memories re-flagged shared (every client-kind memory from both agents, the DM offer strategy, the KST OCT unblock, the OCT-pipeline-distrust fact); both agents see 31 memories. Note the agents have been writing memories organically since the tools shipped. `shared boolean` on `agent_memory`: ownership and edit rights stay with the writing agent; `shared=true` makes a memory visible to all agents with provenance shown ("SHARED by bernard"). Prompts teach the split: client-level facts, founder rulings and cross-channel strategy shared; platform tactics private. The loader falls back to per-agent queries until the migration runs, so the code is already live safely.
 
 **If you add a third agent**, it needs a name that is not "Rexos", an `AGENT` constant, and its memories are free: pass its name to the same four functions in `src/lib/agent-memory.ts`.
 
