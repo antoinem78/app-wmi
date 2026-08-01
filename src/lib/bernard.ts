@@ -81,3 +81,21 @@ export async function standDown(clientSlug: string, reason: string, actor: strin
     body: { client_slug: clientSlug, reason, actor },
   });
 }
+
+// ---- Build dispatch (founder-gated in chat; machine-gated in the substrate) ----
+// BERNARD_build enforces everything that matters in code: every entity created
+// PAUSED, gate holds pre-flight, write budget, account allow-list, idempotency
+// by build_ref. Dispatching from chat is therefore the same trust model as
+// decide_fix: the founder's word in chat is the trigger, the substrate is the
+// gate. The response is the builder's own verified report (it reads back every
+// entity it claims to have created before answering).
+export interface BuildDispatch {
+  client_slug: string;
+  account_id: string;
+  build_ref: string;
+  gate_conditions?: { id: string; check: string; state: "met" | "unmet" }[];
+  campaigns: unknown[];
+}
+export async function dispatchBuild(spec: BuildDispatch): Promise<unknown> {
+  return call("bernard-build", { method: "POST", body: spec });
+}

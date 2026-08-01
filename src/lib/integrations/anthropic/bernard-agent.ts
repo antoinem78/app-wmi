@@ -8,7 +8,7 @@
 // bernard.ts): read the lab status, decide a proposed fix, stand a client
 // down. Meta reads and executor dispatches run in the substrate, not here.
 import Anthropic from "@anthropic-ai/sdk";
-import { getBernardStatus, decideFix, standDown } from "@/lib/bernard";
+import { getBernardStatus, decideFix, standDown, dispatchBuild, type BuildDispatch } from "@/lib/bernard";
 import { listMetaAdAccounts, getMetaAuditData, metaConfigured, normalizeActId } from "@/lib/integrations/meta";
 import type { AgentEvent, ChatMessage } from "@/lib/integrations/anthropic/agent";
 import type { Attachment } from "@/lib/attachments";
@@ -79,6 +79,32 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
     },
   },
   {
+    name: "dispatch_build",
+    description:
+      "Dispatch a campaign build to the substrate executor (BERNARD_build). The executor enforces every safety property in code before and after the write: every entity is created PAUSED, unmet gate_conditions return GATE_BLOCKED before any Meta call, the write budget caps the operation count, the account must be in the client's allow-list, and build_ref makes the dispatch idempotent. The response is the builder's own verified report: it re-reads every entity it claims to have created. ONLY call this when the founder has explicitly told you to build a SPECIFIC spec that has been laid out in this conversation. Never dispatch a spec the founder has not seen, never infer the instruction, and never re-dispatch on failure without telling the founder what failed first. After a build, report the verdict, the created entities and any problems verbatim, and remind him everything sits PAUSED for his activation.",
+    input_schema: {
+      type: "object",
+      properties: {
+        client_slug: { type: "string", description: "The lab client slug from get_status (e.g. dental-mastery)" },
+        account_id: { type: "string", description: "act_-prefixed ad account id; must be in the client's allow-list" },
+        build_ref: { type: "string", description: "Unique idempotency reference for this build, e.g. dm-expansion-2026-08-01. Re-dispatching the same ref is a no-op by design." },
+        gate_conditions: {
+          type: "array",
+          description: "Optional pre-flight gates. Any entry not explicitly met blocks the build before Meta is touched.",
+          items: { type: "object", properties: {
+            id: { type: "string" }, check: { type: "string" },
+            state: { type: "string", enum: ["met", "unmet"] } }, required: ["id", "check", "state"] },
+        },
+        campaigns: {
+          type: "array",
+          description: "The build spec: campaigns with nested adsets and ads, exactly as agreed with the founder in chat. An existing campaign can be referenced by id instead of created. Budgets are in account-currency minor units and are capped by the client's write budget regardless of what is asked.",
+          items: { type: "object" },
+        },
+      },
+      required: ["client_slug", "account_id", "build_ref", "campaigns"],
+    },
+  },
+  {
     name: "remember",
     description:
       "Write something to your permanent memory. Your memory survives the founder clearing the chat and every future session, so use it for anything you would be embarrassed to have forgotten next week: how a client operates, an account's baselines and quirks, a ruling the founder made and why, a standing preference about how he wants you to work, a strategic position you have taken. Do NOT store things you can look up live (current spend, today's status, pending fixes) — store the judgement, not the reading. Check your existing memory first: if a memory is merely out of date, use revise_memory instead of adding a second version.",
@@ -97,6 +123,10 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
         content: {
           type: "string",
           description: "The memory itself, written so it makes sense to you cold in six months. Include the why, not just the what. State dates absolutely, never 'last week'.",
+        },
+        shared: {
+          type: "boolean",
+          description: "Set true to make this memory visible to every agent, not just you. Share client-level facts (business model, offer, fee model, CRM and tracking state), founder rulings, and cross-channel strategy. Keep platform-specific tactics private: your channel's mechanics rarely transfer. You stay the owner either way; other agents can read a shared memory but never edit it.",
         },
       },
       required: ["kind", "subject", "content"],
@@ -139,7 +169,8 @@ YOUR MEMORY IS PERMANENT. Everything in the MEMORY block below is yours, written
 Use it like a strategist keeping a running file on every account:
 - When you learn something durable — how a client operates, an account's baselines, a ruling the founder made and why, a preference about how he wants you to work, a strategic position — call remember. Do it as it happens, not at the end.
 - Store judgement, not readings. Current spend, today's status and pending fixes are live lookups; the conclusion you drew from them is memory.
-- When a fact changes, revise_memory rather than adding a second version. Duplicated, contradictory memories are worse than none.
+- Memories can be SHARED across agents. Anything marked "SHARED by <agent>" in your memory block was written by a colleague: treat it as their testimony about their channel, trust it for client-level facts, and do not repeat their platform tactics on yours without thinking. Share your own client-level learnings back (the shared flag on remember); a multi-channel client should never depend on the founder ferrying facts between you.
+- When a fact changes, revise_memory rather than adding a second version. You cannot edit a colleague's shared memory: write your own shared correction and say so. Duplicated, contradictory memories are worse than none.
 - When the founder says to forget something, or you find a memory was wrong, call forget and say so plainly.
 - Anything the founder rules on is worth remembering. If he corrects you, that correction is a memory.
 
@@ -147,6 +178,7 @@ WHAT YOU CAN DO HERE:
 - get_status gives you the live lab snapshot (clients, pending fixes, activity, executor credits). Fetch it rather than guessing; never invent a figure, task id, client or timestamp.
 - list_meta_accounts shows every ad account the system user can see, live. Any account there is yours to read and audit immediately — assignment in Business Manager is the onboarding for reads. (Executor dispatch for a client still requires lab registration in the substrate.)
 - run_audit reads one account's full ground truth (read-only) so you can audit it right here in chat. Lead with the verdict and the strongest evidence; keep the chat version tight. The tool result carries download_path — ALWAYS give the founder that link at the end of an audit, on its own line, e.g. "Word document: /api/bernard/audit/123456?days=30". The document is generated fresh from the same live data when they click it.
+- dispatch_build sends an agreed spec to the substrate executor, which creates everything PAUSED behind machine-enforced gates and reads back what it made. You CAN build from this chat: lay the spec out, get the founder's explicit go, dispatch, then report the verified result. The founder activates; you never do.
 - decide_fix records the founder's approve/reject on a specific pending fix. The founder's word in this chat IS the approval gate — so only call it on an explicit, unambiguous instruction naming (or clearly identifying) one fix. If they say "approve it" and more than one fix is pending, ask which.
 - stand_down is the emergency brake for one client. Explicit orders only. Confirm you understood ("Standing down <client> — all executor work halts") after doing it, not before.
 
@@ -195,6 +227,7 @@ function statusLabel(name: string): string {
     case "stand_down": return "Standing the client down…";
     case "list_meta_accounts": return "Listing ad accounts…";
     case "run_audit": return "Auditing the account (live reads)…";
+    case "dispatch_build": return "Dispatching the build to the substrate…";
     case "remember": return "Committing that to memory…";
     case "revise_memory": return "Updating what I know…";
     case "forget": return "Forgetting that…";
@@ -238,13 +271,20 @@ async function runTool(
       const data = await getMetaAuditData(digits, days);
       return { ...data, download_path: `/api/bernard/audit/${digits}?days=${days}` };
     }
+    case "dispatch_build": {
+      const spec = input as unknown as BuildDispatch;
+      if (!spec.client_slug || !spec.account_id || !spec.build_ref || !Array.isArray(spec.campaigns) || !spec.campaigns.length)
+        return { error: "dispatch_build needs client_slug, account_id, build_ref and a non-empty campaigns spec." };
+      try { return await dispatchBuild(spec); }
+      catch (e) { return { error: e instanceof Error ? e.message : String(e) }; }
+    }
     case "remember": {
       const kind = String(input.kind ?? "");
       if (!(MEMORY_KINDS as string[]).includes(kind))
         return { error: `kind must be one of: ${MEMORY_KINDS.join(", ")}` };
       const content = String(input.content ?? "");
       if (!content.trim()) return { error: "remember needs content." };
-      return remember(AGENT, kind as MemoryKind, String(input.subject ?? "global"), content, actor);
+      return remember(AGENT, kind as MemoryKind, String(input.subject ?? "global"), content, actor, input.shared === true);
     }
     case "revise_memory": {
       const id = String(input.memory_id ?? "");
@@ -279,7 +319,7 @@ export async function runBernardChatStream(
   const client = new Anthropic({ apiKey });
   // Memory is read fresh each turn, so anything Bernard remembered a moment ago
   // is already in scope, and a founder edit lands without a restart.
-  const system = buildSystem(renderMemories(await loadMemories(AGENT)));
+  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT));
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m) => ({
     role: m.role,
     content: m.content,
