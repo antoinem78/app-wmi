@@ -74,6 +74,8 @@ One endpoint for both off-platform lead sources, detecting call versus form by p
 2. Check the notification workflow's Slack target while in there (it will still point at KST's channel).
 3. Cosmetic but client-visible: rename the 3 workflows and the pipeline to drop the "KST" prefix.
 
+**2026-08-01, portal registration COMPLETE.** Portal client `31ae0486-6123-4b26-9607-72db35689c6d` (Kyle Randall, kylerandall@vipaccounting.co.uk), `onboarding_state` carries customer id 6719680160 as approved, and VIP resolves through Oscar's exact roster query. Section 5 updates from the email's domain: website is **vipaccounting.co.uk**, DNS at **SiteGround** (ns1/ns2.siteground.net, checked per the standing rule before anyone is asked for records). Site title confirms "Accountants in Benfleet, Essex". Notable: the homepage carries **no tel: link and no Calendly link** in its HTML, so the booking flow and phone number likely live behind buttons or on inner pages; the web-developer introduction (client checklist) remains the path for the tracking number and form connection. Follow-up sender identity resolved: Kyle Randall. Remaining from section 5: fee model in VIP's words, Calendly access, office phone number confirmation.
+
 ## 5. Questions for the founder or client (only real blockers)
 
 1. **Website domain**, and `dig NS` before anything DNS-shaped is requested of anyone (standing rule).
