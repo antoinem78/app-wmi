@@ -59,6 +59,14 @@ KST's location holds the accountancy-shaped assets: the pipeline, the two OCT st
 - Substrate tenant `vip-accounting` provisioned, id `862f63e8-131c-4f33-90dd-5f31ebf0ee56`, agent config cloned from KST with VIP identity, `enabled: false`, and deliberately EMPTY widget credentials (never clone widget tokens across tenants).
 - **Founder rulings since the runbook was written:** MCC access to the client's existing Google Ads account is pending (answers §5 Q2). **Call tracking is CallTrackingMetrics, not GHL-native and not our Twilio**: the VIP tracking number leaves the Twilio purchase queue, and CTM's own Google Ads integration will carry call conversions. Open sub-question: is CTM under VIP's account or a WMI agency account? Decides who owns the number and where the Google Ads link authorises.
 
+**2026-08-01, lead intake LIVE: `RCV_vip_ctm_leads` (n8n `gDLIR2d6Qo92i2lA`).**
+One endpoint for both off-platform lead sources, detecting call versus form by payload shape. CTM post-call webhook or a website form POST arrives, the phone is normalised to E.164 UK, the contact is upserted into VIP's GHL (gclid landing in the `google_click_id` custom field when present), a NEW contact gets an opportunity at New Enquiry (repeat callers deliberately do not spawn a second card), and every event is task-logged under `vip-accounting` with operator `lead_ingest` (registered in the substrate operators table, receiver class, following the `commerce_ingest` precedent). Smoke-tested end to end on all four paths (new caller, repeat caller, form payload, junk payload rejected, missing auth 403), persistence verified by independent read-back, and every test artefact deleted from GHL and the substrate afterwards.
+
+- **Webhook URL:** `https://singularweb.app.n8n.cloud/webhook/vip-ctm-lead`, POST, JSON, auth header `x-bernard-key` (value = `BERNARD_DISPATCH_KEY` from the substrate env).
+- **CTM configuration:** add a post-call webhook to that URL with the custom header. If CTM's plan tier cannot send custom headers, say so and the auth flips to a URL secret instead.
+- **Website forms, when the client's developer is asked:** same URL and shape, BUT mint a separate inbound credential first. The dispatch key is shared master infrastructure and must not be handed to a third-party developer.
+- **Known limitation:** whether CTM forwards `gclid` depends on its own tracking configuration; without it, calls still become contacts and opportunities but carry no click attribution.
+
 **Remaining founder UI items (workflow editing has no API):**
 1. In each of the 3 VIP workflows, open the webhook action and change `client_slug` from `kst` to `vip-accounting`. Until then, VIP events would land on KST's tenant.
 2. Check the notification workflow's Slack target while in there (it will still point at KST's channel).
