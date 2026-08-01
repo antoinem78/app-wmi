@@ -19,6 +19,7 @@ import { getFeedAudit } from "@/lib/integrations/google-ads/feed";
 import { getCommandCenter } from "@/lib/command-center";
 import { createProposal, decideProposal, listProposals, type ProposalType, type ProposalStatus } from "@/lib/proposals";
 import { applyProposal, dryRunProposal } from "@/lib/proposals-execute";
+import { buildGoogleCampaign, type GoogleBuildSpec } from "@/lib/integrations/google-ads/build";
 import { entityConfig } from "@/lib/config";
 
 const AGENT = "oscar";
@@ -241,6 +242,7 @@ YOUR JOB:
 - For the executable actions — add a single (campaign or ad-group) negative keyword, add a shared/account-level negative, pause a campaign, set a campaign daily budget — include the precise details.action block so the proposal can be applied behind the approval gate. ONE operation per proposal: to add several negatives, file several proposals (one keyword each), never a batch. For a campaign-level negative, pause, or budget change, first call list_campaigns to get the EXACT campaign name. For a shared negative (no campaign), use the add_shared_negative action.
 - NEGATIVE KEYWORDS: before proposing ANY negative keyword, call get_search_terms and cite the actual wasted queries (meaningful cost, zero/low conversions). Never invent a query. If get_search_terms returns nothing, say so and do not fabricate one. If a wasted query is spending across many Search campaigns, file a shared negative (add_shared_negative); if it is confined to one campaign, file a campaign-level add_negative_keyword against that exact campaign.
 - If asked whether an optimisation is needed and you think NOT, prove it with the figures.
+- dispatch_build creates a full Search campaign from a spec: campaign PAUSED always, atomic (all or nothing), gates in code, result verified by re-read. You CAN build from this chat. Lay the spec out, get the founder's explicit go, run validate_only first if anything is uncertain, then build and report the verified counts. The founder activates; you never do. PMax, Demand Gen and Shopping builds do not exist here; say so rather than improvising.
 - run_audit prepares the written Google Ads audit. Give the founder the download_path on its own line at the end of your reply, e.g. "Audit document: /api/audit/<id>". Keep your chat read tight; the document carries the detail. It only covers imported clients, so if he names a bare MCC account say plainly that there is no client record to attach it to rather than inventing an id.`;
 
 /** The system prompt for one turn: the fixed brief plus everything Oscar has
@@ -283,6 +285,46 @@ const EXEC_TOOLS: Anthropic.Tool[] = [
     input_schema: { type: "object", properties: {
       proposal_id: { type: "string" },
     }, required: ["proposal_id"] },
+  },
+];
+
+const BUILD_TOOL: Anthropic.Tool[] = [
+  {
+    name: "dispatch_build",
+    description:
+      "Build a complete SEARCH campaign in a client's Google Ads account from a spec: budget, bidding, geo, schedule, campaign negatives, ad groups with keywords and responsive search ads. The build is one atomic operation (it fully exists or nothing does), the CAMPAIGN is always created PAUSED regardless of the spec (the founder activates; groups and ads inside are enabled so activation is a single action), and the result is verified by re-reading every count from the account. Gates enforced in code: global write kill switch, customer allowlist, budget hard cap, operation budget, duplicate-name refusal. ONLY call this when the founder has explicitly told you to build a SPECIFIC spec laid out in this conversation. Offer validate_only first when anything is uncertain: it runs Google's full server-side validation and changes NOTHING. Search campaigns only; Performance Max, Demand Gen and Shopping are not buildable here and you should say so plainly if asked.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account: { type: "string", description: "Customer id (digits or formatted); resolve via list_accounts" },
+        build_ref: { type: "string", description: "Unique reference for this build, e.g. vip-national-2026-08-01; recorded in the audit trail" },
+        validate_only: { type: "boolean", description: "true = Google validates the full build server-side, creating nothing. Use as the dry run before a real build." },
+        campaign: {
+          type: "object",
+          description: "The spec agreed with the founder. daily_budget and target_cpa/cpc_bid in account currency units. geo takes geo target constant ids or GB shorthand. schedule optional. Every ad: 3-15 headlines (max 30 chars), 2-4 descriptions (max 90 chars), final_url.",
+          properties: {
+            name: { type: "string" },
+            daily_budget: { type: "number" },
+            bidding: { type: "string", enum: ["maximize_conversions", "maximize_clicks", "manual_cpc"] },
+            target_cpa: { type: "number" },
+            geo: { type: "array", items: {} },
+            negatives: { type: "array", items: { type: "object", properties: { text: { type: "string" }, match: { type: "string", enum: ["EXACT", "PHRASE", "BROAD"] } }, required: ["text", "match"] } },
+            schedule: { type: "object", properties: { days: { type: "string", enum: ["MON_FRI", "ALL_WEEK"] }, start_hour: { type: "number" }, end_hour: { type: "number" } }, required: ["days", "start_hour", "end_hour"] },
+            ad_groups: { type: "array", items: { type: "object", properties: {
+              name: { type: "string" }, cpc_bid: { type: "number" },
+              keywords: { type: "array", items: { type: "object", properties: { text: { type: "string" }, match: { type: "string", enum: ["EXACT", "PHRASE", "BROAD"] } }, required: ["text", "match"] } },
+              ads: { type: "array", items: { type: "object", properties: {
+                headlines: { type: "array", items: { type: "string" } },
+                descriptions: { type: "array", items: { type: "string" } },
+                final_url: { type: "string" }, path1: { type: "string" }, path2: { type: "string" },
+              }, required: ["headlines", "descriptions", "final_url"] } },
+            }, required: ["name", "keywords", "ads"] } },
+          },
+          required: ["name", "daily_budget", "bidding", "geo", "ad_groups"],
+        },
+      },
+      required: ["account", "build_ref", "campaign"],
+    },
   },
 ];
 
@@ -343,11 +385,17 @@ const MEMORY_TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-const ALL_TOOLS: Anthropic.Tool[] = [...TOOLS, ...EXEC_TOOLS, ...MEMORY_TOOLS];
+const ALL_TOOLS: Anthropic.Tool[] = [...TOOLS, ...EXEC_TOOLS, ...BUILD_TOOL, ...MEMORY_TOOLS];
 
 interface ToolContext { roster: RosterEntry[]; actor: string }
 async function runTool(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<unknown> {
   switch (name) {
+    case "dispatch_build": {
+      const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
+      if (!acc) return { error: "Could not resolve that account. Use list_accounts and pass an exact name or customer id." };
+      const spec = { account: acc.reportingId, build_ref: String(input.build_ref ?? ""), campaign: input.campaign } as unknown as GoogleBuildSpec;
+      return buildGoogleCampaign(spec, ctx.actor, { validateOnly: input.validate_only === true });
+    }
     case "list_proposals": {
       const st = input.status ? String(input.status) as ProposalStatus : undefined;
       return listProposals(st ? { status: st } : undefined);
@@ -613,6 +661,7 @@ export async function runAgentChat(
 function statusLabel(name: string, input: Record<string, unknown>): string {
   const acc = typeof input?.account === "string" ? input.account : "";
   switch (name) {
+    case "dispatch_build": return "Building the campaign (atomic, paused, verified)…";
     case "list_proposals": return "Listing proposals…";
     case "decide_proposal": return "Recording your decision…";
     case "apply_proposal": return "Applying the change (guardrails re-checked)…";
