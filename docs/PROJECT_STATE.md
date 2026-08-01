@@ -2,7 +2,7 @@
 
 **Purpose.** This is the handoff file between parallel Claude Code sessions and between Claude Code and Claude Chat. It holds what neither the code nor the git history tells you: what is live versus staged, what is blocked and on whom, rulings the founder has made, and what comes next. It is not a changelog. If something here contradicts the code, the code is right and this file is stale, so fix it.
 
-**Last updated:** 2026-07-31 (VIP Accounting onboarding opened: blueprint run 1; Twilio bundle in-review)
+**Last updated:** 2026-08-01 (chat-native execution for both agents; shared memory pool pending migration 0004; VIP live and registered)
 
 **If you are a fresh session, read §1 and §2 always.** Then read only your track: §4 for lead generation, §5 for ecommerce. §3 (the named agents) is vertical-agnostic and belongs to both.
 
@@ -109,11 +109,17 @@ Bernard is the **senior paid social strategist and media buyer**, ruled 2026-07-
 
 Constraint to know: the audit is keyed by **client id**, so it only covers imported clients. A bare MCC account visible under the roster has no client record to attach one to, and Oscar is told to say so plainly rather than invent an id.
 
+### Chat-native execution, live 2026-08-01
+
+Both agents now execute from the portal chat, on the founder's explicit word, behind unchanged machine gates. **Bernard: `dispatch_build`** sends an agreed spec to `BERNARD_build` (entities PAUSED, pre-flight gate holds, write budget, allow-list, build_ref idempotency, read-back-verified report). **Oscar: `list_proposals`, `decide_proposal`, `apply_proposal`, `dry_run_proposal`**, calling the exact functions behind the Proposals page buttons; `applyProposal` re-checks approval and every guardrail before any mutate. **Oscar still cannot create campaigns**: no campaign-creation mutate exists for Google Ads. The clean fix is a `GOOGLE_build` executor in the substrate mirroring `BERNARD_build` (deterministic spec-to-campaign, everything paused, verified by re-read); proposed, awaiting founder go.
+
 ### Shared memory infrastructure
 
 Table **`agent_memory`** in the **portal** database, migration 0003, applied and verified 2026-07-30. One row per memory, scoped by an `agent` column (`bernard`, `oscar`). Scoped on reads and writes both, so neither agent can revise or forget the other's memories: a conclusion about Meta delivery rarely transfers to a search auction. Deliberately separate from `agent_conversations`, so clearing a chat drops the transcript and leaves what the agent knows intact.
 
 Verified at merge: 20 memories, all attributed to bernard, isolation confirmed by attempting a cross-agent update and getting a zero row count.
+
+**Shared pool added 2026-08-01 (migration 0004, PORTAL, pending founder).** `shared boolean` on `agent_memory`: ownership and edit rights stay with the writing agent; `shared=true` makes a memory visible to all agents with provenance shown ("SHARED by bernard"). Prompts teach the split: client-level facts, founder rulings and cross-channel strategy shared; platform tactics private. The loader falls back to per-agent queries until the migration runs, so the code is already live safely.
 
 **If you add a third agent**, it needs a name that is not "Rexos", an `AGENT` constant, and its memories are free: pass its name to the same four functions in `src/lib/agent-memory.ts`.
 
