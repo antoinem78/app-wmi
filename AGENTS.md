@@ -11,3 +11,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 Read §1 (entities) and §2 (standing rulings) always. Then read your own track. Update the file when something lands, gets blocked, or the founder rules on something. If it is stale, fix it rather than working around it.
 
 Two rulings from §2 that catch people out immediately, so they are repeated here: **all Meta API access is read-only, no exceptions**, and **client-facing writing carries no em dashes and never mentions APIs or tooling**.
+
+# Founder rulings that bind every session, on any machine
+
+**No em dashes, anywhere, in anything you write.** Chat, documents, code comments, headings. Use full stops, commas, colons or parentheses. En dashes only inside numeric ranges (45-54, £120-155). Check headings before delivering; that is where they survive a prose pass.
+
+**Client-facing writing is authored as Anthony**, first person, in his voice. Never mention APIs, tooling, endpoints, agents or how data was obtained. The client is buying his expertise, not a generated report.
+
+**Never assert something is absent from a single API reading.** Check the surface a real user sees before any "there is no X" claim. A permission error on a nearby endpoint disqualifies the whole area from absence claims.
+
+**Verify who controls a system before drafting anything addressed to anyone about it** (dig NS before any DNS request), and never speculate in client-facing writing about the founder's own access. Ask him.
