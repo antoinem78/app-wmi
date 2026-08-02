@@ -123,6 +123,10 @@ Verified at merge: 20 memories, all attributed to bernard, isolation confirmed b
 
 **If you add a third agent**, it needs a name that is not "Rexos", an `AGENT` constant, and its memories are free: pass its name to the same four functions in `src/lib/agent-memory.ts`.
 
+### Bernard relay: one thread across surfaces, built 2026-08-02
+
+The founder can speak to Bernard from Claude Code sessions, not only the portal, and both surfaces are one conversation ("like Slack and email with the same contractor"). Mechanics: `/api/bernard/chat` accepts an `x-bernard-relay-key` header (env `BERNARD_RELAY_KEY`, timing-safe compare) as an alternative to the Auth0 admin session; `scripts/bernard-relay.mjs` is the client (GET hydrates the shared thread from `agent_conversations`, POST sends through the same deployed brain); the repo skill `.claude/skills/bernard/SKILL.md` teaches any Code session to relay verbatim, never impersonate. Relay turns carry actor `antoine.martin@wmiltd.com (code chat)` for provenance. DELETE (clear thread) is deliberately portal-only. Proven end-to-end locally 2026-08-02 (handshake stored, visible in portal). Production needs `BERNARD_RELAY_KEY` set in Vercel (value in `.env.local`, never in the repo); until then the relay 401s against production. Oscar can get the identical treatment on `/api/agent/chat` in minutes if ruled.
+
 ---
 
 ## 4. Lead generation track
