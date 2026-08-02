@@ -3,6 +3,7 @@
 // /api/agent/chat so the client plumbing is shared. Conversation persists in
 // agent_conversations under the fixed "bernard" scope.
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { auth0 } from "@/lib/auth/auth0";
 import { isAgencyAdmin } from "@/lib/auth/roles";
 import type { AgentEvent, ChatMessage } from "@/lib/integrations/anthropic/agent";
@@ -19,7 +20,25 @@ export const maxDuration = 120;
 
 const SCOPE = "bernard";
 
-async function requireAdmin() {
+// The relay lets the founder reach Bernard from outside the portal (Claude
+// Code sessions via scripts/bernard-relay.mjs). Same handler, same
+// conversation scope, so both surfaces are one thread. Header key only; the
+// key lives in BERNARD_RELAY_KEY and is never written into the repo.
+function relayActor(request: Request): string | null {
+  const expected = process.env.BERNARD_RELAY_KEY;
+  const given = request.headers.get("x-bernard-relay-key");
+  if (!expected || !given) return null;
+  const a = Buffer.from(given);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  return "antoine.martin@wmiltd.com (code chat)";
+}
+
+async function requireAdmin(request?: Request) {
+  if (request) {
+    const relay = relayActor(request);
+    if (relay) return { actor: relay };
+  }
   const session = await auth0.getSession();
   if (!session) return { error: NextResponse.json({ error: "Not signed in." }, { status: 401 }) };
   const sUser = session.user as Record<string, unknown>;
@@ -29,15 +48,16 @@ async function requireAdmin() {
   return { actor: typeof sUser.email === "string" ? sUser.email : "agency_admin" };
 }
 
-// Hydrate prior turns (chat reload / cross-page persistence).
-export async function GET() {
-  const gate = await requireAdmin();
+// Hydrate prior turns (chat reload / cross-page persistence / relay pickup).
+export async function GET(request: Request) {
+  const gate = await requireAdmin(request);
   if (gate.error) return gate.error;
   const turns = await loadConversation(SCOPE);
   return NextResponse.json({ messages: turns });
 }
 
-// Clear the Bernard conversation.
+// Clear the Bernard conversation. Deliberately NOT relay-accessible: wiping
+// the shared thread stays a portal-session action.
 export async function DELETE() {
   const gate = await requireAdmin();
   if (gate.error) return gate.error;
@@ -46,7 +66,7 @@ export async function DELETE() {
 }
 
 export async function POST(request: Request) {
-  const gate = await requireAdmin();
+  const gate = await requireAdmin(request);
   if (gate.error) return gate.error;
   const actor = gate.actor!;
 
