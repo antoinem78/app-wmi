@@ -127,6 +127,8 @@ Verified at merge: 20 memories, all attributed to bernard, isolation confirmed b
 
 The founder speaks to Bernard and Oscar from Claude Code sessions, not only the portal, and each agent's two surfaces are one conversation ("like Slack and email with the same contractor"). Mechanics: `/api/bernard/chat` and `/api/agent/chat` accept a relay header (`x-bernard-relay-key` / `x-oscar-relay-key`, env `BERNARD_RELAY_KEY` / `OSCAR_RELAY_KEY`, timing-safe compare) as an alternative to the Auth0 admin session. Client: `scripts/agent-relay.mjs <bernard|oscar> "msg"` (Oscar also takes `--scope <client-uuid>` for per-client threads; `bernard-relay.mjs` is a compat wrapper). Repo skills `/bernard` and `/oscar` teach any Code session to relay verbatim, never impersonate. Relay turns carry actor `antoine.martin@wmiltd.com (code chat)` for provenance. DELETE (clear thread) is deliberately portal-only on both routes. **Bernard: production round trip verified 2026-08-03.** **Oscar: proven locally 2026-08-03; needs `OSCAR_RELAY_KEY` in Vercel** (value in `.env.local`, never the repo) then a redeploy. Keys are per-agent so either can be revoked alone.
 
+**The relay is per-machine, not per-workspace (learned 2026-08-03).** The scripts and skills travel with the repo, but the keys do not: a Code session on another device fails with "RELAY_KEY is not set" until that machine's repo is pulled to at least `bb4a709` and `BERNARD_RELAY_KEY` / `OSCAR_RELAY_KEY` are copied into its `.env.local` by hand. The founder hit exactly this on a second Mac; if he reports an agent "can't hear" him from Code, check those two things before debugging anything deeper.
+
 ---
 
 ## 4. Lead generation track
