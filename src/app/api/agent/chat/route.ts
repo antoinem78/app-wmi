@@ -1,6 +1,7 @@
 // Rexos chat endpoint — admin-only. Runs the read-only tool-use agent over the
 // account data and returns the assistant's reply. (Non-streaming for v1.)
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { auth0 } from "@/lib/auth/auth0";
 import { isAgencyAdmin } from "@/lib/auth/roles";
 import { runAgentChatStream, type AgentEvent, type ChatMessage } from "@/lib/integrations/anthropic/agent";
@@ -23,7 +24,26 @@ function resolveScope(raw: unknown): { scope: string; clientId: string | null } 
   return { scope: COMMAND_CENTER_SCOPE, clientId: null };
 }
 
-async function requireAdmin() {
+// The relay lets the founder reach Oscar from outside the portal (Claude Code
+// sessions via scripts/agent-relay.mjs). Same handler, same conversation
+// scopes, so both surfaces are one thread. Header key only; the key lives in
+// OSCAR_RELAY_KEY and is never written into the repo. Mirrors the Bernard
+// relay on /api/bernard/chat.
+function relayActor(request: Request): string | null {
+  const expected = process.env.OSCAR_RELAY_KEY;
+  const given = request.headers.get("x-oscar-relay-key");
+  if (!expected || !given) return null;
+  const a = Buffer.from(given);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  return "antoine.martin@wmiltd.com (code chat)";
+}
+
+async function requireAdmin(request?: Request) {
+  if (request) {
+    const relay = relayActor(request);
+    if (relay) return { actor: relay };
+  }
   const session = await auth0.getSession();
   if (!session) return { error: NextResponse.json({ error: "Not signed in." }, { status: 401 }) };
   const sUser = session.user as Record<string, unknown>;
@@ -33,16 +53,18 @@ async function requireAdmin() {
   return { actor: typeof sUser.email === "string" ? sUser.email : "rexos-agent" };
 }
 
-// Hydrate prior turns for a scope (chat reload / cross-page persistence).
+// Hydrate prior turns for a scope (chat reload / cross-page persistence /
+// relay pickup).
 export async function GET(request: Request) {
-  const gate = await requireAdmin();
+  const gate = await requireAdmin(request);
   if (gate.error) return gate.error;
   const { scope } = resolveScope(new URL(request.url).searchParams.get("scope"));
   const turns = await loadConversation(scope);
   return NextResponse.json({ messages: turns });
 }
 
-// Clear a scope's conversation.
+// Clear a scope's conversation. Deliberately NOT relay-accessible: wiping a
+// shared thread stays a portal-session action.
 export async function DELETE(request: Request) {
   const gate = await requireAdmin();
   if (gate.error) return gate.error;
@@ -52,7 +74,7 @@ export async function DELETE(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const gate = await requireAdmin();
+  const gate = await requireAdmin(request);
   if (gate.error) return gate.error;
   const actor = gate.actor!;
 
