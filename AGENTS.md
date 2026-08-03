@@ -16,7 +16,7 @@ Two rulings from §2 that catch people out immediately, so they are repeated her
 
 **No em dashes, anywhere, in anything you write.** Chat, documents, code comments, headings. Use full stops, commas, colons or parentheses. En dashes only inside numeric ranges (45-54, £120-155). Check headings before delivering; that is where they survive a prose pass.
 
-**Client-facing writing is authored as Anthony**, first person, in his voice. Never mention APIs, tooling, endpoints, agents or how data was obtained. The client is buying his expertise, not a generated report.
+**Client-facing writing is authored as Anthony**, first person, in his voice. Never mention APIs, tooling, endpoints, agents or how data was obtained. The client is buying his expertise, not a generated report. **First person means singular: I, me, my. Never the agency "we/us/our"**, even where it feels natural ("we cut the videos"). Ruled 2026-08-03; applies to freelancer-facing writing too. Sweep drafts for "we" before delivering.
 
 **Never assert something is absent from a single API reading.** Check the surface a real user sees before any "there is no X" claim. A permission error on a nearby endpoint disqualifies the whole area from absence claims.
 

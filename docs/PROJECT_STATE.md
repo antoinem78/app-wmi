@@ -53,7 +53,7 @@ Bernard's role is therefore spec-writer, verifier and gatekeeper, with the subst
 
 **One open founder ruling.** `~/Downloads/R15_AMENDMENT_2026-07-30.md`. R15's quarantine language ("an isolated, swappable execution substrate") described a real vendor boundary that no longer exists now the executor is our own infrastructure. R15.1 is drafted to make the quarantine attach to the capability rather than the executor's identity, and to keep it until evidence-proven. One word adopts.
 
-**Client documents are written as Anthony**, first person, in his voice. Never mention APIs, tooling, endpoints, field names or how data was obtained. He is selling his expertise, not a generated report.
+**Client documents are written as Anthony**, first person, in his voice. Never mention APIs, tooling, endpoints, field names or how data was obtained. He is selling his expertise, not a generated report. **First person means singular, ruled 2026-08-03: I, me, my, never the agency "we/us/our"**, even where it feels natural ("we cut the videos", "that work is on us"). Applies to freelancer-facing writing too. Sweep every draft for "we" before delivering.
 
 **No em dashes. Anywhere.** Objected to three times. Use full stops, commas, colons, parentheses. En dashes only in numeric ranges. Check headings, which is where they survive a prose pass.
 
@@ -149,7 +149,7 @@ Blocked: the nurture sequence is written (`~/Documents/KST_NURTURE_SEQUENCE.md`,
 
 Outstanding: **capture KST as a GHL snapshot.** `snapshotId` is empty, so nothing there is portable, which defeats the blueprint purpose. Grows harder with every hand-built addition. Also note GHL workflow creation is UI-only; `POST /workflows/` returns 404, and no scope grant changes that.
 
-**Steffen Foerster.** High-ticket Galapagos photography workshops, $15,900-25,900, October charter-commitment deadline. Audit delivered (`~/Documents/SF_GALAPAGOS_META_AUDIT_JULY26.docx`). Root cause is a signal problem: everything optimises to the pixel Lead event with nothing downstream fed back, so Meta cannot distinguish a qualified buyer from a browser. Google and Microsoft Ads research went to Cowork. Awaiting his response.
+**Steffen Foerster.** High-ticket Galapagos photography workshops, $16,900 per person double occupancy plus $9,000 single supplement ($25,900 single; website-confirmed by the founder 2026-08-03, the earlier $15,900 figure was stale), October charter-commitment deadline. Audit delivered (`~/Documents/SF_GALAPAGOS_META_AUDIT_JULY26.docx`). Root cause is a signal problem: everything optimises to the pixel Lead event with nothing downstream fed back, so Meta cannot distinguish a qualified buyer from a browser. Google and Microsoft Ads research went to Cowork. Awaiting his response.
 
 **Call tracking number map, done 2026-07-31** (`docs/CALL_TRACKING_NUMBER_MAP.md`). KST is clean: one landline everywhere plus Kris's mobile, no existing tracking layer, so a tracking number is a one-edit swap in the site repo. **Shallowford has three distinct 423 numbers** (two on the site, a third in the GHL record), the footprint of a pre-existing tracking or forwarding layer: touch nothing there until a human identifies the real front-desk line. The DM funnel deliberately has no phone. Three founder-side checks remain (GHL Settings then Phone Numbers per location, since the API scope 401s; Google Business Profile numbers; any legacy CallRail or Twilio account), and none of them blocks the WMI agency number purchase.
 
