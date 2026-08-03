@@ -55,13 +55,26 @@
   }
   var ATTR = captureAttribution();
 
+  var ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
   function refCode() {
-    var alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
     var out = "";
     var buf = new Uint8Array(6);
     (window.crypto || {}).getRandomValues ? crypto.getRandomValues(buf) : buf.forEach(function (_, i) { buf[i] = Math.floor(Math.random() * 256); });
-    for (var i = 0; i < 6; i++) out += alphabet[buf[i] % 32];
+    for (var i = 0; i < 6; i++) out += ALPHABET[buf[i] % 32];
     return "WA-" + out;
+  }
+  // Zero-width steganography: each payload char is 5 bits (32-char alphabet),
+  // bits become U+200B (0) / U+200C (1), the whole run is fenced by U+200D.
+  // 6 chars -> 30 invisible characters + 2 fences.
+  function zwEncode(ref) {
+    var payload = ref.slice(3); // drop "WA-"
+    var bits = "";
+    for (var i = 0; i < payload.length; i++) {
+      bits += ("0000" + ALPHABET.indexOf(payload[i]).toString(2)).slice(-5);
+    }
+    var out = "\u200D";
+    for (var j = 0; j < bits.length; j++) out += bits[j] === "0" ? "\u200B" : "\u200C";
+    return out + "\u200D";
   }
 
   // ---- UI ----
@@ -128,12 +141,19 @@
     if (fbc) payload.attribution._fbc = fbc;
     if (fbp) payload.attribution._fbp = fbp;
     try {
-      var blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+      // text/plain keeps the beacon a "simple request": no CORS preflight.
+      var blob = new Blob([JSON.stringify(payload)], { type: "text/plain" });
       if (!(navigator.sendBeacon && navigator.sendBeacon(BEACON, blob))) {
-        fetch(BEACON, { method: "POST", body: JSON.stringify(payload), headers: { "Content-Type": "application/json" }, keepalive: true }).catch(function () {});
+        fetch(BEACON, { method: "POST", body: JSON.stringify(payload), headers: { "Content-Type": "text/plain" }, keepalive: true }).catch(function () {});
       }
     } catch (e) {}
-    var text = (typed || "Hi! I'd like some more information.") + "\n\n(ref " + ref + ")";
+    // The ref rides invisibly: encoded as zero-width characters appended to the
+    // visitor's own words, so there is nothing visible to delete. A visible
+    // "(ref ...)" suffix is opt-in via data-visible-ref="true" as a fallback
+    // for channels that strip zero-width characters.
+    var text = (typed || "Hi! I'd like some more information.");
+    if (script.getAttribute("data-visible-ref") === "true") text += "\n\n(ref " + ref + ")";
+    text += zwEncode(ref);
     var url = "https://wa.me/" + NUMBER + "?text=" + encodeURIComponent(text);
     window.open(url, "_blank", "noopener");
     card.classList.remove("open");
