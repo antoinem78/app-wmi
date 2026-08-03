@@ -21,6 +21,7 @@ import { createProposal, decideProposal, listProposals, type ProposalType, type 
 import { applyProposal, dryRunProposal } from "@/lib/proposals-execute";
 import { buildGoogleCampaign, type GoogleBuildSpec } from "@/lib/integrations/google-ads/build";
 import { entityConfig } from "@/lib/config";
+import { makeEmDashScrubber } from "@/lib/emdash";
 
 const AGENT = "oscar";
 const MODEL = "claude-opus-4-8";
@@ -687,9 +688,13 @@ function statusLabel(name: string, input: Record<string, unknown>): string {
 export async function runAgentChatStream(
   history: ChatMessage[],
   actor: string,
-  emit: (ev: AgentEvent) => void,
+  emitRaw: (ev: AgentEvent) => void,
   focusClientId?: string | null,
 ): Promise<void> {
+  // The no-em-dash ruling is enforced in code, not just asked of the prompt.
+  const scrub = makeEmDashScrubber();
+  const emit = (ev: AgentEvent) =>
+    emitRaw(ev.type === "delta" && ev.text ? { ...ev, text: scrub(ev.text) } : ev);
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     emit({ type: "delta", text: "The assistant isn't configured (no ANTHROPIC_API_KEY)." });

@@ -12,6 +12,7 @@ import { getBernardStatus, decideFix, standDown, dispatchBuild, type BuildDispat
 import { listMetaAdAccounts, getMetaAuditData, metaConfigured, normalizeActId } from "@/lib/integrations/meta";
 import type { AgentEvent, ChatMessage } from "@/lib/integrations/anthropic/agent";
 import type { Attachment } from "@/lib/attachments";
+import { makeEmDashScrubber } from "@/lib/emdash";
 import {
   loadMemories,
   renderMemories,
@@ -308,9 +309,13 @@ async function runTool(
 export async function runBernardChatStream(
   history: ChatMessage[],
   actor: string,
-  emit: (ev: AgentEvent) => void,
+  emitRaw: (ev: AgentEvent) => void,
   attachments: Attachment[] = [],
 ): Promise<void> {
+  // The no-em-dash ruling is enforced in code, not just asked of the prompt.
+  const scrub = makeEmDashScrubber();
+  const emit = (ev: AgentEvent) =>
+    emitRaw(ev.type === "delta" && ev.text ? { ...ev, text: scrub(ev.text) } : ev);
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     emit({ type: "delta", text: "Bernard isn't configured (no ANTHROPIC_API_KEY)." });
