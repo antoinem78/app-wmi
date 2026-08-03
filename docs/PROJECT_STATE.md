@@ -133,6 +133,16 @@ The founder speaks to Bernard and Oscar from Claude Code sessions, not only the 
 
 ## 4. Lead generation track
 
+### WhatsApp attribution bridge (new product line, founder-initiated 2026-08-03)
+
+**The pitch:** capture WhatsApp leads into GHL with ad-click attribution (gclid/fbclid), track source and completed bookings, attribute back to Google/Meta through the existing OCT spine. First deployment: wmiltd.com. First waiting client: buggytripmarrakech.com (Cloudflare DNS; stack unverified).
+
+**How it works:** the widget captures click ids on-site, parks them in substrate table `wa_refs` (migration 0005, applied) under a short ref (`WA-XXXXXX`) via public webhook `RCV_wa_click` (n8n `tOzFFv8yK99SNDg0`, ACTIVE, tested live: token-validated, allowlisted attribution, silent rejection). The ref rides inside the prefilled wa.me message. Inbound messages hit `RCV_wa_inbound_wmi` (n8n `3gBPGmk4RUQsn27o`, INACTIVE: placeholders), which extracts the ref, marries attribution to the sender's phone, upserts the GHL contact (source whatsapp, tags wa-attributed/wa-organic, custom fields by KEY: google_click_id, fb_click_id, fbc, fbp, landing_page), claims the ref, logs to tasks. Booking attribution then flows through the standard stage-change OCT legs.
+
+**Live now:** widget served at `https://app.wmiltd.com/wa-widget.js` (one-line embed, per-client `data-token`); wmi tenant has `wa_public_token` in config; wmiltd.com integration on branch `wa-widget` of the `wmiltd` repo (renders nothing until `data-number` is set, safe to merge).
+
+**Pending founder decisions:** (1) channel: GHL native WhatsApp on the WMI location (recommended: zero Meta API surface on our side, replies from the GHL app) vs own Meta Cloud API (cheaper per message, more control, but a Meta WRITE surface needing a ruling exception); (2) which WhatsApp number (the pending 07 is the natural fit; verification SMS readable from Twilio logs). **Wiring after decisions:** enable WhatsApp on WMI location, founder builds GHL workflow (inbound WhatsApp message → webhook POST to `/webhook/wa-inbound-wmi` with the x-bernard-key header), mint WMI location PIT (n8n credential `plQQj8NLI6w7xd1X` is a named placeholder awaiting the value; upsert node also carries `WMI_LOCATION_ID_PENDING`), create the five custom fields on the location, set data-number in the site branch, merge. Productization per client = one-line embed + tenant token + receiver clone, same as the CTM pattern.
+
 **DentalMastery.ai** (slug `dental-mastery`, never `dentalmastery`, the wrong slug silently writes zero rows). B2B, sells to US dental practice owners, runs inside the WMI UK ad account because the founder hit his Business Portfolio limit.
 
 Live: a warm-up engagement campaign and a leads campaign using Meta Instant Forms against the Apollo list audience (`Apollo Dental Mega List July 26`, 16,536 contacts uploaded, ~4,300-5,100 matched). Targeting is list-only and verified so: `advantage_audience: 0`, `targeting_relaxation: {custom_audience: 0, lookalike: 0}`. Conversion spine is live and Meta-verified, `Lead` and `Schedule` server-side into dataset 867153482888947 via `CAP_meta_conversions`, GHL workflows firing it, Slack to #dentalmastery-leads. Legal pages published (privacy, terms, cookie settings) with a consent banner gating the pixel.
