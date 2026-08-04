@@ -48,6 +48,16 @@ export async function POST(request: Request) {
         .single();
       if (state?.client_id) {
         await markContractSigned(state.client_id, "proposal-engine-webhook");
+        // Durable copy to the signer (no-op unless Resend is configured;
+        // never fails the webhook). The engine URL is permanent.
+        try {
+          const { createSigningSession } = await import("@/lib/integrations/contracts");
+          const { sendContractCopyFor } = await import("@/lib/email");
+          const url = await createSigningSession(event.proposal.id, "");
+          await sendContractCopyFor(state.client_id, url);
+        } catch (e) {
+          console.error("Contract copy email failed:", e);
+        }
       } else {
         // Not an error: viewed/pricing events for unknown ids land here too.
         console.warn(`No onboarding state for proposal ${event.proposal.id}.`);

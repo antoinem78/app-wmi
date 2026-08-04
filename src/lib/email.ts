@@ -113,3 +113,42 @@ export async function sendPaymentConfirmationFor(clientId: string): Promise<bool
     return false;
   }
 }
+
+/** Signed-agreement copy: sent from the proposal-engine webhook the moment the
+ *  click-wrap is accepted. The engine's proposal URL is permanent, so this
+ *  email is the client's durable copy of what they signed. */
+export async function sendContractCopyFor(
+  clientId: string,
+  documentUrl: string,
+): Promise<boolean> {
+  if (!configured()) return false;
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data: client } = await supabase
+      .from("clients")
+      .select("company_name, contact_name, contact_email")
+      .eq("id", clientId)
+      .single();
+    if (!client?.contact_email) return false;
+    const first = (client.contact_name ?? "").trim().split(/\s+/)[0] || "there";
+    const text = [
+      `Hi ${first},`,
+      "",
+      `This confirms your acceptance of the service agreement for ${client.company_name}. Your copy of the signed document, including the acceptance record, is here:`,
+      "",
+      documentUrl,
+      "",
+      "That link is permanent, so this email serves as your copy for your records. If anything in the agreement needs discussing, just reply.",
+      "",
+      entityConfig.brandName,
+    ].join("\n");
+    return sendEmail({
+      to: client.contact_email,
+      subject: `Your signed agreement, ${client.company_name}`,
+      text,
+    });
+  } catch (e) {
+    console.error("Contract copy email failed:", e);
+    return false;
+  }
+}
