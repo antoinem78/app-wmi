@@ -131,6 +131,10 @@ The founder speaks to Bernard and Oscar from Claude Code sessions, not only the 
 
 ---
 
+### FZCO entity clone: app.webmarketinginternational.com (added to this file 2026-08-04)
+
+A full second deployment of this same repo for Web Marketing International FZCO (USD): own Vercel project, own Supabase, own Auth0 tenant, own Stripe account, and CONTRACT_PROVIDER=proposal-engine (the self-hosted click-wrap engine at proposals.webmarketinginternational.com) instead of PandaDoc. Provisioned around 2026-07-09 per `docs/FZCO_CLONE_CHECKLIST.md`; it predates this file and was never recorded here. Verified from outside 2026-08-04: portal live, auth chain correctly wired to its own tenant, engine up and enforcing auth, Stripe and proposal-engine webhook routes deployed. **Not yet proven: the end-to-end onboarding dry run (create client, share link, click-wrap accept, Stripe TEST checkout, paid state). Stripe was provisioned with TEST keys; switching to LIVE keys and re-registering the live webhook secret are founder-only steps before any real client pays.** Do not assume it is armed until the dry run is recorded here.
+
 ## 4. Lead generation track
 
 ### WhatsApp attribution bridge (new product line, founder-initiated 2026-08-03)
