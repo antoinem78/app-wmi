@@ -55,6 +55,9 @@ export async function POST(request: Request) {
               typeof session.subscription === "string" ? session.subscription : null,
             source: "stripe-webhook",
           });
+          // Welcome email (no-op unless Resend is configured; never fails the webhook).
+          const { sendPaymentConfirmationFor } = await import("@/lib/email");
+          await sendPaymentConfirmationFor(clientId);
         }
         break;
       }

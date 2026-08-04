@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { requireAgencyAdmin } from "@/lib/auth/guard";
 import { logActivity } from "@/lib/activity";
+import { sendOnboardingInvite } from "@/lib/email";
 import { CUSTOM_TIER_KEY } from "@/lib/tiers";
 import {
   getDashboard,
@@ -84,6 +85,25 @@ export async function createClient(formData: FormData): Promise<void> {
       custom_monthly_price: customPrice,
     },
   });
+
+  // Email the client their onboarding link (no-op unless the deployment has
+  // Resend configured). Best-effort: a failed send never blocks creation, and
+  // the outcome lands in the activity log either way.
+  const base = process.env.APP_BASE_URL ?? "";
+  if (base) {
+    const sent = await sendOnboardingInvite({
+      to: contactEmail,
+      contactName: contactName || null,
+      companyName,
+      link: `${base}/onboarding/${client.id}`,
+    });
+    await logActivity({
+      clientId: client.id,
+      eventType: sent ? "onboarding_invite_emailed" : "onboarding_invite_not_emailed",
+      actor: "system:email",
+      payload: { to: contactEmail },
+    });
+  }
 
   revalidatePath("/clients");
   redirect(`/clients/${client.id}`);
