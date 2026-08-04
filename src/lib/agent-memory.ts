@@ -11,7 +11,27 @@
 // Best-effort throughout, matching agent-conversations: if migration 0003 has not
 // been applied, reads return empty and writes report a failure the agent can
 // relay, rather than throwing and killing the turn.
+//
+// ONE MIND, MANY OFFICES: an agent is one person however many portals he
+// appears in, so his memory can live in a single shared store across entity
+// deployments. When MEMORY_SUPABASE_URL + MEMORY_SUPABASE_SECRET_KEY are set,
+// memory reads and writes go to THAT database instead of the deployment's own
+// (the FZCO clone points these at the wmiltd portal DB, ruled 2026-08-05).
+// Unset = the deployment's own database, unchanged. Conversations stay
+// per-deployment either way; only what the agent KNOWS is shared.
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
+
+function memoryClient(): SupabaseClient {
+  const url = process.env.MEMORY_SUPABASE_URL;
+  const key = process.env.MEMORY_SUPABASE_SECRET_KEY;
+  if (url && key) {
+    return createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  return createSupabaseAdminClient();
+}
 
 export type MemoryKind =
   | "client"
@@ -52,7 +72,7 @@ const MAX_CHARS = 24_000;
  *  small narrative rather than a shuffled pile. */
 export async function loadMemories(agent: string): Promise<Memory[]> {
   try {
-    const supabase = createSupabaseAdminClient();
+    const supabase = memoryClient();
     // Own memories plus anything any agent marked shared. Falls back to the
     // pre-0004 shape if the shared column does not exist yet, so deploy order
     // does not matter.
@@ -145,7 +165,7 @@ export async function remember(
   const text = content.trim();
   if (!text) return { ok: false, error: "Nothing to remember (empty content)." };
   try {
-    const supabase = createSupabaseAdminClient();
+    const supabase = memoryClient();
     const { data, error } = await supabase
       .from("agent_memory")
       .insert({ agent, kind, subject: subject.trim() || "global", content: text, actor, ...(shared ? { shared: true } : {}) })
@@ -170,7 +190,7 @@ export async function reviseMemory(
   const text = content.trim();
   if (!text) return { ok: false, error: "Nothing to write (empty content)." };
   try {
-    const supabase = createSupabaseAdminClient();
+    const supabase = memoryClient();
     const { error, count } = await supabase
       .from("agent_memory")
       .update({ content: text, updated_at: new Date().toISOString() }, { count: "exact" })
@@ -193,7 +213,7 @@ export async function forgetMemory(
   reason: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const supabase = createSupabaseAdminClient();
+    const supabase = memoryClient();
     const { error, count } = await supabase
       .from("agent_memory")
       .update(
