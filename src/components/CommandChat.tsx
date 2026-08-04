@@ -63,6 +63,12 @@ export function CommandChat({
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Committed-state mirror. send() reads this instead of the render closure's
+  // `messages`, which can be stale and silently drop the previous reply.
+  const messagesRef = useRef<Msg[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   const scrollSoon = () =>
     requestAnimationFrame(() => scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight));
 
@@ -75,7 +81,9 @@ export function CommandChat({
         if (res.ok) {
           const data = (await res.json()) as { messages?: Msg[] };
           if (!cancelled && Array.isArray(data.messages) && data.messages.length) {
-            setMessages(data.messages);
+            // Apply only to an empty transcript: a slow hydration response
+            // must never clobber a conversation already under way.
+            setMessages((m) => (m.length ? m : data.messages!));
             scrollSoon();
           }
         }
@@ -104,7 +112,7 @@ export function CommandChat({
     const content = text.trim();
     if (!content || loading) return;
     setError(null);
-    const next = [...messages, { role: "user" as const, content }];
+    const next = [...messagesRef.current, { role: "user" as const, content }];
     setMessages(next);
     setInput("");
     setLoading(true);
@@ -122,12 +130,19 @@ export function CommandChat({
         throw new Error(msg);
       }
       // Placeholder assistant bubble that fills as deltas stream in.
-      setMessages((m) => [...m, { role: "assistant", content: "" }]);
+      // Placeholder bubble pinned by index so delta/reset can only touch THIS
+      // request's bubble, never a finished reply that happens to sit last.
+      const phIndex = next.length;
+      setMessages((m) => {
+        const copy = m.slice();
+        copy[phIndex] = { role: "assistant", content: "" };
+        return copy;
+      });
       const appendDelta = (t: string) =>
         setMessages((m) => {
+          if (m[phIndex]?.role !== "assistant") return m;
           const copy = m.slice();
-          const last = copy[copy.length - 1];
-          if (last && last.role === "assistant") copy[copy.length - 1] = { ...last, content: last.content + t };
+          copy[phIndex] = { ...copy[phIndex], content: copy[phIndex].content + t };
           return copy;
         });
       const reader = res.body.getReader();
@@ -149,9 +164,9 @@ export function CommandChat({
           else if (ev.type === "reset") {
             // clear preamble streamed during a tool-use turn
             setMessages((m) => {
+              if (m[phIndex]?.role !== "assistant") return m;
               const copy = m.slice();
-              const li = copy.length - 1;
-              if (copy[li]?.role === "assistant") copy[li] = { ...copy[li], content: "" };
+              copy[phIndex] = { ...copy[phIndex], content: "" };
               return copy;
             });
           }

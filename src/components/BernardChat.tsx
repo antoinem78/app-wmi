@@ -53,10 +53,19 @@ export function BernardChat({
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Committed-state mirror. send() reads this instead of the render closure's
+  // `messages`, which can be stale and silently drop the previous reply from
+  // the transcript (the "my first answer vanished" bug).
+  const messagesRef = useRef<Msg[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   const scrollSoon = () =>
     requestAnimationFrame(() => scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight));
 
-  // Load prior turns on mount (persistence across reloads).
+  // Load prior turns on mount (persistence across reloads). Guarded so a slow
+  // hydration response can never clobber a conversation the user has already
+  // started: it only applies to an empty transcript, checked at apply time.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -65,7 +74,7 @@ export function BernardChat({
         if (res.ok) {
           const data = (await res.json()) as { messages?: Msg[] };
           if (!cancelled && Array.isArray(data.messages) && data.messages.length) {
-            setMessages(data.messages);
+            setMessages((m) => (m.length ? m : data.messages!));
             scrollSoon();
           }
         }
@@ -115,7 +124,8 @@ export function BernardChat({
     const label = files.length
       ? `${shown}\n\n${files.map((f) => `[attached ${f.name}]`).join("\n")}`
       : shown;
-    const next = [...messages, { role: "user" as const, content: label }];
+    const base = messagesRef.current;
+    const next = [...base, { role: "user" as const, content: label }];
     setMessages(next);
     setInput("");
     setPending([]);
@@ -124,7 +134,7 @@ export function BernardChat({
     scrollSoon();
     try {
       // History always carries the plain text; files ride as multipart parts.
-      const history = [...messages, { role: "user" as const, content: shown }];
+      const history = [...base, { role: "user" as const, content: shown }];
       let res: Response;
       if (files.length) {
         const form = new FormData();
@@ -143,13 +153,20 @@ export function BernardChat({
         try { msg = (await res.json())?.error ?? msg; } catch { /* non-JSON */ }
         throw new Error(msg);
       }
-      // Placeholder assistant bubble that fills as deltas stream in.
-      setMessages((m) => [...m, { role: "assistant", content: "" }]);
+      // Placeholder assistant bubble that fills as deltas stream in. Its index
+      // is pinned so delta/reset can only ever touch THIS request's bubble,
+      // never a finished reply that happens to sit last in the transcript.
+      const phIndex = next.length;
+      setMessages((m) => {
+        const copy = m.slice();
+        copy[phIndex] = { role: "assistant", content: "" };
+        return copy;
+      });
       const appendDelta = (t: string) =>
         setMessages((m) => {
+          if (m[phIndex]?.role !== "assistant") return m;
           const copy = m.slice();
-          const last = copy[copy.length - 1];
-          if (last && last.role === "assistant") copy[copy.length - 1] = { ...last, content: last.content + t };
+          copy[phIndex] = { ...copy[phIndex], content: copy[phIndex].content + t };
           return copy;
         });
       const reader = res.body.getReader();
@@ -175,9 +192,9 @@ export function BernardChat({
           }
           else if (ev.type === "reset") {
             setMessages((m) => {
+              if (m[phIndex]?.role !== "assistant") return m;
               const copy = m.slice();
-              const li = copy.length - 1;
-              if (copy[li]?.role === "assistant") copy[li] = { ...copy[li], content: "" };
+              copy[phIndex] = { ...copy[phIndex], content: "" };
               return copy;
             });
           }
