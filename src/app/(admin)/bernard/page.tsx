@@ -17,14 +17,23 @@ function Badge({ ok, yes, no }: { ok: boolean; yes: string; no: string }) {
 }
 
 export default async function BernardPage() {
+  // Chat-first: Bernard thinks and remembers on any deployment with an
+  // Anthropic key. The lab link (n8n substrate) is a capability, not a
+  // prerequisite — without it the status pane is absent and his lab tools
+  // explain themselves when called, which matches how Meta access already
+  // degrades on deployments without META_ADS_TOKEN.
   if (!bernardConfigured()) {
     return (
       <div className="p-10">
         <h1 className="text-2xl font-semibold text-zinc-900">Bernard</h1>
-        <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900">
-          The Bernard link is not configured on this deployment. Add{" "}
-          <code className="rounded bg-amber-100 px-1">BERNARD_WEBHOOK_KEY</code> to the
-          environment and redeploy.
+        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          The Meta Lab link is not wired on this deployment (no{" "}
+          <code className="rounded bg-amber-100 px-1">BERNARD_WEBHOOK_KEY</code>), so there
+          is no lab status, no audits and no dispatch here. Bernard can still converse
+          and remember.
+        </div>
+        <div className="mt-6 max-w-2xl">
+          <BernardChat />
         </div>
       </div>
     );
