@@ -167,7 +167,7 @@ export default async function ClientDetailPage({
             />
             {price !== null && (
               <>
-                <Row label="Monthly" value={`${formatMoney(price)}/mo`} />
+                <Row label="Monthly" value={`${formatMoney(price, client.currency ?? null)}/mo`} />
                 <Row label="Billing" value="Monthly rolling (31-day notice)" />
               </>
             )}

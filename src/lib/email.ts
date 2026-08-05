@@ -84,13 +84,13 @@ export async function sendPaymentConfirmationFor(clientId: string): Promise<bool
     const supabase = createSupabaseAdminClient();
     const { data: client } = await supabase
       .from("clients")
-      .select("company_name, contact_name, contact_email, custom_monthly_price, platforms")
+      .select("company_name, contact_name, contact_email, custom_monthly_price, platforms, currency")
       .eq("id", clientId)
       .single();
     if (!client?.contact_email) return false;
     const first = (client.contact_name ?? "").trim().split(/\s+/)[0] || "there";
     const price = client.custom_monthly_price
-      ? `${formatMoney(client.custom_monthly_price)} per month`
+      ? `${formatMoney(client.custom_monthly_price, client.currency)} per month`
       : "your agreed monthly fee";
     const text = [
       `Hi ${first},`,

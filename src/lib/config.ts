@@ -20,6 +20,14 @@ export const entityConfig = {
   /** ISO 4217 currency for all price formatting (GBP for WMI). */
   currency: process.env.CURRENCY ?? "GBP",
 
+  /** Currencies an admin may quote a client in, comma-separated, e.g.
+   *  ENTITY_CURRENCIES="USD,AED" on the FZCO clone. Empty = only `currency`.
+   *  The deployment's `currency` remains the default for new clients. */
+  currencies: (process.env.ENTITY_CURRENCIES ?? "")
+    .split(",")
+    .map((c) => c.trim().toUpperCase())
+    .filter(Boolean),
+
   /** VAT percentage for quotes/invoices (Phase 2). Null = not configured. */
   vatRate: process.env.VAT_RATE ? Number(process.env.VAT_RATE) : null,
 
@@ -47,10 +55,18 @@ export const entityConfig = {
     `${process.env.APP_BASE_URL ?? ""}/privacy`,
 };
 
-export function formatMoney(amount: number): string {
+export function formatMoney(amount: number, currency?: string | null): string {
   return new Intl.NumberFormat("en", {
     style: "currency",
-    currency: entityConfig.currency,
+    currency: currency || entityConfig.currency,
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+/** The currencies an admin can pick when creating a client: the configured
+ *  list, or just the deployment currency when no list is set. */
+export function allowedCurrencies(): string[] {
+  const list = entityConfig.currencies;
+  const base = list.length ? list : [entityConfig.currency];
+  return base.includes(entityConfig.currency) ? base : [entityConfig.currency, ...base];
 }

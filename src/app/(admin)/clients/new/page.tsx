@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "../actions";
 import { PLATFORM_OPTIONS } from "@/lib/tiers";
 import { ACCESS_TASK_LIST } from "@/lib/access-tasks";
-import { entityConfig } from "@/lib/config";
+import { entityConfig, allowedCurrencies } from "@/lib/config";
 
 export default function NewClientPage() {
   // Reporting-only deployments have no onboarding funnel — there is no "new
@@ -67,17 +67,32 @@ export default function NewClientPage() {
         </fieldset>
 
         <Field label="Monthly price" required>
-          <input
-            name="custom_monthly_price"
-            type="number"
-            min="1"
-            step="1"
-            required
-            placeholder="e.g. 1500"
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#0B1F3A] focus:outline-none"
-          />
+          <div className="flex gap-2">
+            {allowedCurrencies().length > 1 ? (
+              <select
+                name="currency"
+                defaultValue={entityConfig.currency}
+                className="rounded-md border border-zinc-300 px-2 py-2 text-sm focus:border-[#0B1F3A] focus:outline-none"
+              >
+                {allowedCurrencies().map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            ) : (
+              <input type="hidden" name="currency" value={entityConfig.currency} />
+            )}
+            <input
+              name="custom_monthly_price"
+              type="number"
+              min="1"
+              step="1"
+              required
+              placeholder="e.g. 1500"
+              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#0B1F3A] focus:outline-none"
+            />
+          </div>
           <p className="mt-1 text-xs text-zinc-400">
-            The negotiated monthly subscription (in {entityConfig.currency}). Quote,
+            The negotiated monthly subscription in the selected currency. Quote,
             contract, and billing all use this amount.
           </p>
         </Field>

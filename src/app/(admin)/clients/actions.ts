@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { requireAgencyAdmin } from "@/lib/auth/guard";
 import { logActivity } from "@/lib/activity";
+import { allowedCurrencies } from "@/lib/config";
 import { sendOnboardingInvite } from "@/lib/email";
 import { CUSTOM_TIER_KEY } from "@/lib/tiers";
 import {
@@ -36,6 +37,9 @@ export async function createClient(formData: FormData): Promise<void> {
     throw new Error("A positive monthly price is required.");
   }
 
+  const currencyRaw = String(formData.get("currency") ?? "").trim().toUpperCase();
+  const currency = allowedCurrencies().includes(currencyRaw) ? currencyRaw : allowedCurrencies()[0];
+
   const platforms = formData.getAll("platforms").map(String);
   if (platforms.length === 0) {
     throw new Error("Select at least one advertising platform.");
@@ -56,6 +60,7 @@ export async function createClient(formData: FormData): Promise<void> {
       contact_email: contactEmail,
       service_tier: CUSTOM_TIER_KEY,
       custom_monthly_price: customPrice,
+      currency,
       platforms,
       access_tasks: accessTasks,
       status: "onboarding",

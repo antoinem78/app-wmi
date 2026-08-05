@@ -26,7 +26,7 @@ export default async function ClientsPage({
   let sel = supabase
     .from("clients")
     .select(
-      "id, company_name, contact_email, status, custom_monthly_price, source, created_at, onboarding_state(google_ads_customer_id, google_ads_reporting_customer_id)",
+      "id, company_name, contact_email, status, custom_monthly_price, currency, source, created_at, onboarding_state(google_ads_customer_id, google_ads_reporting_customer_id)",
     )
     .order("created_at", { ascending: false });
   if (query) sel = sel.ilike("company_name", `%${query}%`);
@@ -142,7 +142,7 @@ export default async function ClientsPage({
                   c.source === "reporting_only"
                     ? "Reporting"
                     : c.custom_monthly_price != null
-                      ? `${formatMoney(c.custom_monthly_price)}/mo`
+                      ? `${formatMoney(c.custom_monthly_price, c.currency)}/mo`
                       : "—";
                 return (
                   <tr key={c.id} className="hover:bg-zinc-50">

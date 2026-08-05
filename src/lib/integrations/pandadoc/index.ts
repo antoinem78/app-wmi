@@ -88,7 +88,7 @@ export async function createContractDocument(
   },
   // What the client agreed to: band tier name or "Paid Search — custom plan",
   // plus the platforms wording (e.g. "Google Ads & Microsoft Ads").
-  quote: { name: string; price: number; channels: string },
+  quote: { name: string; price: number; channels: string; currency?: string },
 ): Promise<string> {
   const [firstName, ...rest] = (client.contact_name ?? "Client").trim().split(/\s+/);
   const today = new Date().toISOString().slice(0, 10);

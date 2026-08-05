@@ -86,7 +86,7 @@ export async function generateContract(clientId: string): Promise<void> {
     const { data: client } = await supabase
       .from("clients")
       .select(
-        "id, company_name, contact_name, contact_email, service_tier, custom_monthly_price, platforms",
+        "id, company_name, contact_name, contact_email, service_tier, custom_monthly_price, platforms, currency",
       )
       .eq("id", clientId)
       .single();
@@ -103,6 +103,7 @@ export async function generateContract(clientId: string): Promise<void> {
     const documentId = await createContractDocument(client, {
       name: CUSTOM_PLAN_NAME,
       price,
+      currency: client.currency ?? undefined,
       channels: channelsLabel(client.platforms),
     });
     const { error } = await supabase
@@ -153,7 +154,7 @@ export async function startCheckout(clientId: string): Promise<void> {
   const supabase = createSupabaseAdminClient();
   const { data: client } = await supabase
     .from("clients")
-    .select("id, contact_email, service_tier, custom_monthly_price")
+    .select("id, contact_email, service_tier, custom_monthly_price, currency")
     .eq("id", clientId)
     .single();
   if (!client) throw new Error("Client not found.");

@@ -67,7 +67,7 @@ export default async function OnboardingPage({
   const { data: client } = await supabase
     .from("clients")
     .select(
-      "id, company_name, contact_name, contact_email, service_tier, custom_monthly_price, platforms, access_tasks, source",
+      "id, company_name, contact_name, contact_email, service_tier, custom_monthly_price, platforms, access_tasks, source, currency",
     )
     .eq("id", id)
     .single();
@@ -206,6 +206,7 @@ export default async function OnboardingPage({
             planName={planName}
             price={price}
             platforms={client.platforms}
+            currency={client.currency ?? null}
             signingUrl={signingUrl}
           />
         )}
@@ -215,6 +216,7 @@ export default async function OnboardingPage({
             planName={planName}
             price={price}
             platforms={client.platforms}
+            currency={client.currency ?? null}
           />
         )}
       </div>
@@ -745,12 +747,14 @@ function ContractStep({
   planName,
   price,
   platforms,
+  currency,
   signingUrl,
 }: {
   id: string;
   planName: string;
   price: number;
   platforms: string[] | null;
+  currency: string | null;
   signingUrl: string | null;
 }) {
   if (signingUrl) {
@@ -779,7 +783,7 @@ function ContractStep({
       <p className="mt-1 text-sm text-zinc-500">
         Here&rsquo;s the plan we agreed — generate your agreement to sign online.
       </p>
-      <QuoteSummary planName={planName} price={price} platforms={platforms} />
+      <QuoteSummary planName={planName} price={price} platforms={platforms} currency={currency} />
       <form action={generateContract.bind(null, id)} className="mt-6">
         <SubmitButton>Generate &amp; sign your agreement</SubmitButton>
       </form>
@@ -796,11 +800,13 @@ function PaymentStep({
   planName,
   price,
   platforms,
+  currency,
 }: {
   id: string;
   planName: string;
   price: number;
   platforms: string[] | null;
+  currency: string | null;
 }) {
   return (
     <>
@@ -809,7 +815,7 @@ function PaymentStep({
         Billed today, then on the same date each month — cancel anytime with 31
         days&rsquo; notice.
       </p>
-      <QuoteSummary planName={planName} price={price} platforms={platforms} />
+      <QuoteSummary planName={planName} price={price} platforms={platforms} currency={currency} />
       <p className="mt-6 text-xs text-zinc-400">
         You&rsquo;ll be taken to Stripe&rsquo;s secure checkout to enter your
         payment details.
@@ -825,10 +831,12 @@ function QuoteSummary({
   planName,
   price,
   platforms,
+  currency,
 }: {
   planName: string;
   price: number;
   platforms: string[] | null;
+  currency: string | null;
 }) {
   if (!price) {
     return (
@@ -844,7 +852,7 @@ function QuoteSummary({
           {planName}
           <span className="ml-2 text-xs font-normal text-zinc-400">(agreed pricing)</span>
         </span>
-        <span className="shrink-0 text-sm text-zinc-500">{formatMoney(price)}/mo</span>
+        <span className="shrink-0 text-sm text-zinc-500">{formatMoney(price, currency)}/mo</span>
       </div>
       <p className="mt-1 text-sm text-zinc-500">{planBlurb(platforms)}</p>
       <ul className="mt-3 space-y-1 text-sm text-zinc-600">
@@ -857,7 +865,7 @@ function QuoteSummary({
       </ul>
       <div className="mt-4 border-t border-zinc-100 pt-3 text-sm">
         <span className="text-zinc-500">Due today (first month): </span>
-        <span className="font-semibold text-zinc-900">{formatMoney(price)}</span>
+        <span className="font-semibold text-zinc-900">{formatMoney(price, currency)}</span>
         <div className="mt-1 text-xs text-zinc-400">
           Then billed on the same date each month. Cancel anytime with 31
           days&rsquo; notice.

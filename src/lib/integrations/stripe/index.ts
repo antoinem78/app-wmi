@@ -28,6 +28,7 @@ export async function createCheckoutSessionForClient(client: {
   id: string;
   contact_email: string;
   custom_monthly_price?: number | null;
+  currency?: string | null;
 }): Promise<string> {
   if (!client.custom_monthly_price || client.custom_monthly_price <= 0) {
     throw new Error("Client has no monthly price configured.");
@@ -46,7 +47,7 @@ export async function createCheckoutSessionForClient(client: {
     line_items: [
       {
         price_data: {
-          currency: entityConfig.currency.toLowerCase(),
+          currency: (client.currency ?? entityConfig.currency).toLowerCase(),
           unit_amount: client.custom_monthly_price * 100,
           recurring: { interval: "month" as const },
           product_data: { name: CUSTOM_PLAN_NAME },

@@ -59,11 +59,12 @@ export async function createContractDocument(
     contact_name: string | null;
     contact_email: string;
   },
-  quote: { name: string; price: number; channels: string },
+  quote: { name: string; price: number; channels: string; currency?: string },
 ): Promise<string> {
+  const feeCurrency = quote.currency || entityConfig.currency;
   const fee = new Intl.NumberFormat("en", {
     style: "currency",
-    currency: entityConfig.currency,
+    currency: feeCurrency,
     maximumFractionDigits: 0,
   }).format(quote.price);
   const today = new Date().toLocaleDateString("en-GB", {
@@ -86,7 +87,7 @@ export async function createContractDocument(
         brand: { name: entityConfig.brandName },
         proposal: {
           title: "Managed Paid Search Services Agreement",
-          currency: entityConfig.currency,
+          currency: feeCurrency,
         },
         client: {
           name: client.contact_name ?? "",
