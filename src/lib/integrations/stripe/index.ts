@@ -9,7 +9,7 @@ import Stripe from "stripe";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity";
 import { entityConfig } from "@/lib/config";
-import { CUSTOM_PLAN_NAME } from "@/lib/tiers";
+import { planNameFor } from "@/lib/tiers";
 
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -29,6 +29,7 @@ export async function createCheckoutSessionForClient(client: {
   contact_email: string;
   custom_monthly_price?: number | null;
   currency?: string | null;
+  platforms?: string[] | null;
 }): Promise<string> {
   if (!client.custom_monthly_price || client.custom_monthly_price <= 0) {
     throw new Error("Client has no monthly price configured.");
@@ -50,7 +51,7 @@ export async function createCheckoutSessionForClient(client: {
           currency: (client.currency ?? entityConfig.currency).toLowerCase(),
           unit_amount: client.custom_monthly_price * 100,
           recurring: { interval: "month" as const },
-          product_data: { name: CUSTOM_PLAN_NAME },
+          product_data: { name: planNameFor(client.platforms) },
           tax_behavior: "exclusive",
         },
         quantity: 1,

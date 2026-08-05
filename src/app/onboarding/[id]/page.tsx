@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import {
   CUSTOM_PLAN_NAME,
+  planNameFor,
   planBlurb,
   planFeatures,
 } from "@/lib/tiers";
@@ -192,7 +193,7 @@ export default async function OnboardingPage({
   }
 
   const price = client.custom_monthly_price ?? 0;
-  const planName = CUSTOM_PLAN_NAME;
+  const planName = planNameFor(client.platforms);
   const displayStep =
     step === "contract" && !state?.details_confirmed ? "details" : step;
 

@@ -86,7 +86,7 @@ export async function createContractDocument(
       data: {
         brand: { name: entityConfig.brandName },
         proposal: {
-          title: "Managed Paid Search Services Agreement",
+          title: `Managed ${quote.channels} Services Agreement`,
           currency: feeCurrency,
         },
         client: {

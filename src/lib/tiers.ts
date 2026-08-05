@@ -10,8 +10,14 @@
 /** Marker stored in clients.service_tier — all MaaS clients are 'custom'. */
 export const CUSTOM_TIER_KEY = "custom";
 
-/** Single client-facing plan name (quote + contract). */
-export const CUSTOM_PLAN_NAME = "Paid Search — Managed Service";
+/** Single client-facing plan name (quote + contract). Legacy constant kept as
+ *  the no-platforms fallback; prefer planNameFor so a Meta client is never
+ *  handed a "Paid Search" agreement (caught 2026-08-05, first FZCO client). */
+export const CUSTOM_PLAN_NAME = "Managed Advertising Service";
+
+export function planNameFor(platforms: string[] | null | undefined): string {
+  return platforms?.length ? `Managed ${channelsLabel(platforms)} Service` : CUSTOM_PLAN_NAME;
+}
 
 /** Platforms an admin can select at client creation. */
 export const PLATFORM_OPTIONS = ["Google Ads", "Microsoft Ads", "Meta Ads"] as const;
