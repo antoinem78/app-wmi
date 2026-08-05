@@ -7,6 +7,7 @@
 //   node scripts/agent-relay.mjs bernard "message"
 //   node scripts/agent-relay.mjs oscar "message"
 //   node scripts/agent-relay.mjs oscar --scope <client-uuid> "message"   # per-client thread
+//   node scripts/agent-relay.mjs <agent> --file spec.txt                 # message from a file (USE THIS for anything long)
 //   node scripts/agent-relay.mjs <agent> --history [N]                   # print last N turns, send nothing
 //
 // Auth: <AGENT>_RELAY_KEY from the environment or .env.local (never committed).
@@ -133,9 +134,29 @@ if (args[0] === "--history") {
   process.exit(0);
 }
 
-const text = args.join(" ").trim();
+// --file wins over argv. Long messages passed as shell arguments get mangled
+// (PowerShell in particular re-serialises native command args and mauls quotes
+// and newlines), which silently truncated a spec on its way to Bernard and cost
+// a round trip to notice. Anything longer than a sentence should go via a file.
+let text;
+const fileIdx = args.indexOf("--file");
+if (fileIdx >= 0) {
+  const path = args[fileIdx + 1];
+  if (!path) {
+    console.error("--file needs a path to a UTF-8 text file containing the message.");
+    process.exit(2);
+  }
+  try {
+    text = readFileSync(resolve(path), "utf8").trim();
+  } catch (e) {
+    console.error(`Cannot read ${path}: ${e.message}`);
+    process.exit(2);
+  }
+} else {
+  text = args.join(" ").trim();
+}
 if (!text) {
-  console.error(`Usage: node scripts/agent-relay.mjs ${agentId} [--scope <client-uuid>] "message" | --history [N]`);
+  console.error(`Usage: node scripts/agent-relay.mjs ${agentId} [--scope <client-uuid>] "message" | --file <path> | --history [N]`);
   process.exit(2);
 }
 

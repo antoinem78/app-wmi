@@ -119,6 +119,11 @@ export async function POST(request: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      // assistantText is what gets PERSISTED, so a reset does not merely tidy
+      // the screen, it deletes the reply from the transcript. That is only safe
+      // because runBernardChatStream now emits reset solely for genuine
+      // preamble (never on a bookkeeping-only tool turn). If that guard is ever
+      // loosened, Bernard's answers start vanishing from the thread again.
       let assistantText = "";
       const send = (ev: AgentEvent) => {
         if (ev.type === "delta" && ev.text) assistantText += ev.text;
