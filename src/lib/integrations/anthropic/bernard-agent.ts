@@ -304,6 +304,18 @@ async function runTool(
   }
 }
 
+// Bookkeeping tools run AFTER the answer is written, not before it, so any text
+// streamed ahead of them is the reply itself and must survive the tool turn.
+const BOOKKEEPING_TOOLS = new Set(["remember", "revise_memory", "forget"]);
+const PREAMBLE_MAX_CHARS = 400;
+
+/** True when the text streamed during a tool turn is throat-clearing rather
+ *  than the answer. Only then is it safe to tell the client to discard it. */
+function isPreamble(text: string, toolUses: { name: string }[]): boolean {
+  if (toolUses.every((t) => BOOKKEEPING_TOOLS.has(t.name))) return false;
+  return text.trim().length <= PREAMBLE_MAX_CHARS;
+}
+
 // Streaming Bernard chat. Same NDJSON event contract as the Rexos agent so the
 // UI plumbing is shared: status while tools run, delta for answer text, reset
 // to drop tool-turn preamble, then done (or error).
@@ -368,7 +380,11 @@ export async function runBernardChatStream(
         tools: TOOLS,
         messages,
       });
-      stream.on("text", (t) => emit({ type: "delta", text: t }));
+      let turnText = "";
+      stream.on("text", (t) => {
+        turnText += t;
+        emit({ type: "delta", text: t });
+      });
       const final = await stream.finalMessage();
 
       if (final.stop_reason === "refusal") {
@@ -390,7 +406,11 @@ export async function runBernardChatStream(
       }
 
       messages.push({ role: "assistant", content: sanitizeForEcho(final.content) });
-      emit({ type: "reset" }); // drop any preamble streamed during the tool turn
+      // Drop preamble streamed during a tool turn ("let me check…"), but never
+      // the answer itself. Bernard routinely writes a full reply and only then
+      // calls remember/revise_memory to file it; resetting there deleted
+      // everything he had said and left the founder the closing line alone.
+      if (isPreamble(turnText, toolUses)) emit({ type: "reset" });
       const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
       for (const tu of toolUses) {
         emit({ type: "status", text: statusLabel(tu.name) });

@@ -39,6 +39,18 @@ export type AgentEvent =
   | { type: "done" }
   | { type: "error"; text: string };
 
+// Bookkeeping tools run AFTER the answer is written, not before it, so any text
+// streamed ahead of them is the reply itself and must survive the tool turn.
+const BOOKKEEPING_TOOLS = new Set(["remember", "revise_memory", "forget"]);
+const PREAMBLE_MAX_CHARS = 400;
+
+/** True when the text streamed during a tool turn is throat-clearing rather
+ *  than the answer. Only then is it safe to tell the client to discard it. */
+function isPreamble(text: string, toolUses: { name: string }[]): boolean {
+  if (toolUses.every((t) => BOOKKEEPING_TOOLS.has(t.name))) return false;
+  return text.trim().length <= PREAMBLE_MAX_CHARS;
+}
+
 // ---- Account roster + resolution (cheap; DB only, no GAQL) ----
 interface RosterEntry { clientId: string | null; reportingId: string; company: string; status: string; imported: boolean }
 // MCC-wide READS: the roster is imported clients PLUS every leaf under the MCC
@@ -718,7 +730,11 @@ export async function runAgentChatStream(
         tools: ALL_TOOLS,
         messages,
       });
-      stream.on("text", (t) => emit({ type: "delta", text: t }));
+      let turnText = "";
+      stream.on("text", (t) => {
+        turnText += t;
+        emit({ type: "delta", text: t });
+      });
       const final = await stream.finalMessage();
       const toolUses = final.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
       if (final.stop_reason !== "tool_use" || toolUses.length === 0) {
@@ -726,7 +742,10 @@ export async function runAgentChatStream(
         return;
       }
       messages.push({ role: "assistant", content: final.content });
-      emit({ type: "reset" }); // drop any "let me check…" preamble from this tool turn
+      // Drop "let me check…" preamble, never the answer. Oscar writes his reply
+      // and only then calls remember/revise_memory to file it; an unconditional
+      // reset there deleted the whole reply and left the closing line alone.
+      if (isPreamble(turnText, toolUses)) emit({ type: "reset" });
       const results: Anthropic.ToolResultBlockParam[] = [];
       for (const tu of toolUses) {
         emit({ type: "status", text: statusLabel(tu.name, (tu.input ?? {}) as Record<string, unknown>) });
