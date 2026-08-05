@@ -9,7 +9,17 @@
 // down. Meta reads and executor dispatches run in the substrate, not here.
 import Anthropic from "@anthropic-ai/sdk";
 import { getBernardStatus, decideFix, standDown, dispatchBuild, type BuildDispatch } from "@/lib/bernard";
-import { listMetaAdAccounts, getMetaAuditData, metaConfigured, normalizeActId } from "@/lib/integrations/meta";
+import {
+  listMetaAdAccounts,
+  getMetaAuditData,
+  metaConfigured,
+  normalizeActId,
+  readAdCopy,
+  listCustomAudiences,
+  getAdSetDetail,
+  getCreativePerformance,
+  getPixelStats,
+} from "@/lib/integrations/meta";
 import type { AgentEvent, ChatMessage } from "@/lib/integrations/anthropic/agent";
 import type { Attachment } from "@/lib/attachments";
 import { makeEmDashScrubber } from "@/lib/emdash";
@@ -77,6 +87,66 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
         days: { type: "number", description: "Review window in days (default 30, 7-90); compared against the prior window of the same length" },
       },
       required: ["account_id"],
+    },
+  },
+  {
+    name: "read_ad_copy",
+    description:
+      "READ the actual words in an account's ads: every headline, primary text and description variant, plus each creative's Instagram identity. Also returns deterministic flags for em dashes and discount/savings claims. Call this BEFORE recommending, reusing or duplicating ANY creative: performance figures do not show you what an ad says, and a creative that looks like a winner can carry a claim the client has retired. Defaults to serving and in-review ads; pass status 'all' to sweep the paused pool before duplicating out of it.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string", description: "Ad account id (digits or act_ prefixed)" },
+        status: { type: "string", enum: ["active", "all"], description: "Default 'active' (serving + in review). 'all' includes paused and archived." },
+        limit: { type: "number", description: "Max ads to scan, 1-200, default 50" },
+      },
+      required: ["account_id"],
+    },
+  },
+  {
+    name: "list_audiences",
+    description:
+      "READ an account's custom audiences: name, id, subtype, retention, the event sources and events behind each rule, whether exclusions exist, and crucially whether Meta says the audience can actually serve. Use before building any retargeting layer, and to check whether an audience you are about to ask for already exists. Audience SIZE is deliberately not returned: Meta suppresses it on advanced-matching website audiences and the API's count fields are placeholders that must never be quoted as counts.",
+    input_schema: {
+      type: "object",
+      properties: { account_id: { type: "string", description: "Ad account id (digits or act_ prefixed)" } },
+      required: ["account_id"],
+    },
+  },
+  {
+    name: "get_adset_detail",
+    description:
+      "READ one ad set's full live configuration: budget, optimisation goal and conversion event, pixel, bid strategy, geo, age, gender, included and excluded audiences, placements and devices. Use to verify a single change by read-back rather than trusting a report, and to confirm what an ad set actually targets before dispatching into it.",
+    input_schema: {
+      type: "object",
+      properties: { adset_id: { type: "string", description: "The ad set id" } },
+      required: ["adset_id"],
+    },
+  },
+  {
+    name: "get_creative_performance",
+    description:
+      "READ ad-level performance ranked by spend: spend, impressions, CTR, add to carts, purchases, revenue and ROAS per ad. Use to decide which creative is actually earning rather than which is assumed to. Pair it with read_ad_copy before any creative recommendation: this tool tells you what performs, that one tells you what it says.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string", description: "Ad account id (digits or act_ prefixed)" },
+        days: { type: "number", description: "Window in days. Omit for lifetime." },
+      },
+      required: ["account_id"],
+    },
+  },
+  {
+    name: "get_pixel_stats",
+    description:
+      "READ a pixel's event volume by event type over a window (PageView, ViewContent, AddToCart, Purchase and so on). Use to establish whether an audience pool can exist before blaming audience size, and to size an event window honestly (a 30-day AddToCart audience on 40 events a month is not an audience).",
+    input_schema: {
+      type: "object",
+      properties: {
+        pixel_id: { type: "string", description: "The pixel/dataset id" },
+        days: { type: "number", description: "Window in days, 1-90, default 30" },
+      },
+      required: ["pixel_id"],
     },
   },
   {
@@ -188,6 +258,9 @@ WHAT RUNS ELSEWHERE (be straight about it):
 
 AUDIT CRAFT:
 - Anchor every number to the data you fetched; if a section came back with an error, say so instead of working around it silently.
+- NEVER recommend, reuse or dispatch a creative whose words you have not read. Call read_ad_copy first, every time. Performance figures do not show you what an ad says: on 2026-08-06 a creative was recommended on its ROAS and carried a "Save up to 72%" headline that an audit had already pledged to retire. read_ad_copy also flags em dashes (a standing founder ruling) and tells you whether an Instagram identity is attached at all.
+- Before proposing an audience, call list_audiences: the one you are about to ask for may already exist. Audience size is NOT available and no tool will give it to you. Meta suppresses it on advanced-matching website audiences, and the API's count fields are placeholders. Use canServe for usability, get_pixel_stats to judge whether a pool can exist, and the publish-time estimate for size. Never set a go/no-go threshold on a number you cannot obtain.
+- Verify changes by read-back with get_adset_detail rather than trusting a report, yours or anyone's.
 - On a "performance dropped" complaint, check in order: spend pacing and delivery gaps in the daily trend, learning-phase state and recent ad set churn (updated timestamps), budget or bid strategy changes, frequency/fatigue, and pixel health (last fire). Attribute the drop to what the data shows, not to a template.
 
 HOW YOU SPEAK:
@@ -230,12 +303,31 @@ function statusLabel(name: string): string {
     case "stand_down": return "Standing the client down…";
     case "list_meta_accounts": return "Listing ad accounts…";
     case "run_audit": return "Auditing the account (live reads)…";
+    case "read_ad_copy": return "Reading the ad copy…";
+    case "list_audiences": return "Reading the audiences…";
+    case "get_adset_detail": return "Reading the ad set config…";
+    case "get_creative_performance": return "Ranking the creatives…";
+    case "get_pixel_stats": return "Reading pixel event volume…";
     case "dispatch_build": return "Dispatching the build to the substrate…";
     case "remember": return "Committing that to memory…";
     case "revise_memory": return "Updating what I know…";
     case "forget": return "Forgetting that…";
     default: return "Working…";
   }
+}
+
+const META_NOT_CONFIGURED = {
+  error:
+    "Meta access is not configured on this deployment (META_ADS_TOKEN missing) — tell the founder it needs adding to the environment.",
+};
+
+/** Shared guard for the account-scoped Meta reads. */
+function requireMetaAccount(ref: unknown, tool: string): { digits: string } | { error: string } {
+  if (!metaConfigured()) return META_NOT_CONFIGURED;
+  const s = String(ref ?? "").trim();
+  if (!/^(act_)?\d{6,}$/.test(s))
+    return { error: `${tool} needs a numeric ad account id — resolve the name via list_meta_accounts first.` };
+  return { digits: normalizeActId(s).digits };
 }
 
 async function runTool(
@@ -273,6 +365,37 @@ async function runTool(
       const { digits } = normalizeActId(ref);
       const data = await getMetaAuditData(digits, days);
       return { ...data, download_path: `/api/bernard/audit/${digits}?days=${days}` };
+    }
+    case "read_ad_copy": {
+      const guard = requireMetaAccount(input.account_id, "read_ad_copy");
+      if ("error" in guard) return guard;
+      const status = input.status === "all" ? "all" : "active";
+      const limit = Number(input.limit) || undefined;
+      return readAdCopy(guard.digits, { status, limit });
+    }
+    case "list_audiences": {
+      const guard = requireMetaAccount(input.account_id, "list_audiences");
+      if ("error" in guard) return guard;
+      return listCustomAudiences(guard.digits);
+    }
+    case "get_adset_detail": {
+      if (!metaConfigured()) return META_NOT_CONFIGURED;
+      const id = String(input.adset_id ?? "").trim();
+      if (!/^\d{6,}$/.test(id)) return { error: "get_adset_detail needs a numeric ad set id." };
+      return getAdSetDetail(id);
+    }
+    case "get_creative_performance": {
+      const guard = requireMetaAccount(input.account_id, "get_creative_performance");
+      if ("error" in guard) return guard;
+      const days = input.days ? Math.min(365, Math.max(1, Math.round(Number(input.days)))) : undefined;
+      return getCreativePerformance(guard.digits, { days });
+    }
+    case "get_pixel_stats": {
+      if (!metaConfigured()) return META_NOT_CONFIGURED;
+      const id = String(input.pixel_id ?? "").trim();
+      if (!/^\d{6,}$/.test(id)) return { error: "get_pixel_stats needs a numeric pixel id." };
+      const days = Math.min(90, Math.max(1, Math.round(Number(input.days) || 30)));
+      return getPixelStats(id, { days });
     }
     case "dispatch_build": {
       const spec = input as unknown as BuildDispatch;

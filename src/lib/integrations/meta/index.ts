@@ -4,7 +4,11 @@
 // assigning an account to the system user in Business Manager puts it in reach
 // immediately — no manual registration needed for reads/audits. (Executor
 // dispatch still requires lab onboarding in the substrate.)
-const GRAPH = "https://graph.facebook.com/v21.0";
+// v23.0, not v21: Meta silently serves v21 calls on a newer version and then
+// rejects fields it retired there. Reading a creative's Instagram identity on
+// v21 returns "(#12) Old Instagram ID is deprecated for versions v22.0 and
+// higher" because instagram_actor_id no longer exists; instagram_user_id does.
+const GRAPH = "https://graph.facebook.com/v23.0";
 
 function token(): string | null {
   return process.env.META_ADS_TOKEN ?? null;
@@ -239,5 +243,307 @@ export async function getMetaAuditData(accountRef: string, days = 30) {
       id: p.id, name: p.name, lastFired: p.last_fired_time,
     })),
     note: "All figures read live from the ad account (read-only). Budgets/spend in account currency major units. 'learning' is the ad set learning phase where exposed.",
+  };
+}
+
+// ---- Copy, audience and diagnostic reads (added 2026-08-06) -----------------
+// Bernard could see performance but not words. That blind spot let a "Save up
+// to 72%" headline, which an audit had pledged to retire, survive into a
+// dispatched ad, and left every em dash in the account unread. Everything
+// below is a GET; the read-only ruling is unchanged.
+
+const EM_DASH = /[—–‒―]/;
+const DISCOUNT_CLAIM = /save up to|\d+\s?%\s?off|% off|save \$?\d|discount|\bsale\b|clearance|voucher|promo code/i;
+
+/** One named piece of ad text plus whatever is wrong with it. */
+export interface CopyField {
+  where: string; // "title[1]", "body[3]", "description[1]", "link.headline"
+  text: string;
+  emDash: boolean;
+  discountClaim: boolean;
+}
+
+export interface AdCopyRow {
+  adId: string;
+  adName: string;
+  status: string; // effective_status
+  adsetId: string;
+  campaignId: string;
+  creativeId: string;
+  instagramUserId: string | null;
+  pageId: string | null;
+  identityOk: boolean; // an Instagram identity is attached at all
+  fields: CopyField[];
+}
+
+function collectCopy(c: Record<string, unknown>): CopyField[] {
+  const out: CopyField[] = [];
+  const push = (where: string, text: unknown) => {
+    const s = typeof text === "string" ? text.trim() : "";
+    if (!s) return;
+    out.push({ where, text: s, emDash: EM_DASH.test(s), discountClaim: DISCOUNT_CLAIM.test(s) });
+  };
+  const afs = (c.asset_feed_spec ?? {}) as Record<string, unknown>;
+  const list = (k: string) => (Array.isArray(afs[k]) ? (afs[k] as { text?: unknown }[]) : []);
+  list("titles").forEach((t, i) => push(`title[${i + 1}]`, t.text));
+  list("bodies").forEach((t, i) => push(`body[${i + 1}]`, t.text));
+  list("descriptions").forEach((t, i) => push(`description[${i + 1}]`, t.text));
+  push("title", c.title);
+  push("body", c.body);
+  const ld = ((c.object_story_spec ?? {}) as Record<string, unknown>).link_data as Record<string, unknown> | undefined;
+  if (ld) {
+    push("link.headline", ld.name);
+    push("link.primary_text", ld.message);
+    push("link.description", ld.description);
+  }
+  return out;
+}
+
+/**
+ * Every ad's actual words, with the creative's Instagram identity and
+ * deterministic style/claim flags. Defaults to what is serving, because that
+ * is what can embarrass the client today; pass status "all" to sweep the
+ * paused pool before duplicating anything out of it.
+ */
+export async function readAdCopy(
+  accountRef: string,
+  opts: { status?: "active" | "all"; limit?: number } = {},
+): Promise<
+  | {
+      ads: AdCopyRow[];
+      emDashCount: number;
+      discountClaimCount: number;
+      scanned: number;
+      truncated: boolean;
+      note: string;
+    }
+  | { error: string }
+> {
+  const { act } = normalizeActId(accountRef);
+  const limit = Math.min(Math.max(opts.limit ?? 200, 1), 200);
+  const wantActive = (opts.status ?? "active") === "active";
+  const params: Record<string, string> = {
+    fields:
+      "id,name,effective_status,adset_id,campaign_id," +
+      "creative{id,title,body,asset_feed_spec,object_story_spec,instagram_user_id}",
+    limit: String(limit),
+  };
+  // Filter server-side. Filtering a truncated page client-side silently drops
+  // ads: this account has 78 ads, so a 50-row page hid the paused retargeting
+  // pair entirely and would have reported them as absent.
+  if (wantActive) {
+    params.effective_status = JSON.stringify(["ACTIVE", "PENDING_REVIEW", "IN_PROCESS"]);
+  }
+  const r = await graphGet(`${act}/ads`, params);
+  if (r.error) return { error: r.error };
+
+  const ads: AdCopyRow[] = [];
+  const raw = rows(r);
+  for (const a of raw) {
+    const status = String(a.effective_status ?? "");
+    const c = (a.creative ?? {}) as Record<string, unknown>;
+    const oss = (c.object_story_spec ?? {}) as Record<string, unknown>;
+    const ig = (c.instagram_user_id ?? oss.instagram_user_id ?? null) as string | null;
+    ads.push({
+      adId: String(a.id ?? ""),
+      adName: String(a.name ?? ""),
+      status,
+      adsetId: String(a.adset_id ?? ""),
+      campaignId: String(a.campaign_id ?? ""),
+      creativeId: String(c.id ?? ""),
+      instagramUserId: ig ? String(ig) : null,
+      pageId: oss.page_id ? String(oss.page_id) : null,
+      identityOk: Boolean(ig),
+      fields: collectCopy(c),
+    });
+  }
+  const emDashCount = ads.reduce((n, a) => n + a.fields.filter((f) => f.emDash).length, 0);
+  const discountClaimCount = ads.reduce((n, a) => n + a.fields.filter((f) => f.discountClaim).length, 0);
+  const truncated = raw.length >= limit;
+  return {
+    ads,
+    emDashCount,
+    discountClaimCount,
+    scanned: ads.length,
+    truncated,
+    note:
+      "Live creative text. emDash and discountClaim are deterministic flags, not judgements: read the text before acting. identityOk false means no Instagram identity is attached, so profile taps land on a page-backed shell. " +
+      (wantActive
+        ? "Serving and in-review ads only, filtered server-side; pass status 'all' before duplicating from the paused pool. "
+        : "Full pool including paused and archived. ") +
+      (truncated
+        ? "TRUNCATED: the page limit was reached, so ads are missing from this result. Do not treat anything as absent; narrow the request or raise the limit."
+        : "Complete for this filter."),
+  };
+}
+
+/** Custom audiences with their rules in readable form. */
+export async function listCustomAudiences(
+  accountRef: string,
+): Promise<{ audiences: Record<string, unknown>[]; note: string } | { error: string }> {
+  const { act } = normalizeActId(accountRef);
+  const r = await graphGet(`${act}/customaudiences`, {
+    fields: "id,name,subtype,retention_days,delivery_status,operation_status,time_created,rule",
+    limit: "100",
+  });
+  if (r.error) return { error: r.error };
+  const audiences = rows(r).map((a) => {
+    const rule = String(a.rule ?? "");
+    const events = [...new Set([...rule.matchAll(/"value":"([A-Za-z_]+)"/g)].map((m) => m[1]))];
+    const sources = [...new Set([...rule.matchAll(/"type":"([a-z_]+)"/g)].map((m) => m[1]))];
+    const ds = (a.delivery_status ?? {}) as { code?: number; description?: string };
+    return {
+      id: String(a.id ?? ""),
+      name: String(a.name ?? ""),
+      subtype: String(a.subtype ?? ""),
+      retentionDays: Number(a.retention_days ?? 0),
+      created: a.time_created ? new Date(Number(a.time_created) * 1000).toISOString().slice(0, 10) : null,
+      canServe: ds.code === 200,
+      deliveryNote: ds.description ?? null,
+      eventSources: sources,
+      events,
+      hasExclusions: /"exclusions"/.test(rule),
+    };
+  });
+  return {
+    audiences,
+    note:
+      "Audience SIZE is deliberately absent here. Meta suppresses it for privacy on website audiences that use advanced matching, and the API's approximate_count fields return placeholders (identical numbers across unrelated audiences) that must never be read as counts. Use canServe for whether a pool is usable; true size appears only when an ad set using it is published.",
+  };
+}
+
+/** One ad set's full configuration, for verifying a single change. */
+export async function getAdSetDetail(adsetId: string): Promise<Record<string, unknown> | { error: string }> {
+  const r = await graphGet(String(adsetId).trim(), {
+    fields:
+      "id,name,status,effective_status,campaign_id,daily_budget,lifetime_budget,optimization_goal," +
+      "billing_event,bid_strategy,promoted_object,targeting,created_time,updated_time",
+  });
+  if (r.error) return { error: r.error };
+  const s = (r.data ?? {}) as Record<string, unknown>;
+  const t = (s.targeting ?? {}) as Record<string, unknown>;
+  const geo = (t.geo_locations ?? {}) as Record<string, unknown>;
+  const promoted = (s.promoted_object ?? {}) as { custom_event_type?: string; pixel_id?: string };
+  const named = (arr: unknown) =>
+    Array.isArray(arr)
+      ? arr.map((x) => ({
+          id: String((x as { id?: unknown }).id ?? ""),
+          name: String((x as { name?: unknown }).name ?? ""),
+        }))
+      : [];
+  return {
+    id: String(s.id ?? ""),
+    name: String(s.name ?? ""),
+    status: String(s.status ?? ""),
+    effectiveStatus: String(s.effective_status ?? ""),
+    campaignId: String(s.campaign_id ?? ""),
+    dailyBudget: s.daily_budget ? Number(s.daily_budget) / 100 : null,
+    lifetimeBudget: s.lifetime_budget ? Number(s.lifetime_budget) / 100 : null,
+    optimizationGoal: String(s.optimization_goal ?? ""),
+    conversionEvent: promoted.custom_event_type ?? null,
+    pixelId: promoted.pixel_id ?? null,
+    billingEvent: String(s.billing_event ?? ""),
+    bidStrategy: String(s.bid_strategy ?? ""),
+    countries: geo.countries ?? null,
+    ageMin: t.age_min ?? null,
+    ageMax: t.age_max ?? null,
+    genders: t.genders ?? "all",
+    includedAudiences: named(t.custom_audiences),
+    excludedAudiences: named(t.excluded_custom_audiences),
+    publisherPlatforms: t.publisher_platforms ?? "default (all placements, Audience Network included)",
+    devicePlatforms: t.device_platforms ?? "default (all devices, desktop included)",
+    updated: s.updated_time ?? null,
+    note: "Budgets converted to major units. An absent publisher_platforms means every placement is on, Audience Network included.",
+  };
+}
+
+/** Ad-level performance, ranked, so creative choices rest on figures. */
+export async function getCreativePerformance(
+  accountRef: string,
+  opts: { days?: number } = {},
+): Promise<{ ads: Record<string, unknown>[]; totals: Record<string, number>; note: string } | { error: string }> {
+  const { act } = normalizeActId(accountRef);
+  const params: Record<string, string> = {
+    level: "ad",
+    fields: "ad_id,ad_name,campaign_name,spend,impressions,clicks,ctr,actions,action_values",
+    limit: "200",
+  };
+  if (opts.days) {
+    const end = new Date();
+    const start = new Date(end.getTime() - opts.days * 86400000);
+    params.time_range = JSON.stringify({
+      since: start.toISOString().slice(0, 10),
+      until: end.toISOString().slice(0, 10),
+    });
+  } else {
+    params.date_preset = "maximum";
+  }
+  const r = await graphGet(`${act}/insights`, params);
+  if (r.error) return { error: r.error };
+  const pick = (arr: unknown, re: RegExp) =>
+    Number(
+      (Array.isArray(arr) ? (arr as { action_type?: string; value?: unknown }[]) : []).find((a) =>
+        re.test(String(a.action_type)),
+      )?.value ?? 0,
+    );
+
+  let totalSpend = 0;
+  let totalValue = 0;
+  const ads = rows(r)
+    .map((x) => {
+      const spend = Number(x.spend ?? 0);
+      const value = pick(x.action_values, /^(offsite_conversion\.fb_pixel_purchase|purchase)$/);
+      totalSpend += spend;
+      totalValue += value;
+      return {
+        adId: String(x.ad_id ?? ""),
+        adName: String(x.ad_name ?? ""),
+        campaign: String(x.campaign_name ?? ""),
+        spend: Number(spend.toFixed(2)),
+        impressions: Number(x.impressions ?? 0),
+        ctr: Number(Number(x.ctr ?? 0).toFixed(2)),
+        addToCarts: pick(x.actions, /^(offsite_conversion\.fb_pixel_add_to_cart|add_to_cart)$/),
+        purchases: pick(x.actions, /^(offsite_conversion\.fb_pixel_purchase|purchase)$/),
+        value: Number(value.toFixed(2)),
+        roas: spend > 0 ? Number((value / spend).toFixed(2)) : 0,
+      };
+    })
+    .filter((a) => a.spend >= 1)
+    .sort((a, b) => b.spend - a.spend);
+
+  return {
+    ads,
+    totals: {
+      spend: Number(totalSpend.toFixed(2)),
+      value: Number(totalValue.toFixed(2)),
+      roas: totalSpend > 0 ? Number((totalValue / totalSpend).toFixed(2)) : 0,
+    },
+    note: "Ads under $1 spend omitted. ROAS on tiny spend is noise, so check the spend column before letting a high ROAS decide anything, and read the ad's words with read_ad_copy before recommending it.",
+  };
+}
+
+/** Pixel event volume, which tells you whether an audience pool can exist at all. */
+export async function getPixelStats(
+  pixelId: string,
+  opts: { days?: number } = {},
+): Promise<{ pixelId: string; days: number; events: Record<string, number>; note: string } | { error: string }> {
+  const days = Math.min(Math.max(opts.days ?? 30, 1), 90);
+  const since = Math.floor(Date.now() / 1000) - days * 86400;
+  const r = await graphGet(`${String(pixelId).trim()}/stats`, {
+    aggregation: "event_total_counts",
+    start_time: String(since),
+  });
+  if (r.error) return { error: r.error };
+  const events: Record<string, number> = {};
+  for (const bucket of rows(r)) {
+    for (const e of (bucket.data ?? []) as { value?: string; count?: number }[]) {
+      if (e.value) events[e.value] = (events[e.value] ?? 0) + Number(e.count ?? 0);
+    }
+  }
+  return {
+    pixelId: String(pixelId),
+    days,
+    events,
+    note: "Event counts, not unique people. A healthy count alongside a pool that cannot serve points at a match-rate or audience-rule problem, not a traffic problem.",
   };
 }
