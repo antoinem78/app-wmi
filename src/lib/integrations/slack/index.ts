@@ -56,11 +56,23 @@ export function channelNameFor(companyName: string): string {
 export async function createClientChannel(companyName: string): Promise<string> {
   const name = channelNameFor(companyName);
   try {
-    const created = await slack<{ ok: boolean; channel: { id: string } }>(
-      "conversations.create",
-      { name },
-    );
-    return created.channel.id;
+    // Private by default: a client in the workspace should see their channel
+    // and nothing else. Falls back to public when the bot lacks groups:write
+    // (older app installs), so provisioning never breaks on a scope.
+    try {
+      const created = await slack<{ ok: boolean; channel: { id: string } }>(
+        "conversations.create",
+        { name, is_private: true },
+      );
+      return created.channel.id;
+    } catch (e) {
+      if (!(e instanceof Error && e.message.includes("missing_scope"))) throw e;
+      const created = await slack<{ ok: boolean; channel: { id: string } }>(
+        "conversations.create",
+        { name },
+      );
+      return created.channel.id;
+    }
   } catch (e) {
     if (e instanceof Error && e.message.includes("name_taken")) {
       // Already exists — find it.
