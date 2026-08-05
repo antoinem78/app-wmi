@@ -11,6 +11,7 @@ import {
   planFeatures,
 } from "@/lib/tiers";
 import { entityConfig, formatMoney } from "@/lib/config";
+import { StepAutoAdvance } from "@/components/StepAutoAdvance";
 import { Wordmark } from "@/components/Wordmark";
 import { PoweredBy } from "@/components/PoweredBy";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -760,6 +761,7 @@ function ContractStep({
   if (signingUrl) {
     return (
       <>
+        <StepAutoAdvance clientId={id} shownStep="contract" />
         <h1 className="text-xl font-semibold text-zinc-900">
           Review &amp; sign your agreement
         </h1>
