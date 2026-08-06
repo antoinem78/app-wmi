@@ -263,12 +263,54 @@ YOUR JOB:
 /** The system prompt for one turn: the fixed brief plus everything Oscar has
  *  chosen to remember. Loaded per request so a memory written earlier in the
  *  same conversation is in scope on the next turn. */
-function buildSystem(memoryBlock: string): string {
-  return `${SYSTEM_BASE}
+/**
+ * System prompt as cache-separated blocks. The brief never changes so it caches
+ * with the tool definitions ahead of it in the prefix; the memory block gets its
+ * own breakpoint so writing a memory invalidates only itself; the focus note
+ * varies per client and stays uncached at the end.
+ *
+ * The agent loop re-sends this prefix on every one of up to 8 iterations, so
+ * without breakpoints a tool-heavy turn pays for the whole thing eight times.
+ */
+function buildSystem(memoryBlock: string, focus = ""): Anthropic.TextBlockParam[] {
+  const blocks: Anthropic.TextBlockParam[] = [
+    { type: "text", text: SYSTEM_BASE, cache_control: { type: "ephemeral" } },
+    {
+      type: "text",
+      text: `=== MEMORY (yours, written by you, persists across all sessions) ===\n${memoryBlock}\n=== END MEMORY ===`,
+      cache_control: { type: "ephemeral" },
+    },
+  ];
+  if (focus) blocks.push({ type: "text", text: focus });
+  return blocks;
+}
 
-=== MEMORY (yours, written by you, persists across all sessions) ===
-${memoryBlock}
-=== END MEMORY ===`;
+/**
+ * Move the conversation cache breakpoint to the tail of the transcript. Each
+ * loop iteration appends the assistant turn and its tool results, so without
+ * this every iteration re-pays full price for what the previous ones sent. Old
+ * markers are cleared first: the API caps breakpoints at four and the two
+ * system blocks already hold two.
+ */
+function markConversationCache(messages: Anthropic.MessageParam[]): void {
+  const asRecords = (c: unknown) => c as unknown as Record<string, unknown>[];
+  for (const m of messages) {
+    if (typeof m.content === "string") continue;
+    for (const block of asRecords(m.content)) {
+      if (block && typeof block === "object") delete block.cache_control;
+    }
+  }
+  const last = messages[messages.length - 1];
+  if (!last) return;
+  if (typeof last.content === "string") {
+    last.content = [
+      { type: "text", text: last.content, cache_control: { type: "ephemeral" } },
+    ];
+    return;
+  }
+  const blocks = asRecords(last.content);
+  const tail = blocks[blocks.length - 1];
+  if (tail && typeof tail === "object") tail.cache_control = { type: "ephemeral" };
 }
 
 const EXEC_TOOLS: Anthropic.Tool[] = [
@@ -632,14 +674,15 @@ export async function runAgentChat(
   const ctx: ToolContext = { roster: await loadRoster(), actor };
   // Memory is read fresh each turn, so a memory written a moment ago is already
   // in scope, and it is scoped to Oscar so Bernard's notes never leak in.
-  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT)) + focusNote(ctx.roster, focusClientId);
+  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT), focusNote(ctx.roster, focusClientId));
 
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
 
   for (let i = 0; i < 8; i++) {
+    markConversationCache(messages);
     const resp = await client.messages.create({
       model: MODEL,
-      max_tokens: 2000,
+      max_tokens: 8000,
       system,
       tools: ALL_TOOLS,
       messages,
@@ -718,14 +761,17 @@ export async function runAgentChatStream(
   const ctx: ToolContext = { roster: await loadRoster(), actor };
   // Memory is read fresh each turn, so a memory written a moment ago is already
   // in scope, and it is scoped to Oscar so Bernard's notes never leak in.
-  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT)) + focusNote(ctx.roster, focusClientId);
+  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT), focusNote(ctx.roster, focusClientId));
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
 
   try {
     for (let i = 0; i < 8; i++) {
+      markConversationCache(messages);
       const stream = client.messages.stream({
         model: MODEL,
-        max_tokens: 2000,
+        // Was 2000, which truncated a long analysis mid-sentence. Bernard runs
+        // far higher; Oscar needs room to lay out a build spec or a full read.
+        max_tokens: 8000,
         system,
         tools: ALL_TOOLS,
         messages,

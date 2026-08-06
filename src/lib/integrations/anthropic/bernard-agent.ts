@@ -40,6 +40,8 @@ const FALLBACK_MODEL = "claude-opus-4-8";
 
 const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
   {
+    // Tools sit ahead of the system prompt in the cacheable prefix, so the
+    // breakpoint on SYSTEM_BASE covers this whole block too.
     name: "get_status",
     description:
       "Bernard's live lab snapshot from the substrate: lab clients (armed/disabled/stand-down, doctrine version, skill install state, monitors, ad accounts), fixes awaiting founder approval, recent activity trail, and remaining executor credits. Call this before answering any question about the current state of the lab.",
@@ -296,15 +298,56 @@ HOW YOU SPEAK:
 - Don't narrate tool use; call the tool, then answer.
 - Never claim an action succeeded unless the tool result says so. If an endpoint errors, report the failure plainly.`;
 
-/** The system prompt for one turn: the fixed brief plus everything Bernard has
- *  chosen to remember. Loaded per request so a memory written earlier in the
- *  same conversation is in scope on the next turn. */
-function buildSystem(memoryBlock: string): string {
-  return `${SYSTEM_BASE}
+/**
+ * The system prompt for one turn, as two cache-separated blocks.
+ *
+ * Split deliberately. The brief never changes, so it caches forever alongside
+ * the tool definitions ahead of it in the prefix. The memory block changes the
+ * moment Bernard writes a memory, so it gets its own breakpoint: a memory write
+ * invalidates only the second block and the first still reads back cheap.
+ *
+ * This matters more than it looks. The agent loop runs up to 8 iterations per
+ * message and re-sends the whole prefix every time, so ~6k tokens of brief and
+ * tools were being paid for at full price eight times over on a tool-heavy turn.
+ */
+function buildSystem(memoryBlock: string): Anthropic.Beta.BetaTextBlockParam[] {
+  return [
+    { type: "text", text: SYSTEM_BASE, cache_control: { type: "ephemeral" } },
+    {
+      type: "text",
+      text: `=== MEMORY (yours, written by you, persists across all sessions) ===\n${memoryBlock}\n=== END MEMORY ===`,
+      cache_control: { type: "ephemeral" },
+    },
+  ];
+}
 
-=== MEMORY (yours, written by you, persists across all sessions) ===
-${memoryBlock}
-=== END MEMORY ===`;
+/**
+ * Move the conversation cache breakpoint to the tail of the transcript.
+ *
+ * Each loop iteration appends the assistant turn and its tool results, so
+ * without this every iteration re-pays full price for everything the previous
+ * iterations already sent. Old markers are cleared first because the API caps
+ * breakpoints at four and the two system blocks already hold two.
+ */
+function markConversationCache(messages: Anthropic.Beta.BetaMessageParam[]): void {
+  const asRecords = (c: unknown) => c as unknown as Record<string, unknown>[];
+  for (const m of messages) {
+    if (typeof m.content === "string") continue;
+    for (const block of asRecords(m.content)) {
+      if (block && typeof block === "object") delete block.cache_control;
+    }
+  }
+  const last = messages[messages.length - 1];
+  if (!last) return;
+  if (typeof last.content === "string") {
+    last.content = [
+      { type: "text", text: last.content, cache_control: { type: "ephemeral" } },
+    ];
+    return;
+  }
+  const blocks = asRecords(last.content);
+  const tail = blocks[blocks.length - 1];
+  if (tail && typeof tail === "object") tail.cache_control = { type: "ephemeral" };
 }
 
 type BetaBlock = Anthropic.Beta.BetaContentBlock;
@@ -574,6 +617,7 @@ export async function runBernardChatStream(
 
   try {
     for (let i = 0; i < 8; i++) {
+      markConversationCache(messages);
       const stream = client.beta.messages.stream({
         model: MODEL,
         // A build spec is emitted verbatim inside a tool_use block, and a

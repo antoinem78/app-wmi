@@ -315,7 +315,14 @@ export async function generateNarrative(
       model: MODEL,
       max_tokens: 2500,
       thinking: { type: "adaptive" },
-      system: SYSTEM(brand, period) + guidance,
+      // The Monday cron runs this once per client with an identical brief, so
+      // the stable half is worth caching: the first client pays the write and
+      // every client after it reads back at a tenth. Per-account guidance is
+      // appended after the breakpoint because it differs every time.
+      system: [
+        { type: "text", text: SYSTEM(brand, period), cache_control: { type: "ephemeral" } },
+        ...(guidance ? [{ type: "text" as const, text: guidance }] : []),
+      ],
       messages: [
         {
           role: "user",

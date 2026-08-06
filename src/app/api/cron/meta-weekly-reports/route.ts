@@ -41,7 +41,9 @@ async function narrate(w: MetaWeekly, figures: string): Promise<string | null> {
     const msg = await client.messages.create({
       model: "claude-sonnet-5",
       max_tokens: 900,
-      system: SYSTEM,
+      // Identical brief for every account in the run, so the first write pays
+      // and the rest read back cheap.
+      system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
       messages: [
         {
           role: "user",
