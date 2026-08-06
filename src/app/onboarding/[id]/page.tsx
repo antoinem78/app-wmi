@@ -209,6 +209,7 @@ export default async function OnboardingPage({
             price={price}
             platforms={client.platforms}
             currency={client.currency ?? null}
+            vatRate={entityConfig.vatRate}
             signingUrl={signingUrl}
           />
         )}
@@ -219,6 +220,7 @@ export default async function OnboardingPage({
             price={price}
             platforms={client.platforms}
             currency={client.currency ?? null}
+            vatRate={entityConfig.vatRate}
           />
         )}
       </div>
@@ -750,6 +752,7 @@ function ContractStep({
   price,
   platforms,
   currency,
+  vatRate,
   signingUrl,
 }: {
   id: string;
@@ -757,6 +760,7 @@ function ContractStep({
   price: number;
   platforms: string[] | null;
   currency: string | null;
+  vatRate: number | null;
   signingUrl: string | null;
 }) {
   if (signingUrl) {
@@ -786,7 +790,7 @@ function ContractStep({
       <p className="mt-1 text-sm text-zinc-500">
         Here&rsquo;s the plan we agreed — generate your agreement to sign online.
       </p>
-      <QuoteSummary planName={planName} price={price} platforms={platforms} currency={currency} />
+      <QuoteSummary planName={planName} price={price} platforms={platforms} currency={currency} vatRate={vatRate} />
       <form action={generateContract.bind(null, id)} className="mt-6">
         <SubmitButton>Generate &amp; sign your agreement</SubmitButton>
       </form>
@@ -804,21 +808,23 @@ function PaymentStep({
   price,
   platforms,
   currency,
+  vatRate,
 }: {
   id: string;
   planName: string;
   price: number;
   platforms: string[] | null;
   currency: string | null;
+  vatRate: number | null;
 }) {
   return (
     <>
       <h1 className="text-xl font-semibold text-zinc-900">Payment</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Billed today, then on the same date each month — cancel anytime with 31
-        days&rsquo; notice.
+        Billed today, then on the same date each month. VAT is added at
+        checkout where it applies. Cancel anytime with 31 days&rsquo; notice.
       </p>
-      <QuoteSummary planName={planName} price={price} platforms={platforms} currency={currency} />
+      <QuoteSummary planName={planName} price={price} platforms={platforms} currency={currency} vatRate={vatRate} />
       <p className="mt-6 text-xs text-zinc-400">
         You&rsquo;ll be taken to Stripe&rsquo;s secure checkout to enter your
         payment details.
@@ -835,11 +841,13 @@ function QuoteSummary({
   price,
   platforms,
   currency,
+  vatRate,
 }: {
   planName: string;
   price: number;
   platforms: string[] | null;
   currency: string | null;
+  vatRate: number | null;
 }) {
   if (!price) {
     return (
@@ -867,12 +875,44 @@ function QuoteSummary({
         ))}
       </ul>
       <div className="mt-4 border-t border-zinc-100 pt-3 text-sm">
-        <span className="text-zinc-500">Due today (first month): </span>
-        <span className="font-semibold text-zinc-900">{formatMoney(price, currency)}</span>
-        <div className="mt-1 text-xs text-zinc-400">
-          Then billed on the same date each month. Cancel anytime with 31
-          days&rsquo; notice.
-        </div>
+        {/* Quote net, charge gross: without this the first the client learns of
+            VAT is their bank asking to approve a larger number than the one
+            they agreed, which reads as a bait and switch. Stripe decides the
+            actual liability from their address and VAT number, so this is
+            shown as an estimate rather than a promise. */}
+        {vatRate ? (
+          <>
+            <div className="flex justify-between text-zinc-500">
+              <span>Service</span>
+              <span>{formatMoney(price, currency)}</span>
+            </div>
+            <div className="flex justify-between text-zinc-500">
+              <span>VAT ({vatRate}%), if applicable to you</span>
+              <span>{formatMoney((price * vatRate) / 100, currency)}</span>
+            </div>
+            <div className="mt-1 flex justify-between border-t border-zinc-100 pt-1">
+              <span className="text-zinc-500">Due today (first month)</span>
+              <span className="font-semibold text-zinc-900">
+                {formatMoney(price * (1 + vatRate / 100), currency)}
+              </span>
+            </div>
+            <div className="mt-1 text-xs text-zinc-400">
+              Then billed on the same date each month. Cancel anytime with 31
+              days&rsquo; notice. VAT is calculated at checkout from your
+              billing address, so a valid business VAT number outside our
+              country may remove it.
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="text-zinc-500">Due today (first month): </span>
+            <span className="font-semibold text-zinc-900">{formatMoney(price, currency)}</span>
+            <div className="mt-1 text-xs text-zinc-400">
+              Then billed on the same date each month. Cancel anytime with 31
+              days&rsquo; notice.
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
