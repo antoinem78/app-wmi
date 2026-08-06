@@ -75,9 +75,27 @@ export async function GET(request: Request) {
     );
   }
 
+  // Non-secret facts that decide whether a deployment can actually transact.
+  // A key's MODE is visible in every Stripe dashboard and a From address rides
+  // on every email sent, so neither leaks anything; both catch the two silent
+  // misconfigurations that strand a paying client (test key in production, and
+  // a live key paired with a test-mode webhook secret).
+  const sk = (process.env.STRIPE_SECRET_KEY ?? "").trim();
+  const stripeMode = sk.startsWith("sk_live_")
+    ? "live"
+    : sk.startsWith("sk_test_")
+      ? "TEST"
+      : sk
+        ? "unrecognised"
+        : "unset";
+  const from = (process.env.EMAIL_FROM ?? "").trim();
+  const fromDomain = from.includes("@") ? from.split("@").pop()?.replace(/>.*$/, "") ?? "" : "";
+
   return NextResponse.json(
     {
       deployment: process.env.APP_BASE_URL ?? "(APP_BASE_URL unset)",
+      stripe_mode: stripeMode,
+      email_from_domain: fromDomain,
       brand: process.env.BRAND_NAME ?? "",
       currency: process.env.CURRENCY ?? "",
       contract_provider: process.env.CONTRACT_PROVIDER || "pandadoc (default)",
