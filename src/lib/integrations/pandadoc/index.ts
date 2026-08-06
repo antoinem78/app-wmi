@@ -91,6 +91,9 @@ export async function createContractDocument(
   quote: { name: string; price: number; channels: string; currency?: string },
 ): Promise<string> {
   const [firstName, ...rest] = (client.contact_name ?? "Client").trim().split(/\s+/);
+  const signatory = entityConfig.signatoryTitle
+    ? `${entityConfig.signatoryName}, ${entityConfig.signatoryTitle}`
+    : entityConfig.signatoryName || entityConfig.legalName;
   const today = new Date().toISOString().slice(0, 10);
 
   // Built-in [Client.Company] resolves from the contact record — set it first.
@@ -124,6 +127,15 @@ export async function createContractDocument(
         { name: "quote.channels", value: quote.channels },
         { name: "entity.legal_name", value: entityConfig.legalName },
         { name: "agreement.date", value: today },
+        // Provider execution, mirroring the engine path: the same env vars
+        // drive both portals, so the signatory changes without touching the
+        // PandaDoc template. provider.execution is the whole sentence, ready
+        // to drop into the template as one token.
+        { name: "provider.signatory", value: signatory },
+        {
+          name: "provider.execution",
+          value: `Executed for and on behalf of the Provider by ${signatory} on ${today}. The Provider is bound by this Agreement from the date of issue; the Client's acceptance below completes it.`,
+        },
       ],
       metadata: { client_id: client.id },
     }),
