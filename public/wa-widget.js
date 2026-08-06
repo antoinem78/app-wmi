@@ -12,10 +12,20 @@
  *
  * What it does: captures ad click ids (gclid, gbraid, wbraid, fbclid, msclkid,
  * utm_*, referrer, landing page, and Meta's _fbc/_fbp cookies) on first touch,
- * parks them server-side under a short ref code when the visitor starts a
- * WhatsApp chat, and rides that ref inside the prefilled message so the
- * inbound conversation can be married back to the click. No cookies are set
- * beyond localStorage; no external requests except the one beacon on click.
+ * and parks them server-side under a short ref code when the visitor starts a
+ * WhatsApp chat. No cookies beyond localStorage; one beacon on click.
+ *
+ * HOW THE MATCH ACTUALLY HAPPENS, tested in production 2026-08-06:
+ * The receiver marries the inbound conversation to the parked click by TIME
+ * WINDOW: exactly one unclaimed click for that client in the last 30 minutes
+ * wins, and it refuses to guess when there are several. That is what works.
+ *
+ * The zero-width ref below is kept because it costs nothing and may survive
+ * other channels, but WHATSAPP STRIPS IT. Proven with a clean test: the
+ * prefill was sent unedited and arrived as 35 visible characters with zero
+ * invisible ones. Do not sell "an invisible code they cannot delete" on
+ * WhatsApp. The visible ref (data-visible-ref="true") does survive, at the
+ * cost of being deletable, which is the trade a higher-volume client makes.
  */
 (function () {
   "use strict";
