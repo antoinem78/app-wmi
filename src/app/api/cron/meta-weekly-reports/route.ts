@@ -82,7 +82,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: `Could not list ad accounts: ${roster.error}` }, { status: 502 });
   }
 
-  let sent = 0;
+  // "Generated" and "delivered" are counted apart on purpose. Collapsing them
+  // means an unset channel id reports the same success as a delivered report,
+  // which is how a first live run looked like it had posted four drafts into a
+  // channel it had never contacted.
+  let generated = 0;
+  let delivered = 0;
   let skipped = 0;
   let failed = 0;
   let slackFailed = 0;
@@ -105,10 +110,8 @@ export async function GET(request: Request) {
       const narrative = await narrate(weekly, figures);
       const body = stripEmDashes(narrative ?? figures);
 
-      if (!slackOn) {
-        sent++;
-        return;
-      }
+      generated++;
+      if (!slackOn) return; // generated but deliberately undelivered; never counted as delivered
       try {
         const { postMessage } = await import("@/lib/integrations/slack");
         const draft = [
@@ -123,7 +126,7 @@ export async function GET(request: Request) {
           "_Draft for review, not yet sent to the client._",
         ].join("\n");
         await postMessage(channel!, draft);
-        sent++;
+        delivered++;
       } catch (e) {
         // A wrong channel id or an uninvited bot must not look like success.
         slackFailed++;
@@ -149,10 +152,13 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     accounts: roster.length,
-    sent,
+    generated,
+    delivered,
     skipped,
     failed,
     slackFailed,
+    slackConfigured: slackOn,
+    ...(slackOn ? {} : { warning: "SLACK_META_REVIEW_CHANNEL is not set on this deployment, so reports were generated and discarded." }),
     ...(errors.length ? { errors: errors.slice(0, 10) } : {}),
   });
 }
