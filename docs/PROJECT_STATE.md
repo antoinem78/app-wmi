@@ -157,6 +157,16 @@ All six workflows (OP_conv_agent_runtime, AGENT_webchat, AGENT_postpass, CAP_rag
 
 ## 4. Lead generation track
 
+### WhatsApp bridge: PROVEN IN PRODUCTION 2026-08-06, and one headline claim disproven
+
+**It works.** Live on wmiltd.com: ad-tagged visit, widget, WhatsApp message, and the contact arrived in GHL carrying `gclid: CLEAN_TEST_789`, thirteen seconds end to end. Chain: widget captures click ids and parks them in `wa_refs` via `RCV_wa_click`; the visitor messages the verified WhatsApp number (+447476925643, connected in GHL as Default); GHL's workflow posts contact fields to `RCV_wa_inbound_wmi`, which FETCHES the message text from GHL's Conversations API (its webhook sends no message body, and its templating would mangle anything invisible anyway), then matches and stamps the click ids onto the contact.
+
+**The disproven claim, stated plainly because it is in documents already sent.** I told Chat, and wrote in Baptiste's brief, that an invisible zero-width ref rides inside the visitor's own words and defeats the delete-the-tracking-text problem. **WhatsApp strips zero-width characters.** Clean test: the prefill was sent unedited and arrived with zero invisible characters. The widget builds the URL correctly (32 encoded characters verified in the browser), so the loss is WhatsApp's normalisation, not our code.
+
+**What actually carries attribution is the time window**: exactly one unclaimed click for that client within 30 minutes wins, and it refuses to guess when several are pending (verified when my own test clicks polluted the window and it correctly declined). `ref_method` records `exact`, `window` or null on every lead, so coverage is measurable rather than assumed. Deterministic at low volume, degrades honestly at high volume. The visible ref (`data-visible-ref="true"`) remains available and does survive, at the cost of being deletable.
+
+**Corrections owed:** the Baptiste technical brief and the Code-to-Chat brief both carry the invisible-ref claim as a differentiator and must be amended before either is used in a pitch. The Marrakech pitch itself was never sent, so it can be written correctly first: the honest differentiator is the server-side click park plus CRM and conversion loop, not invisible text.
+
 ### WhatsApp attribution bridge (new product line, founder-initiated 2026-08-03)
 
 **The pitch:** capture WhatsApp leads into GHL with ad-click attribution (gclid/fbclid), track source and completed bookings, attribute back to Google/Meta through the existing OCT spine. First deployment: wmiltd.com. First waiting client: buggytripmarrakech.com (Cloudflare DNS; stack unverified).
