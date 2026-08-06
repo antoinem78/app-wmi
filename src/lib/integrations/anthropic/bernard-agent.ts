@@ -449,15 +449,25 @@ async function runTool(
       if (!built.applied.length) {
         return { error: "No overrides were applied, so this dispatch would recreate the same copy. Name at least one title or body index." };
       }
+      // The executor's pre-flight wants a campaign with a name and objective OR
+      // an existing id, and an ad set reference in the same shape. Resolve the
+      // parent campaign from the ad set rather than asking for it: the caller
+      // knows which ad set the ad belongs in, and making them also supply the
+      // campaign is a second chance to get an id wrong.
+      const parent = await getAdSetDetail(adsetId);
+      if ("error" in parent) return { error: `Could not resolve the ad set: ${parent.error}` };
+      const campaignId = String((parent as { campaignId?: unknown }).campaignId ?? "");
+      if (!campaignId) return { error: `Ad set ${adsetId} returned no parent campaign, so the build envelope cannot be addressed.` };
       const dispatched = await dispatchBuild({
         client_slug: clientSlug,
         account_id: accountId.startsWith("act_") ? accountId : `act_${accountId.replace(/^act_/, "")}`,
         build_ref: buildRef,
-        campaigns: [{ adsets: [{ existing_id: adsetId, ads: [{ name: adName, creative: built.spec }] }] }],
+        campaigns: [{ id: campaignId, adsets: [{ id: adsetId, ads: [{ name: adName, creative: built.spec }] }] }],
       });
       return {
         assembled: {
           base_creative_id: baseCreativeId,
+          resolved_campaign_id: campaignId,
           applied: built.applied,
           residual_em_dashes: built.residualEmDashes,
           residual_claims: built.residualClaims,
