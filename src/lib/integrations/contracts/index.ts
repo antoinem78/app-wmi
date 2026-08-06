@@ -14,4 +14,7 @@ export const getDocumentStatus = impl.getDocumentStatus;
 export const createContractDocument = impl.createContractDocument;
 export const ensureDocumentSent = impl.ensureDocumentSent;
 export const createSigningSession = impl.createSigningSession;
+/** Provider-facing document link, per provider (see each module's note). */
+export const internalDocumentUrl = (id: string): string | Promise<string> =>
+  impl.internalDocumentUrl(id);
 export const markContractSigned = pandadoc.markContractSigned;

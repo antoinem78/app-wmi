@@ -123,9 +123,9 @@ export async function generateContract(clientId: string): Promise<void> {
     // so he reads it before acceptance rather than after (no-op unless email
     // and CONTRACT_COPY_TO are configured; never blocks the client).
     try {
-      const { createSigningSession } = await import("@/lib/integrations/contracts");
+      const { internalDocumentUrl } = await import("@/lib/integrations/contracts");
       const { sendContractIssuedNotice } = await import("@/lib/email");
-      const url = await createSigningSession(documentId, client.contact_email);
+      const url = await internalDocumentUrl(documentId);
       await sendContractIssuedNotice({
         companyName: client.company_name,
         contactEmail: client.contact_email,

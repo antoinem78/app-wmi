@@ -140,6 +140,14 @@ export async function createContractDocument(
   return id;
 }
 
+/** Provider-facing link. The engine's proposal URL is permanent and view-only
+ *  until accepted, so provider and client can share the same link. */
+export async function internalDocumentUrl(documentId: string): Promise<string> {
+  const res = await api(`/api/proposals/${documentId}`);
+  const { url } = (await res.json()) as { url: string };
+  return url;
+}
+
 /** Engine proposals are live from creation — nothing to (re)send. */
 export async function ensureDocumentSent(_documentId: string): Promise<void> {}
 

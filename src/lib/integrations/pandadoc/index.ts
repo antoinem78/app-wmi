@@ -162,6 +162,14 @@ export async function ensureDocumentSent(documentId: string): Promise<void> {
 }
 
 /** Create an embedded-signing session URL for the recipient (expires ~1h). */
+/** Provider-facing link to the document itself. NOT a signing session: those
+ *  are single-use, one-hour, and scoped to the client's recipient identity, so
+ *  emailing one to the founder would hand him an expiring link that opens as
+ *  the client. This opens in his own PandaDoc account. */
+export function internalDocumentUrl(documentId: string): string {
+  return `https://app.pandadoc.com/a/#/documents/${documentId}`;
+}
+
 export async function createSigningSession(
   documentId: string,
   recipientEmail: string,
