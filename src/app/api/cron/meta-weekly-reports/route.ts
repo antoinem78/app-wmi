@@ -1,0 +1,158 @@
+// Weekly Meta cron (vercel.json, Mondays): for every Meta ad account the
+// system user can see, generate the weekly read and post a review draft to
+// Slack. The Meta counterpart to /api/cron/weekly-reports, same contract:
+// CRON_SECRET-protected, verified figures from the read layer, an LLM narrative
+// over the top, and nothing goes to a client without a human passing it on.
+//
+// Roster note: Google iterates linked clients from the database. Meta has no
+// equivalent link table, so the roster is whatever the system-user token can
+// see, which is the same rule the rest of the Meta layer follows: assigning an
+// account in Business Manager puts it in reach with no registration step.
+// Dormant accounts are skipped rather than reported as empty.
+import { NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
+import { listMetaAdAccounts, metaConfigured } from "@/lib/integrations/meta";
+import { getMetaWeekly, formatMetaWeeklyText, type MetaWeekly } from "@/lib/integrations/meta/weekly";
+import { stripEmDashes } from "@/lib/integrations/anthropic/narrative";
+
+export const maxDuration = 300;
+
+// Each account is a multi-call Graph read plus an LLM call. Keep the pool small
+// enough to stay friendly to Graph rate limits over a whole book of accounts.
+const CONCURRENCY = 3;
+
+const SYSTEM = `You write the weekly Meta Ads review note for a paid social agency.
+
+Audience: the founder, reviewing before anything reaches a client. He is an expert, so do not explain what CTR means.
+
+Rules, all firm:
+- British spelling (optimise, analyse).
+- NEVER use an em dash or en dash. Use full stops, commas, colons or parentheses. En dashes only inside numeric ranges.
+- Never say "we", "us" or "our". Write impersonally or in the first person singular.
+- Anchor every claim to a figure you were given. Invent nothing. If the data does not support a conclusion, say what would be needed to reach one.
+- A week is a short window. Where an ad set is in learning or the sample is small, say so plainly rather than reading a trend into noise.
+- Three short paragraphs at most: what happened, what it means, what to watch. No headings, no bullet lists, no sign-off.`;
+
+async function narrate(w: MetaWeekly, figures: string): Promise<string | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const client = new Anthropic({ apiKey });
+    const msg = await client.messages.create({
+      model: "claude-sonnet-5",
+      max_tokens: 900,
+      system: SYSTEM,
+      messages: [
+        {
+          role: "user",
+          content:
+            `Account: ${w.accountName} (${w.accountId}), currency ${w.currency}.\n` +
+            `Week ${w.period.start} to ${w.period.end}, compared with ${w.priorPeriod.start} to ${w.priorPeriod.end}.\n\n` +
+            `${figures}\n\nWrite the review note.`,
+        },
+      ],
+    });
+    const text = msg.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("")
+      .trim();
+    return text || null;
+  } catch (e) {
+    console.error(`Meta narrative skipped for ${w.accountId}:`, e);
+    return null;
+  }
+}
+
+export async function GET(request: Request) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
+  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!metaConfigured()) {
+    return NextResponse.json({ error: "META_ADS_TOKEN not configured" }, { status: 500 });
+  }
+
+  const channel = process.env.SLACK_META_REVIEW_CHANNEL;
+  const slackOn = !!process.env.SLACK_BOT_TOKEN && !!channel;
+
+  const roster = await listMetaAdAccounts();
+  if ("error" in roster) {
+    return NextResponse.json({ error: `Could not list ad accounts: ${roster.error}` }, { status: 502 });
+  }
+
+  let sent = 0;
+  let skipped = 0;
+  let failed = 0;
+  let slackFailed = 0;
+  const errors: string[] = [];
+
+  async function processAccount(acc: { accountId: string; name: string }): Promise<void> {
+    try {
+      const weekly = await getMetaWeekly(acc.accountId);
+      if ("error" in weekly) {
+        failed++;
+        errors.push(`${acc.name}: ${weekly.error}`);
+        return;
+      }
+      if (weekly.skip) {
+        skipped++;
+        return;
+      }
+
+      const figures = formatMetaWeeklyText(weekly);
+      const narrative = await narrate(weekly, figures);
+      const body = stripEmDashes(narrative ?? figures);
+
+      if (!slackOn) {
+        sent++;
+        return;
+      }
+      try {
+        const { postMessage } = await import("@/lib/integrations/slack");
+        const draft = [
+          `📘 *Weekly Meta draft: ${weekly.accountName}* (${weekly.period.start} → ${weekly.period.end})`,
+          "",
+          body,
+          "",
+          "*Figures*",
+          "```",
+          figures,
+          "```",
+          "_Draft for review, not yet sent to the client._",
+        ].join("\n");
+        await postMessage(channel!, draft);
+        sent++;
+      } catch (e) {
+        // A wrong channel id or an uninvited bot must not look like success.
+        slackFailed++;
+        errors.push(`${acc.name} (slack): ${e instanceof Error ? e.message : String(e)}`);
+        console.error(`Meta weekly draft post failed for ${acc.accountId}:`, e);
+      }
+    } catch (e) {
+      failed++;
+      errors.push(`${acc.name}: ${e instanceof Error ? e.message : String(e)}`);
+      console.error(`Meta weekly report failed for ${acc.accountId}:`, e);
+    }
+  }
+
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCY, roster.length) }, async () => {
+      while (cursor < roster.length) {
+        const acc = roster[cursor++];
+        await processAccount(acc);
+      }
+    }),
+  );
+
+  return NextResponse.json({
+    accounts: roster.length,
+    sent,
+    skipped,
+    failed,
+    slackFailed,
+    ...(errors.length ? { errors: errors.slice(0, 10) } : {}),
+  });
+}
