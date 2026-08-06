@@ -19,11 +19,24 @@
  */
 (function () {
   "use strict";
-  var script = document.currentScript;
-  if (!script) return;
+  // document.currentScript is null whenever the tag is injected rather than
+  // parsed: Google Tag Manager, any "lazy" loader, or a framework that appends
+  // the script itself. Falling back to a src lookup means the widget works
+  // however a client chooses to embed it, which for a product sold to people
+  // who live in GTM is the difference between working and mysteriously not.
+  var script =
+    document.currentScript ||
+    document.querySelector('script[src*="wa-widget.js"]');
+  if (!script) {
+    console.warn("[sw-wa] cannot find own script tag; widget not started");
+    return;
+  }
   var NUMBER = (script.getAttribute("data-number") || "").replace(/\D/g, "");
   var TOKEN = script.getAttribute("data-token") || "";
-  if (!NUMBER || !TOKEN) return;
+  if (!NUMBER || !TOKEN) {
+    console.warn("[sw-wa] data-number and data-token are required; widget not started");
+    return;
+  }
   var GREETING = script.getAttribute("data-greeting") || "Hi! Message us on WhatsApp and we'll reply as soon as we can.";
   var CTA = script.getAttribute("data-cta") || "Chat on WhatsApp";
   var COLOR = script.getAttribute("data-color") || "#25D366";
