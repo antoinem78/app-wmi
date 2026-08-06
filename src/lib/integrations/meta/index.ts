@@ -543,6 +543,7 @@ export async function buildCopyFixSpec(
   | {
       spec: Record<string, unknown>;
       applied: string[];
+      dedupedAssets: string[];
       residualEmDashes: string[];
       residualClaims: string[];
     }
@@ -602,6 +603,36 @@ export async function buildCopyFixSpec(
   };
   const cleaned = stripIds(spec) as Record<string, unknown>;
 
+  // Meta enforces "all ad asset values should be unique" at CREATE time but
+  // grandfathers creatives that already carry duplicates, and duplicating an
+  // ad set produces exactly that: the prospecting creatives each hold the same
+  // image hash three times, two entries byte-identical once labels are set
+  // aside. Collapse those, merging the labels onto the survivor so every
+  // customisation rule still resolves to an asset.
+  const deduped: string[] = [];
+  for (const key of ["images", "videos", "bodies", "titles", "descriptions", "link_urls"] as const) {
+    const arr = cleaned[key];
+    if (!Array.isArray(arr)) continue;
+    const bySignature = new Map<string, Record<string, unknown>>();
+    for (const item of arr as unknown[]) {
+      if (!item || typeof item !== "object") continue;
+      const { adlabels, ...value } = item as Record<string, unknown>;
+      const signature = JSON.stringify(value);
+      const existing = bySignature.get(signature);
+      if (!existing) {
+        bySignature.set(signature, { ...(item as Record<string, unknown>) });
+        continue;
+      }
+      const merged = Array.isArray(existing.adlabels) ? [...(existing.adlabels as unknown[])] : [];
+      if (Array.isArray(adlabels)) merged.push(...(adlabels as unknown[]));
+      existing.adlabels = merged;
+      deduped.push(key);
+    }
+    if (bySignature.size !== (arr as unknown[]).length) {
+      cleaned[key] = [...bySignature.values()];
+    }
+  }
+
   const scan = (pred: (s: string) => boolean) => {
     const hits: string[] = [];
     for (const key of ["titles", "bodies", "descriptions"] as const) {
@@ -620,6 +651,7 @@ export async function buildCopyFixSpec(
       asset_feed_spec: cleaned,
     },
     applied,
+    dedupedAssets: deduped,
     residualEmDashes: scan((s) => EM_DASH.test(s)),
     residualClaims: scan((s) => DISCOUNT_CLAIM.test(s) || /\$\d{3}\s*(to|-)\s*\$\d{3}/.test(s)),
   };

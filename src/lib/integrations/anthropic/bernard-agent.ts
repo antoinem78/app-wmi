@@ -469,6 +469,7 @@ async function runTool(
           base_creative_id: baseCreativeId,
           resolved_campaign_id: campaignId,
           applied: built.applied,
+          deduped_assets: built.dedupedAssets,
           residual_em_dashes: built.residualEmDashes,
           residual_claims: built.residualClaims,
         },
