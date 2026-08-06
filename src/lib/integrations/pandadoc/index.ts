@@ -236,5 +236,16 @@ export async function markContractSigned(
     eventType: "contract_signed",
     actor: `system:${source}`,
   });
+
+  // Send both parties their copy. Here, not in a webhook: four paths can
+  // detect a signature and only this transition happens exactly once.
+  // Dynamic import keeps this module free of a cycle through the facade.
+  try {
+    const { deliverSignedCopy } = await import("@/lib/contract-copy");
+    await deliverSignedCopy(clientId);
+  } catch (e) {
+    console.error("Signed copy dispatch failed:", e);
+  }
+
   return { alreadyDone: false };
 }

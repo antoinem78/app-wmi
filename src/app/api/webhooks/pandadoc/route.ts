@@ -43,21 +43,9 @@ export async function POST(request: Request) {
         e.data?.status === "document.completed" &&
         e.data.metadata?.client_id
       ) {
+        // Delivery of the signed copy happens inside markContractSigned, so
+        // it fires whichever path notices the signature first.
         await markContractSigned(e.data.metadata.client_id, "pandadoc-webhook");
-        // Email the executed PDF to the client and the provider. Our sends are
-        // silent (the portal embeds the document), so without this nobody ever
-        // receives a copy on this path. Never fails the webhook.
-        try {
-          const docId = (e.data as { id?: string }).id;
-          if (docId) {
-            const { downloadDocumentPdf } = await import("@/lib/integrations/pandadoc");
-            const { sendSignedPdfCopyFor } = await import("@/lib/email");
-            const pdf = await downloadDocumentPdf(docId);
-            if (pdf) await sendSignedPdfCopyFor(e.data.metadata.client_id, pdf);
-          }
-        } catch (err) {
-          console.error("Signed copy email failed:", err);
-        }
       }
     }
     return NextResponse.json({ received: true });
