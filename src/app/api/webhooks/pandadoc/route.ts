@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   try {
     const events = JSON.parse(rawBody) as Array<{
       event: string;
-      data?: { status?: string; metadata?: Record<string, string> };
+      data?: { id?: string; status?: string; metadata?: Record<string, string> };
     }>;
     for (const e of events) {
       if (
@@ -44,6 +44,20 @@ export async function POST(request: Request) {
         e.data.metadata?.client_id
       ) {
         await markContractSigned(e.data.metadata.client_id, "pandadoc-webhook");
+        // Email the executed PDF to the client and the provider. Our sends are
+        // silent (the portal embeds the document), so without this nobody ever
+        // receives a copy on this path. Never fails the webhook.
+        try {
+          const docId = (e.data as { id?: string }).id;
+          if (docId) {
+            const { downloadDocumentPdf } = await import("@/lib/integrations/pandadoc");
+            const { sendSignedPdfCopyFor } = await import("@/lib/email");
+            const pdf = await downloadDocumentPdf(docId);
+            if (pdf) await sendSignedPdfCopyFor(e.data.metadata.client_id, pdf);
+          }
+        } catch (err) {
+          console.error("Signed copy email failed:", err);
+        }
       }
     }
     return NextResponse.json({ received: true });

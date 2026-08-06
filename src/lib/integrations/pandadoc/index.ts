@@ -162,6 +162,20 @@ export async function ensureDocumentSent(documentId: string): Promise<void> {
 }
 
 /** Create an embedded-signing session URL for the recipient (expires ~1h). */
+/** The signed document as PDF bytes, for emailing a real copy to both parties.
+ *  Our sends are silent (we embed instead of letting PandaDoc email), so this
+ *  is the only route by which anyone receives an artifact. Returns null rather
+ *  than throwing: a missing copy must never fail a webhook. */
+export async function downloadDocumentPdf(documentId: string): Promise<Buffer | null> {
+  try {
+    const res = await api(`/documents/${documentId}/download`);
+    return Buffer.from(await res.arrayBuffer());
+  } catch (e) {
+    console.error("PandaDoc PDF download failed:", e);
+    return null;
+  }
+}
+
 /** Provider-facing link to the document itself. NOT a signing session: those
  *  are single-use, one-hour, and scoped to the client's recipient identity, so
  *  emailing one to the founder would hand him an expiring link that opens as

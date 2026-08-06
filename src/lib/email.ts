@@ -18,6 +18,7 @@ export async function sendEmail(args: {
   subject: string;
   text: string;
   replyTo?: string;
+  attachments?: { filename: string; content: Buffer }[];
 }): Promise<boolean> {
   const cfg = configured();
   if (!cfg) return false;
@@ -34,6 +35,14 @@ export async function sendEmail(args: {
         subject: args.subject,
         text: args.text,
         ...(args.replyTo ? { reply_to: args.replyTo } : {}),
+        ...(args.attachments?.length
+          ? {
+              attachments: args.attachments.map((a) => ({
+                filename: a.filename,
+                content: a.content.toString("base64"),
+              })),
+            }
+          : {}),
       }),
     });
     if (!res.ok) {
@@ -190,4 +199,57 @@ export async function sendContractIssuedNotice(args: {
       "Read it now if you want to catch anything before they accept.",
     ].join("\n"),
   });
+}
+
+
+/** Signed-copy email for the PandaDoc path, carrying the executed PDF itself.
+ *  The engine path emails a permanent link instead; PandaDoc has no link both
+ *  parties can open, so the artifact travels with the message. */
+export async function sendSignedPdfCopyFor(
+  clientId: string,
+  pdf: Buffer,
+): Promise<boolean> {
+  if (!configured()) return false;
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data: client } = await supabase
+      .from("clients")
+      .select("company_name, contact_name, contact_email")
+      .eq("id", clientId)
+      .single();
+    if (!client?.contact_email) return false;
+    const first = (client.contact_name ?? "").trim().split(/\s+/)[0] || "there";
+    const safe = client.company_name.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const filename = `${safe}-service-agreement.pdf`;
+    const sent = await sendEmail({
+      to: client.contact_email,
+      subject: `Your signed agreement, ${client.company_name}`,
+      text: [
+        `Hi ${first},`,
+        "",
+        `This confirms your acceptance of the service agreement for ${client.company_name}. The signed document is attached for your records.`,
+        "",
+        "If anything in it needs discussing, just reply to this email.",
+        "",
+        entityConfig.brandName,
+      ].join("\n"),
+      attachments: [{ filename, content: pdf }],
+    });
+    if (entityConfig.contractCopyTo) {
+      await sendEmail({
+        to: entityConfig.contractCopyTo,
+        subject: `Signed: ${client.company_name} agreement`,
+        text: [
+          `${client.company_name} accepted the service agreement. Executed copy attached.`,
+          "",
+          `Client contact: ${client.contact_name ?? "(no name)"} <${client.contact_email}>`,
+        ].join("\n"),
+        attachments: [{ filename, content: pdf }],
+      });
+    }
+    return sent;
+  } catch (e) {
+    console.error("Signed PDF copy failed:", e);
+    return false;
+  }
 }
