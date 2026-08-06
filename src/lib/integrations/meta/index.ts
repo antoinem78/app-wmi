@@ -522,6 +522,109 @@ export async function getCreativePerformance(
   };
 }
 
+/**
+ * Assemble a complete, create-ready creative spec from an existing creative
+ * plus text overrides.
+ *
+ * Exists because the alternative failed four times: making the model carry a
+ * placement-customised creative's JSON verbatim through a tool call. That spec
+ * runs to thousands of tokens, it truncated mid-argument, and when it did fit
+ * a creative id was transcribed wrong. The words are the only thing a copy fix
+ * changes, so the words are the only thing that should travel; the structure is
+ * fetched and rewritten here, deterministically.
+ *
+ * Overrides are keyed by ZERO-BASED index into the existing variants. Indexes
+ * that do not exist are reported rather than silently ignored.
+ */
+export async function buildCopyFixSpec(
+  baseCreativeId: string,
+  overrides: { titles?: Record<string, string>; bodies?: Record<string, string> } = {},
+): Promise<
+  | {
+      spec: Record<string, unknown>;
+      applied: string[];
+      residualEmDashes: string[];
+      residualClaims: string[];
+    }
+  | { error: string }
+> {
+  const r = await graphGet(String(baseCreativeId).trim(), {
+    fields: "id,asset_feed_spec,object_story_spec,url_tags",
+  });
+  if (r.error) return { error: r.error };
+  const c = (r.data ?? {}) as Record<string, unknown>;
+  const afs = c.asset_feed_spec as Record<string, unknown> | undefined;
+  if (!afs) {
+    return { error: `Creative ${baseCreativeId} has no asset_feed_spec; this helper only handles asset-feed creatives.` };
+  }
+
+  const spec = JSON.parse(JSON.stringify(afs)) as Record<string, unknown>;
+  const applied: string[] = [];
+
+  const apply = (key: "titles" | "bodies", map: Record<string, string> | undefined) => {
+    if (!map) return null;
+    const arr = spec[key] as { text?: string }[] | undefined;
+    if (!Array.isArray(arr)) return `Creative has no ${key} to override.`;
+    for (const [k, text] of Object.entries(map)) {
+      const i = Number(k);
+      if (!Number.isInteger(i) || i < 0 || i >= arr.length) {
+        return `${key}[${k}] does not exist; the creative has ${arr.length} (valid 0-${arr.length - 1}).`;
+      }
+      arr[i].text = text;
+      applied.push(`${key}[${i}]`);
+    }
+    return null;
+  };
+  const titleErr = apply("titles", overrides.titles);
+  if (titleErr) return { error: titleErr };
+  const bodyErr = apply("bodies", overrides.bodies);
+  if (bodyErr) return { error: bodyErr };
+
+  // Read-only echo fields Meta returns on GET and rejects on create.
+  delete spec.additional_data;
+  delete spec.reasons_to_shop;
+  delete spec.shops_bundle;
+
+  // Label ids belong to the source creative. Names are what bind assets to
+  // customisation rules, and Meta assigns fresh ids on create, so the whole
+  // placement structure (extra hashes, crops, rules) survives intact.
+  const stripIds = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(stripIds);
+    if (node && typeof node === "object") {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+        if (k === "id") continue;
+        out[k] = stripIds(v);
+      }
+      return out;
+    }
+    return node;
+  };
+  const cleaned = stripIds(spec) as Record<string, unknown>;
+
+  const scan = (pred: (s: string) => boolean) => {
+    const hits: string[] = [];
+    for (const key of ["titles", "bodies", "descriptions"] as const) {
+      const arr = cleaned[key] as { text?: string }[] | undefined;
+      (arr ?? []).forEach((v, i) => {
+        if (typeof v.text === "string" && pred(v.text)) hits.push(`${key}[${i}]`);
+      });
+    }
+    return hits;
+  };
+
+  return {
+    spec: {
+      object_story_spec: c.object_story_spec ?? null,
+      url_tags: c.url_tags ?? null,
+      asset_feed_spec: cleaned,
+    },
+    applied,
+    residualEmDashes: scan((s) => EM_DASH.test(s)),
+    residualClaims: scan((s) => DISCOUNT_CLAIM.test(s) || /\$\d{3}\s*(to|-)\s*\$\d{3}/.test(s)),
+  };
+}
+
 /** Pixel event volume, which tells you whether an audience pool can exist at all. */
 export async function getPixelStats(
   pixelId: string,

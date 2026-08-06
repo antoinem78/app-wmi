@@ -15,6 +15,7 @@ import {
   metaConfigured,
   normalizeActId,
   readAdCopy,
+  buildCopyFixSpec,
   listCustomAudiences,
   getAdSetDetail,
   getCreativePerformance,
@@ -147,6 +148,31 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
         days: { type: "number", description: "Window in days, 1-90, default 30" },
       },
       required: ["pixel_id"],
+    },
+  },
+  {
+    name: "dispatch_copy_fix",
+    description:
+      "Rebuild ONE ad from an existing creative with corrected words, and dispatch it PAUSED. Use this for every copy fix: it reads the base creative itself and rewrites only the text you name, so the image hashes, crops, placement customisation rules, link, CTA, UTM tags and Instagram identity all carry over untouched. Send ONLY the changed text, never the whole spec: hand-carrying a creative spec through a tool call truncates and mis-transcribes, which is why this tool exists. Overrides are keyed by zero-based index into the existing variants, so read_ad_copy first to get the indexes right (its title[1] is index 0). The new ad is created PAUSED like everything else; the founder activates.",
+    input_schema: {
+      type: "object",
+      properties: {
+        client_slug: { type: "string", description: "Lab client slug from get_status" },
+        account_id: { type: "string", description: "act_-prefixed ad account id" },
+        adset_id: { type: "string", description: "Ad set the new ad goes into" },
+        base_creative_id: { type: "string", description: "Creative to copy structure and unchanged text from" },
+        ad_name: { type: "string", description: "Name for the new ad" },
+        build_ref: { type: "string", description: "Unique idempotency ref for this dispatch" },
+        title_overrides: {
+          type: "object",
+          description: 'Zero-based index to replacement text, e.g. {"0": "Made in Italy. $250."}. Omit to change no titles.',
+        },
+        body_overrides: {
+          type: "object",
+          description: 'Zero-based index to replacement text. Omit to change no bodies.',
+        },
+      },
+      required: ["client_slug", "account_id", "adset_id", "base_creative_id", "ad_name", "build_ref"],
     },
   },
   {
@@ -308,6 +334,7 @@ function statusLabel(name: string): string {
     case "get_adset_detail": return "Reading the ad set config…";
     case "get_creative_performance": return "Ranking the creatives…";
     case "get_pixel_stats": return "Reading pixel event volume…";
+    case "dispatch_copy_fix": return "Rebuilding the ad with corrected copy…";
     case "dispatch_build": return "Dispatching the build to the substrate…";
     case "remember": return "Committing that to memory…";
     case "revise_memory": return "Updating what I know…";
@@ -396,6 +423,49 @@ async function runTool(
       if (!/^\d{6,}$/.test(id)) return { error: "get_pixel_stats needs a numeric pixel id." };
       const days = Math.min(90, Math.max(1, Math.round(Number(input.days) || 30)));
       return getPixelStats(id, { days });
+    }
+    case "dispatch_copy_fix": {
+      if (!metaConfigured()) return META_NOT_CONFIGURED;
+      const clientSlug = String(input.client_slug ?? "").trim();
+      const accountId = String(input.account_id ?? "").trim();
+      const adsetId = String(input.adset_id ?? "").trim();
+      const baseCreativeId = String(input.base_creative_id ?? "").trim();
+      const adName = String(input.ad_name ?? "").trim();
+      const buildRef = String(input.build_ref ?? "").trim();
+      if (!clientSlug || !accountId || !adsetId || !baseCreativeId || !adName || !buildRef) {
+        return { error: "dispatch_copy_fix needs client_slug, account_id, adset_id, base_creative_id, ad_name and build_ref." };
+      }
+      const asStrings = (v: unknown): Record<string, string> | undefined => {
+        if (!v || typeof v !== "object") return undefined;
+        const out: Record<string, string> = {};
+        for (const [k, val] of Object.entries(v as Record<string, unknown>)) out[k] = String(val);
+        return Object.keys(out).length ? out : undefined;
+      };
+      const built = await buildCopyFixSpec(baseCreativeId, {
+        titles: asStrings(input.title_overrides),
+        bodies: asStrings(input.body_overrides),
+      });
+      if ("error" in built) return { error: `Could not assemble the spec: ${built.error}` };
+      if (!built.applied.length) {
+        return { error: "No overrides were applied, so this dispatch would recreate the same copy. Name at least one title or body index." };
+      }
+      const dispatched = await dispatchBuild({
+        client_slug: clientSlug,
+        account_id: accountId.startsWith("act_") ? accountId : `act_${accountId.replace(/^act_/, "")}`,
+        build_ref: buildRef,
+        campaigns: [{ adsets: [{ existing_id: adsetId, ads: [{ name: adName, creative: built.spec }] }] }],
+      });
+      return {
+        assembled: {
+          base_creative_id: baseCreativeId,
+          applied: built.applied,
+          residual_em_dashes: built.residualEmDashes,
+          residual_claims: built.residualClaims,
+        },
+        dispatch: dispatched,
+        note:
+          "The spec was assembled server-side from the base creative, so nothing was transcribed. residual_em_dashes and residual_claims cover the WHOLE creative including variants you did not touch: if either is non-empty, the new ad still carries a defect and needs another override before activation.",
+      };
     }
     case "dispatch_build": {
       const spec = input as unknown as BuildDispatch;
