@@ -495,7 +495,12 @@ export async function runBernardChatStream(
     for (let i = 0; i < 8; i++) {
       const stream = client.beta.messages.stream({
         model: MODEL,
-        max_tokens: 8000,
+        // A build spec is emitted verbatim inside a tool_use block, and a
+        // placement-customised creative runs to roughly 4k tokens of JSON on
+        // its own. At 8000 the tool call truncated mid-argument and
+        // dispatch_build received an empty campaigns array with no error to
+        // explain it. Headroom here is what lets him dispatch real specs.
+        max_tokens: 32000,
         output_config: { effort: "medium" },
         betas: ["server-side-fallback-2026-06-01"],
         fallbacks: [{ model: FALLBACK_MODEL }],
