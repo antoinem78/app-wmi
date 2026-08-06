@@ -44,6 +44,26 @@ The refusal behaviour is not theoretical. My own repeated test clicks left sever
 - Anyone arriving via a wa.me link elsewhere (TripAdvisor, Google Business Profile) was never in scope.
 - The window length (30 minutes) is a guess that should be tuned per client once real volume exists.
 
+
+## Claims register (founder ruling, 2026-08-06). Binding on every document, pitch and agent.
+
+**Approved claims, say these freely:**
+- The click is captured server-side before the visitor leaves the site.
+- Leads are created automatically in the CRM with their source attached.
+- Attribution method is labelled per lead (exact / window / unattributed), so coverage is measurable rather than claimed.
+- The system refuses to guess under ambiguity: it degrades to unknown, never to wrong.
+- Completed bookings feed back to Google and Meta.
+
+**Banned claims, never write or say these:**
+- "A code they cannot delete."
+- "Invisible tracking."
+- Any unqualified accuracy percentage.
+- Any claim of attributing direct messages or messages from someone who saved the number.
+
+**Mandatory caveat in every commercial document:** accuracy is concurrency-dependent and strongest for businesses with few simultaneous enquiries.
+
+**On the window:** 30 minutes is a per-client tunable default, not a finding. Do not present it as a researched or optimal value.
+
 ---
 
 # Part 2: the plain-English version (for anyone, including clients)
