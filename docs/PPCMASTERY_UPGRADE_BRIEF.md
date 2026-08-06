@@ -64,7 +64,7 @@ If PPC Mastery's portal predates July, it has no Bernard and no Oscar as they ex
 - **Shared agent memory** (`MEMORY_SUPABASE_URL` / `MEMORY_SUPABASE_SECRET_KEY`, migration `0022`): makes Bernard and Oscar one mind across deployments. Only meaningful if PPC Mastery's agents should share knowledge with WMI's. That is a founder decision with a commercial dimension (client facts of one legal entity sitting in another's database). Default: leave unset, and the deployment uses its own `agent_memory` table.
 - **Agent relays** (`scripts/agent-relay.mjs`, relay keys on the chat routes): lets a Code session talk to the deployed agents. Useful, independent of everything else.
 - **The proposal engine path** (`CONTRACT_PROVIDER=proposal-engine`): only if PPC Mastery wants to drop PandaDoc. If it stays on PandaDoc, port `6e73314` (execution tokens) and add the block to your own template.
-- **WhatsApp attribution bridge** (`public/wa-widget.js`, substrate `0005`, two n8n receivers): a separate product line, not portal plumbing. Port only if PPC Mastery will sell it.
+- **WhatsApp attribution bridge** (`public/wa-widget.js`, substrate `0005`, two n8n receivers): a separate product line, not portal plumbing. Port only if PPC Mastery will sell it. **CORRECTED 2026-08-06 after a production test: the invisible zero-width ref does NOT survive WhatsApp, which strips it. What carries attribution is the server-side click park plus a single-candidate 30-minute window. See `docs/WA_BRIDGE_CORRECTION.md` before describing this to anyone.**
 
 ## Part 3: migrations
 
