@@ -45,6 +45,17 @@ export const entityConfig = {
    *  GB266586851". Empty = only the legal name is shown. */
   registrationInfo: process.env.ENTITY_REGISTRATION_INFO ?? "",
 
+  /** Who executes agreements for the Provider, e.g. "Antoine Martin". Empty
+   *  falls back to the legal entity name alone. */
+  signatoryName: process.env.AGREEMENT_SIGNATORY_NAME ?? "",
+
+  /** That person's title, e.g. "Director". Optional. */
+  signatoryTitle: process.env.AGREEMENT_SIGNATORY_TITLE ?? "",
+
+  /** Internal address that receives a copy of every signed agreement. Empty =
+   *  no internal copy (the client still gets theirs). */
+  contractCopyTo: process.env.CONTRACT_COPY_TO ?? "",
+
   /** Governing law named in the agreement's data-protection and jurisdiction
    *  clauses, e.g. "England and Wales". */
   governingLaw: process.env.AGREEMENT_GOVERNING_LAW ?? "England and Wales",

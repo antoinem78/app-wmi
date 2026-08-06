@@ -72,6 +72,13 @@ export async function createContractDocument(
     month: "long",
     year: "numeric",
   });
+  // The Provider executes at issue: generating and issuing the agreement IS the
+  // offer, so the document carries both parties from the moment the client sees
+  // it (founder flagged 2026-08-05: a one-signature document looks lopsided and
+  // left him with no counter-signed record).
+  const signatory = entityConfig.signatoryTitle
+    ? `${entityConfig.signatoryName}, ${entityConfig.signatoryTitle}`
+    : entityConfig.signatoryName || entityConfig.legalName;
   const provider = entityConfig.registrationInfo
     ? `${entityConfig.legalName}, ${entityConfig.registrationInfo} ("Provider")`
     : `${entityConfig.legalName} ("Provider")`;
@@ -95,7 +102,7 @@ export async function createContractDocument(
           email: client.contact_email,
         },
         prepared_by: { name: entityConfig.legalName },
-        intro: `This Services Agreement ("Agreement") is entered into on ${today} between:\n\n${provider}, and\n\n${client.company_name}, ${representative} ("Client").`,
+        intro: `This Services Agreement ("Agreement") is entered into on ${today} between:\n\n${provider}, and\n\n${client.company_name}, ${representative} ("Client").\n\nExecuted for and on behalf of the Provider by ${signatory} on ${today}. The Provider is bound by this Agreement from the date of issue; the Client's acceptance below completes it.`,
         pricing: {
           items: [
             {

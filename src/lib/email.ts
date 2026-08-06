@@ -142,13 +142,52 @@ export async function sendContractCopyFor(
       "",
       entityConfig.brandName,
     ].join("\n");
-    return sendEmail({
+    const sent = await sendEmail({
       to: client.contact_email,
       subject: `Your signed agreement, ${client.company_name}`,
       text,
     });
+    // Counter-copy to the provider: the founder must hold the executed
+    // agreement without logging into anything (flagged 2026-08-05).
+    if (entityConfig.contractCopyTo) {
+      await sendEmail({
+        to: entityConfig.contractCopyTo,
+        subject: `Signed: ${client.company_name} agreement`,
+        text: [
+          `${client.company_name} accepted the service agreement.`,
+          "",
+          `Signed copy (shows both the Provider execution and the client's acceptance record): ${documentUrl}`,
+          "",
+          `Client contact: ${client.contact_name ?? "(no name)"} <${client.contact_email}>`,
+        ].join("\n"),
+      });
+    }
+    return sent;
   } catch (e) {
     console.error("Contract copy email failed:", e);
     return false;
   }
+}
+
+
+/** Issue notice: the agreement has been generated and is in front of the
+ *  client. Sent to the provider only, so the founder sees the document he has
+ *  executed before the client accepts it, rather than after. */
+export async function sendContractIssuedNotice(args: {
+  companyName: string;
+  contactEmail: string;
+  documentUrl: string;
+}): Promise<boolean> {
+  if (!configured() || !entityConfig.contractCopyTo) return false;
+  return sendEmail({
+    to: entityConfig.contractCopyTo,
+    subject: `Issued: ${args.companyName} agreement is with the client`,
+    text: [
+      `The service agreement for ${args.companyName} has been generated and is now in front of ${args.contactEmail}.`,
+      "",
+      `Your executed copy: ${args.documentUrl}`,
+      "",
+      "Read it now if you want to catch anything before they accept.",
+    ].join("\n"),
+  });
 }

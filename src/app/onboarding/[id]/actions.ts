@@ -118,6 +118,22 @@ export async function generateContract(clientId: string): Promise<void> {
       actor: "client",
       payload: { pandadoc_document_id: documentId },
     });
+
+    // Tell the provider the executed agreement is now in front of the client,
+    // so he reads it before acceptance rather than after (no-op unless email
+    // and CONTRACT_COPY_TO are configured; never blocks the client).
+    try {
+      const { createSigningSession } = await import("@/lib/integrations/contracts");
+      const { sendContractIssuedNotice } = await import("@/lib/email");
+      const url = await createSigningSession(documentId, client.contact_email);
+      await sendContractIssuedNotice({
+        companyName: client.company_name,
+        contactEmail: client.contact_email,
+        documentUrl: url,
+      });
+    } catch (e) {
+      console.error("Contract issued notice failed:", e);
+    }
   }
   revalidatePath(`/onboarding/${clientId}`);
 }
