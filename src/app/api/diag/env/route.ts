@@ -91,10 +91,25 @@ export async function GET(request: Request) {
   const from = (process.env.EMAIL_FROM ?? "").trim();
   const fromDomain = from.includes("@") ? from.split("@").pop()?.replace(/>.*$/, "") ?? "" : "";
 
+  // Name-level forensics for the case that actually bites: a variable that
+  // looks present in the dashboard but is absent at runtime. Distinguishes
+  // "wrong name" (typo, trailing space, wrong case) from "right name, empty
+  // value". Names only, never values.
+  const interesting = /RESEND|EMAIL|STRIPE|PANDADOC|PROPOSAL|AGREEMENT|MEMORY_/i;
+  const observed = Object.keys(process.env)
+    .filter((k) => interesting.test(k))
+    .sort()
+    .map((k) => ({
+      name: k,
+      quoted: JSON.stringify(k), // exposes stray whitespace in the NAME
+      empty: !(process.env[k] ?? "").trim(),
+    }));
+
   return NextResponse.json(
     {
       deployment: process.env.APP_BASE_URL ?? "(APP_BASE_URL unset)",
       stripe_mode: stripeMode,
+      observed_names: observed,
       email_from_domain: fromDomain,
       brand: process.env.BRAND_NAME ?? "",
       currency: process.env.CURRENCY ?? "",
