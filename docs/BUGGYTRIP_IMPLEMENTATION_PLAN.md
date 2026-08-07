@@ -33,7 +33,8 @@ Their number **+212 707 01 44 44 is on the WhatsApp app today**. Automatic lead 
 ### Phase 0: decisions and access, before any build
 
 - The number decision above.
-- Confirm they have a **Google Ads account** and that we get access, and that **auto-tagging is on**. Without auto-tagging there is no gclid and none of this has data to capture. Cowork is right about this.
+- **Google Ads access is an internal step, not a client ask.** The account is already managed under Baptiste's MCC. Route: send a manager link request from the SingularWeb MCC (which sits under WMI UK MCC), which the client approves, giving both managers access. Simpler still, ask Baptiste to link it directly and avoid bothering the client at all. Either way the client-facing ask drops to "approve a request if you see one".
+- **Confirm auto-tagging is ON**, which Baptiste can check today without waiting for anything. Without it there is no gclid and none of this has data to capture. Cowork is right about this, and it is the one prerequisite that silently invalidates everything else.
 - Confirm whether they run **Meta ads** as well, since the same capture handles fbclid at no extra cost.
 - Agree who owns the site edit. It is one line in the Astro layout, but somebody needs repository or hosting access.
 
