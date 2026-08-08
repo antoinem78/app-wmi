@@ -1,0 +1,12 @@
+-- 0006: record the Drive modifiedTime we last ingested, so MAINT_kb_ingest can
+-- skip the export call for untouched files.
+--
+-- Applied to the substrate 2026-08-08. Before this, the workflow exported all 65
+-- KB documents from Drive every two hours regardless of change, which exhausted
+-- Drive's per-minute query quota and failed every run from 18 July onward.
+--
+-- Backfill rule used at apply time, and the rule to reuse if this is ever replayed:
+-- stamp only rows whose Drive modifiedTime is NOT LATER than their own
+-- last_ingested. A row modified after its ingest must stay NULL so it re-exports,
+-- otherwise a genuinely stale document would be marked current and hidden forever.
+alter table kb_documents add column if not exists source_modified_at timestamptz;
