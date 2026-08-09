@@ -1,7 +1,7 @@
 // Public, link-driven client journey.
 //   Pre-payment: a linear, gated wizard (details -> contract -> payment).
 //   Post-payment: a persistent HOME / checklist the client returns to over
-//   days (questionnaire, Slack, Google Ads, + access grants in 5.2) — any
+//   days (questionnaire, Slack, Google Ads, + access grants in 5.2), and any
 //   order, with a % completion bar.
 import { notFound } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
@@ -83,7 +83,7 @@ export default async function OnboardingPage({
     .eq("client_id", id)
     .single();
 
-  // Reporting-only clients (existing accounts moved under our MCC): no funnel —
+  // Reporting-only clients (existing accounts moved under our MCC): no funnel, so
   // their link IS their performance dashboard.
   if (client.source === "reporting_only") {
     let dashboard: DashboardPayload | null = null;
@@ -118,7 +118,7 @@ export default async function OnboardingPage({
   let paymentDone = state?.payment_status === "paid";
 
   // Returning from Stripe Checkout: verify with Stripe (never trust the URL)
-  // and finalize if paid — idempotent alongside the webhook.
+  // and finalize if paid. Idempotent alongside the webhook.
   if (!paymentDone && sessionId) {
     try {
       if (await finalizeFromCheckoutSession(id, sessionId)) paymentDone = true;
@@ -282,7 +282,11 @@ function ClientHome({
 }) {
   const questionnaireDone = !!questionnaire.monthly_budget;
   const slackDone = !!slackEmail;
-  const adDone = adLinkStatus === "approved";
+  // A Meta-only client can never reach "approved" here, so the card needs the
+  // same explicit skip Microsoft Ads already has. Skipped is tracked separately
+  // from connected so the internal view can tell the two apart.
+  const adSkipped = checklist.googleads === true && adLinkStatus !== "approved";
+  const adDone = adLinkStatus === "approved" || adSkipped;
   const assetsDone = !!assetsLink || checklist.assets === true;
   const msAdsDone = !!msAdsAccount || checklist.msads === true;
 
@@ -305,7 +309,7 @@ function ClientHome({
       </h1>
       <p className="mt-1 text-sm text-zinc-500">
         A few things to set up so we can get your campaigns live. Do them in any
-        order — your progress is saved, so you can come back to this page anytime.
+        order. Your progress is saved, so you can come back to this page anytime.
       </p>
 
       <div className="mt-6 flex items-center gap-3">
@@ -328,9 +332,14 @@ function ClientHome({
         <TaskCard
           title="Connect your Google Ads account"
           done={adDone}
-          statusLabel={adLinkBadge(adLinkStatus)[1]}
+          statusLabel={adSkipped ? "not applicable" : adLinkBadge(adLinkStatus)[1]}
         >
-          <AdLinkContent id={id} status={adLinkStatus} customerId={customerId} />
+          <AdLinkContent
+            id={id}
+            status={adLinkStatus}
+            customerId={customerId}
+            skipped={adSkipped}
+          />
         </TaskCard>
 
         {accessTasks.map((k) => (
@@ -354,7 +363,7 @@ function ClientHome({
 
       {doneCount === total && (
         <p className="mt-8 text-center text-sm text-emerald-600">
-          All done — our team takes it from here. Thanks, {companyName}!
+          All done, our team takes it from here. Thanks, {companyName}!
         </p>
       )}
 
@@ -503,7 +512,7 @@ function AssetsContent({
   );
 }
 
-// Native <details> disclosure card — no client JS, progressive by default.
+// Native <details> disclosure card, no client JS, progressive by default.
 function TaskCard({
   title,
   done,
@@ -554,7 +563,7 @@ function SlackFields({
   return (
     <>
       <p className="text-sm text-zinc-500">
-        All communication runs through your dedicated Slack channel — fast,
+        All communication runs through your dedicated Slack channel: fast,
         async, in writing. Which email should we invite? (Joining is free.)
       </p>
       <form action={submitSlackEmail.bind(null, id)} className="mt-4 space-y-4">
@@ -577,17 +586,38 @@ function AdLinkContent({
   id,
   status,
   customerId,
+  skipped,
 }: {
   id: string;
   status: string;
   customerId: string | null;
+  skipped: boolean;
 }) {
+  if (skipped) {
+    return (
+      <>
+        <p className="text-sm text-zinc-500">
+          Noted, you are not running Google Ads at the moment. Nothing else is
+          needed here. Whenever you want to add it, pick this back up and we
+          will take care of the linking.
+        </p>
+        <form action={toggleChecklistTask.bind(null, id, "googleads")} className="mt-4">
+          <button
+            type="submit"
+            className="text-sm text-zinc-500 underline hover:text-zinc-800"
+          >
+            Actually, I do want to connect Google Ads
+          </button>
+        </form>
+      </>
+    );
+  }
   if (status === "not_started") {
     return (
       <>
         <p className="text-sm text-zinc-500">
           Tell us your Google Ads customer ID and we&rsquo;ll send a management
-          request for your approval — we never need your password.
+          request for your approval. We never need your password.
         </p>
         <form
           action={submitGoogleAdsCustomerId.bind(null, id)}
@@ -605,16 +635,24 @@ function AdLinkContent({
           <SubmitButton>Submit</SubmitButton>
         </form>
         <p className="mt-3 text-xs text-zinc-400">
-          Where to find it: sign in at ads.google.com — your customer ID is the
+          Where to find it: sign in at ads.google.com. Your customer ID is the
           10-digit number in the top-right corner, like 123-456-7890.
         </p>
+        <form action={toggleChecklistTask.bind(null, id, "googleads")} className="mt-3">
+          <button
+            type="submit"
+            className="text-xs text-zinc-400 underline hover:text-zinc-700"
+          >
+            I&rsquo;m not running Google Ads right now
+          </button>
+        </form>
       </>
     );
   }
   if (status === "requested") {
     return (
       <p className="text-sm text-zinc-500">
-        Thanks — we have your ID
+        Thanks, we have your ID
         {customerId ? ` (${formatCustomerId(customerId)})` : ""}. Our team is
         reviewing it and will send the linking request shortly.
       </p>
@@ -624,7 +662,7 @@ function AdLinkContent({
     return (
       <>
         <p className="text-sm text-zinc-500">
-          One last step — we&rsquo;ve sent the management request to{" "}
+          One last step, we&rsquo;ve sent the management request to{" "}
           {customerId ? formatCustomerId(customerId) : "your account"}. Approve
           it in Google Ads and you&rsquo;re done.
         </p>
@@ -646,7 +684,7 @@ function AdLinkContent({
   if (status === "approved") {
     return (
       <p className="text-sm text-zinc-500">
-        Connected ✓ — our team manages{" "}
+        Connected ✓. Our team manages{" "}
         {customerId ? formatCustomerId(customerId) : "your account"} from here.
       </p>
     );
@@ -728,7 +766,7 @@ function DetailsStep({
     <>
       <h1 className="text-xl font-semibold text-zinc-900">Confirm your details</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        These go into your agreement — please check they&rsquo;re exactly right.
+        These go into your agreement, so please check they&rsquo;re exactly right.
       </p>
       <form action={confirmDetails.bind(null, id)} className="mt-6 space-y-5">
         <Field label="Company legal name" required>
@@ -740,7 +778,7 @@ function DetailsStep({
         <Field label="Email" required>
           <input name="contact_email" type="email" required defaultValue={client.contact_email} className={inputClass} />
         </Field>
-        <SubmitButton>Looks right — continue</SubmitButton>
+        <SubmitButton>Looks right, continue</SubmitButton>
       </form>
     </>
   );
@@ -779,7 +817,7 @@ function ContractStep({
           title="Service agreement"
         />
         <form action={confirmContractSigned.bind(null, id)} className="mt-4">
-          <SubmitButton>I&rsquo;ve signed — continue</SubmitButton>
+          <SubmitButton>I&rsquo;ve signed, continue</SubmitButton>
         </form>
       </>
     );
@@ -788,14 +826,14 @@ function ContractStep({
     <>
       <h1 className="text-xl font-semibold text-zinc-900">Your agreement</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Here&rsquo;s the plan we agreed — generate your agreement to sign online.
+        Here&rsquo;s the plan we agreed. Generate your agreement to sign online.
       </p>
       <QuoteSummary planName={planName} price={price} platforms={platforms} currency={currency} vatRate={vatRate} />
       <form action={generateContract.bind(null, id)} className="mt-6">
         <SubmitButton>Generate &amp; sign your agreement</SubmitButton>
       </form>
       <p className="mt-3 text-xs text-zinc-400">
-        Takes a few seconds — your agreement is prepared with your details and
+        Takes a few seconds. Your agreement is prepared with your details and
         opens here for signing.
       </p>
     </>
@@ -935,7 +973,7 @@ function QuestionnaireFields({
     <>
       {done && (
         <p className="mb-4 text-sm text-emerald-600">
-          ✓ Submitted — you can update your answers below anytime.
+          ✓ Submitted. You can update your answers below anytime.
         </p>
       )}
       <form action={submitQuestionnaire.bind(null, id)} className="space-y-5">
@@ -984,7 +1022,7 @@ function QuestionnaireFields({
         <Field label="Do you want your ads running at particular times of day / days of the week?">
           <input name="ad_schedule" defaultValue={s("ad_schedule")} className={inputClass} />
         </Field>
-        <Field label="Is there a certain demographic to focus on? (age, behaviours, interests — be as specific as possible)">
+        <Field label="Is there a certain demographic to focus on? (age, behaviours, interests, be as specific as possible)">
           <textarea name="demographics" rows={2} defaultValue={s("demographics")} className={inputClass} />
         </Field>
         <Field label="Top 5 competitors">
