@@ -17,6 +17,8 @@ function firstAction(actions: Record<string, number> | undefined, keys: string[]
 const PURCHASE_KEYS = ["offsite_conversion.fb_pixel_purchase", "purchase", "omni_purchase"];
 const LEAD_KEYS = ["offsite_conversion.fb_pixel_lead", "lead", "onsite_conversion.lead_grouped"];
 const ATC_KEYS = ["offsite_conversion.fb_pixel_add_to_cart", "add_to_cart"];
+const CHECKOUT_KEYS = ["offsite_conversion.fb_pixel_initiate_checkout", "initiate_checkout", "omni_initiated_checkout"];
+const VIEW_KEYS = ["offsite_conversion.fb_pixel_view_content", "view_content", "omni_view_content"];
 
 export interface MetaWeeklyMetrics {
   spend: number;
@@ -30,9 +32,15 @@ export interface MetaWeeklyMetrics {
   revenue: number;
   roas: number | null;
   leads: number;
+  viewContent: number;
   addToCarts: number;
+  checkouts: number;
   costPerPurchase: number | null;
   costPerLead: number | null;
+  /** Step-to-step conversion, null where the numerator step has no volume to judge. */
+  viewToCartPct: number | null;
+  cartToCheckoutPct: number | null;
+  checkoutToPurchasePct: number | null;
 }
 
 export interface MetaWeekly {
@@ -58,6 +66,10 @@ function toMetrics(p: Record<string, unknown> | null | undefined): MetaWeeklyMet
   const purchases = firstAction(actions, PURCHASE_KEYS);
   const revenue = firstAction(values, PURCHASE_KEYS);
   const leads = firstAction(actions, LEAD_KEYS);
+  const viewContent = firstAction(actions, VIEW_KEYS);
+  const addToCarts = firstAction(actions, ATC_KEYS);
+  const checkouts = firstAction(actions, CHECKOUT_KEYS);
+  const rate = (num: number, den: number) => (den > 0 ? Number(((num / den) * 100).toFixed(1)) : null);
   return {
     spend: Number(spend.toFixed(2)),
     impressions: Number(q.impressions ?? 0),
@@ -70,9 +82,14 @@ function toMetrics(p: Record<string, unknown> | null | undefined): MetaWeeklyMet
     revenue: Number(revenue.toFixed(2)),
     roas: spend > 0 && revenue > 0 ? Number((revenue / spend).toFixed(2)) : null,
     leads,
-    addToCarts: firstAction(actions, ATC_KEYS),
+    viewContent,
+    addToCarts,
+    checkouts,
     costPerPurchase: purchases > 0 ? Number((spend / purchases).toFixed(2)) : null,
     costPerLead: leads > 0 ? Number((spend / leads).toFixed(2)) : null,
+    viewToCartPct: rate(addToCarts, viewContent),
+    cartToCheckoutPct: rate(checkouts, addToCarts),
+    checkoutToPurchasePct: rate(purchases, checkouts),
   };
 }
 
@@ -127,8 +144,9 @@ export async function getMetaWeekly(accountId: string): Promise<MetaWeekly | { e
     priorPeriod: { start: window.previous.since, end: window.previous.until },
     current: current ?? {
       spend: 0, impressions: 0, reach: 0, frequency: 0, clicks: 0, ctr: 0, cpm: 0,
-      purchases: 0, revenue: 0, roas: null, leads: 0, addToCarts: 0,
-      costPerPurchase: null, costPerLead: null,
+      purchases: 0, revenue: 0, roas: null, leads: 0, viewContent: 0, addToCarts: 0,
+      checkouts: 0, costPerPurchase: null, costPerLead: null,
+      viewToCartPct: null, cartToCheckoutPct: null, checkoutToPurchasePct: null,
     },
     previous,
     activeCampaigns,
@@ -168,7 +186,24 @@ export function formatMetaWeeklyText(w: MetaWeekly): string {
   if (c.leads) {
     lines.push(`Leads ${c.leads}${p ? ` (${pct(c.leads, p.leads)})` : ""}${c.costPerLead ? `, cost per lead ${cur(c.costPerLead)}` : ""}`);
   }
-  if (c.addToCarts) lines.push(`Add to carts ${c.addToCarts}`);
+  // The funnel, step by step. This block exists because a headline of "36 add to
+  // carts, zero purchases" reads as a conversion problem when the actual failure
+  // was carts not reaching checkout at all. Whichever step collapses, name it.
+  if (c.viewContent || c.addToCarts || c.checkouts) {
+    lines.push("");
+    lines.push("Funnel:");
+    lines.push(`  Product views ${c.viewContent}`);
+    lines.push(`  Add to carts ${c.addToCarts}${c.viewToCartPct !== null ? ` (${c.viewToCartPct}% of product views, healthy is 5-8%)` : ""}`);
+    lines.push(`  Checkouts started ${c.checkouts}${c.cartToCheckoutPct !== null ? ` (${c.cartToCheckoutPct}% of carts, healthy is 30%+)` : ""}`);
+    lines.push(`  Purchases ${c.purchases}${c.checkoutToPurchasePct !== null ? ` (${c.checkoutToPurchasePct}% of checkouts)` : ""}`);
+    const broken: string[] = [];
+    if (c.viewContent >= 100 && c.viewToCartPct !== null && c.viewToCartPct < 2) broken.push("product view to cart");
+    if (c.addToCarts >= 15 && c.cartToCheckoutPct !== null && c.cartToCheckoutPct < 10) broken.push("cart to checkout");
+    if (c.checkouts >= 10 && c.checkoutToPurchasePct !== null && c.checkoutToPurchasePct < 20) broken.push("checkout to purchase");
+    if (broken.length) {
+      lines.push(`  ATTENTION: ${broken.join(" and ")} is running far below normal on enough volume to be real, not noise.`);
+    }
+  }
 
   if (w.activeCampaigns.length) {
     lines.push("");
