@@ -8,13 +8,25 @@
 //   node scripts/agent-relay.mjs oscar "message"
 //   node scripts/agent-relay.mjs oscar --scope <client-uuid> "message"   # per-client thread
 //   node scripts/agent-relay.mjs <agent> --file spec.txt                 # message from a file (USE THIS for anything long)
+//   node scripts/agent-relay.mjs <agent> --attach audit.docx "read this" # attach a file to the turn, repeatable
 //   node scripts/agent-relay.mjs <agent> --history [N]                   # print last N turns, send nothing
+//
+// --file and --attach are different things and easy to confuse. --file supplies
+// the MESSAGE TEXT (the file is read here and its contents become what you say).
+// --attach hands the FILE ITSELF to the agent, the same as the paperclip in the
+// portal chat: PDFs are read as PDFs, Word documents have their text extracted
+// server-side. Use --attach for anything you want the agent to read as a
+// document, and --file only to avoid the shell mangling a long message.
+//
+// The portal owns the attachment rules (how many files, how big, which types),
+// so this script does not restate them; a rejected upload comes back as the
+// portal's own error message.
 //
 // Auth: <AGENT>_RELAY_KEY from the environment or .env.local (never committed).
 // Target: BERNARD_RELAY_URL / OSCAR_RELAY_URL / AGENT_RELAY_URL override, else production.
 
 import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, basename, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const AGENTS = {
@@ -39,7 +51,7 @@ const args = process.argv.slice(2);
 const agentId = (args.shift() ?? "").toLowerCase();
 const agent = AGENTS[agentId];
 if (!agent) {
-  console.error(`Usage: node scripts/agent-relay.mjs <${Object.keys(AGENTS).join("|")}> [--scope <client-uuid>] "message" | --history [N]`);
+  console.error(`Usage: node scripts/agent-relay.mjs <${Object.keys(AGENTS).join("|")}> [--scope <client-uuid>] [--attach <path>]... "message" | --file <path> | --history [N]`);
   process.exit(2);
 }
 
@@ -56,6 +68,42 @@ if (scopeIdx >= 0) {
     console.error("--scope must be a client uuid.");
     process.exit(2);
   }
+}
+
+// --attach is repeatable and consumed before the message text is assembled, so
+// the remaining argv is the message and nothing else.
+const MIME = {
+  ".pdf": "application/pdf",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".md": "text/markdown",
+  ".markdown": "text/markdown",
+  ".txt": "text/plain",
+  ".csv": "text/csv",
+};
+const attachments = [];
+for (;;) {
+  const i = args.indexOf("--attach");
+  if (i < 0) break;
+  const path = args[i + 1];
+  if (!path || path.startsWith("--")) {
+    console.error("--attach needs a file path.");
+    process.exit(2);
+  }
+  args.splice(i, 2);
+  const abs = resolve(path);
+  let bytes;
+  try {
+    bytes = readFileSync(abs);
+  } catch (e) {
+    console.error(`Cannot read ${path}: ${e.message}`);
+    process.exit(2);
+  }
+  // The portal decides how to read a file from its extension, so send the plain
+  // basename rather than the path the caller happened to type.
+  const name = basename(abs);
+  attachments.push(
+    new File([bytes], name, { type: MIME[extname(name).toLowerCase()] ?? "application/octet-stream" }),
+  );
 }
 
 const KEY = process.env[agent.keyEnv] ?? envLocal(agent.keyEnv);
@@ -85,11 +133,24 @@ async function send(text) {
   const prior = await history();
   const messages = [...prior, { role: "user", content: text }];
   const body = scope ? { messages, scope } : { messages };
-  const res = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  // With attachments the history rides as a JSON form field and the files as
+  // parts, matching the portal chat. Let fetch set Content-Type: it has to carry
+  // the multipart boundary, so setting it by hand breaks the parse server-side.
+  let init;
+  if (attachments.length) {
+    const form = new FormData();
+    form.set("messages", JSON.stringify(body));
+    if (scope) form.set("scope", scope);
+    for (const f of attachments) form.append("files", f, f.name);
+    init = { method: "POST", headers, body: form };
+  } else {
+    init = {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    };
+  }
+  const res = await fetch(ENDPOINT, init);
   if (!res.ok) {
     const errBody = await res.text().catch(() => "");
     throw new Error(`POST ${ENDPOINT} -> ${res.status} ${errBody.slice(0, 300)}`);
@@ -155,8 +216,17 @@ if (fileIdx >= 0) {
 } else {
   text = args.join(" ").trim();
 }
+// An attachment on its own is a valid turn, same as the portal composer: supply
+// the instruction the paperclip path uses so the agent is not handed a file with
+// an empty message.
+if (!text && attachments.length) {
+  text =
+    attachments.length === 1
+      ? "Read this and tell me what you make of it."
+      : "Read these and tell me what you make of them.";
+}
 if (!text) {
-  console.error(`Usage: node scripts/agent-relay.mjs ${agentId} [--scope <client-uuid>] "message" | --file <path> | --history [N]`);
+  console.error(`Usage: node scripts/agent-relay.mjs ${agentId} [--scope <client-uuid>] [--attach <path>]... "message" | --file <path> | --history [N]`);
   process.exit(2);
 }
 

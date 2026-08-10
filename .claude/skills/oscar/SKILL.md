@@ -30,6 +30,20 @@ command centre thread, pass the client uuid (from the portal `clients` table):
 node scripts/agent-relay.mjs oscar --scope <client-uuid> "message"
 ```
 
+To hand him a file (PDF, Word, Markdown, text or CSV), the same as the paperclip
+in the portal chat. Repeat `--attach` for several files, and combine it with
+`--scope` to land the turn in a client's thread:
+
+```bash
+node scripts/agent-relay.mjs oscar --attach keyword-export.csv "what stands out here"
+```
+
+Do not confuse `--attach` with `--file`. `--file` supplies the message text;
+`--attach` gives Oscar the document itself. If the founder shares a file for
+Oscar to read, use `--attach` and do not paste the contents into the message.
+The portal enforces the size and type limits, so a rejected upload comes back as
+its own error message rather than something this script decides.
+
 Auth comes from `OSCAR_RELAY_KEY` in `.env.local`; the script finds it itself.
 Target defaults to the production portal.
 

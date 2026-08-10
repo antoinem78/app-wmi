@@ -23,6 +23,19 @@ To catch up on what has been said recently (either surface):
 node scripts/bernard-relay.mjs --history 12
 ```
 
+To hand him a file (PDF, Word, Markdown, text or CSV), the same as the
+paperclip in the portal chat. Repeat `--attach` for several files:
+
+```bash
+node scripts/bernard-relay.mjs --attach audit.docx "read this and tell me what changed"
+```
+
+Do not confuse `--attach` with `--file`. `--file` supplies the message text;
+`--attach` gives Bernard the document itself. If the founder shares a file for
+Bernard to read, use `--attach` and do not paste the contents into the message.
+The portal enforces the size and type limits, so a rejected upload comes back as
+its own error message rather than something this script decides.
+
 Auth comes from `BERNARD_RELAY_KEY` in `.env.local`; the script finds it
 itself. Target defaults to the production portal.
 
