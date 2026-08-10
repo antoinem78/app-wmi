@@ -11,6 +11,12 @@ import {
   clearConversation,
   COMMAND_CENTER_SCOPE,
 } from "@/lib/agent-conversations";
+import {
+  attachmentsFromFormData,
+  transcriptNote,
+  AttachmentError,
+  type Attachment,
+} from "@/lib/attachments";
 
 export const maxDuration = 120;
 
@@ -78,11 +84,45 @@ export async function POST(request: Request) {
   if (gate.error) return gate.error;
   const actor = gate.actor!;
 
+  // Two request shapes: JSON (text only) and multipart/form-data (text plus
+  // attachments), the latter carrying the history as a "messages" JSON field.
+  // Same contract as /api/bernard/chat so the client plumbing stays shared.
   let body: { messages?: unknown; scope?: unknown };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
+  let attachments: Attachment[] = [];
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (contentType.includes("multipart/form-data")) {
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return NextResponse.json({ error: "Could not read the upload." }, { status: 400 });
+    }
+    try {
+      body = JSON.parse(String(form.get("messages") ?? "{}")) as {
+        messages?: unknown;
+        scope?: unknown;
+      };
+    } catch {
+      return NextResponse.json({ error: "Invalid messages payload." }, { status: 400 });
+    }
+    // The scope rides in the JSON field with the history, but accept a separate
+    // form field too so a hand-rolled multipart caller cannot silently land the
+    // turn in the command-centre thread instead of the client's.
+    const formScope = form.get("scope");
+    if (typeof formScope === "string" && formScope) body.scope = formScope;
+    try {
+      attachments = await attachmentsFromFormData(form);
+    } catch (e) {
+      const msg = e instanceof AttachmentError ? e.message : "That file could not be read.";
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
+  } else {
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
+    }
   }
 
   const { scope, clientId } = resolveScope(body.scope);
@@ -120,14 +160,19 @@ export async function POST(request: Request) {
         // When the conversation is scoped to a client (per-account thread), that
         // client id is also the analyst's FOCUS account — forward it so the agent
         // treats questions as about that account instead of asking "which?".
-        await runAgentChatStream(messages, actor, send, clientId);
+        await runAgentChatStream(messages, actor, send, clientId, attachments);
       } catch (e) {
         console.error("Agent chat failed:", e);
         send({ type: "error", text: "The assistant hit an error. Try again." });
       } finally {
         // Persist the new turn pair (best-effort; no-op if migration 0018 unrun).
+        // Store the attachments alongside the founder's text: extracted text
+        // inline so later turns still have it, PDFs as a filename marker only.
+        const stored = attachments.length
+          ? [...attachments.map(transcriptNote), userTurn.content].join("\n\n")
+          : userTurn.content;
         const toStore: { role: "user" | "assistant"; content: string }[] = [
-          { role: "user", content: userTurn.content },
+          { role: "user", content: stored },
         ];
         if (assistantText.trim()) toStore.push({ role: "assistant", content: assistantText });
         await appendTurns(scope, clientId, toStore, actor);

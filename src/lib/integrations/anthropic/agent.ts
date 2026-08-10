@@ -22,6 +22,7 @@ import { applyProposal, dryRunProposal } from "@/lib/proposals-execute";
 import { buildGoogleCampaign, type GoogleBuildSpec } from "@/lib/integrations/google-ads/build";
 import { entityConfig } from "@/lib/config";
 import { makeEmDashScrubber } from "@/lib/emdash";
+import type { Attachment } from "@/lib/attachments";
 
 const AGENT = "oscar";
 const MODEL = "claude-opus-4-8";
@@ -746,6 +747,7 @@ export async function runAgentChatStream(
   actor: string,
   emitRaw: (ev: AgentEvent) => void,
   focusClientId?: string | null,
+  attachments: Attachment[] = [],
 ): Promise<void> {
   // The no-em-dash ruling is enforced in code, not just asked of the prompt.
   const scrub = makeEmDashScrubber();
@@ -763,6 +765,31 @@ export async function runAgentChatStream(
   // in scope, and it is scoped to Oscar so Bernard's notes never leak in.
   const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT), focusNote(ctx.roster, focusClientId));
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
+
+  // Files ride on the turn they were sent with, as document blocks ahead of the
+  // founder's text so Oscar reads them before the instruction about them.
+  // Document blocks need no beta header, so this stays on client.messages.
+  // Extracted text also lands in the stored transcript (see transcriptNote), so
+  // it survives into later turns; a PDF does not, because we hold only the bytes
+  // for the length of this request. Re-attach if a PDF is needed again later.
+  if (attachments.length && messages.length) {
+    const last = messages[messages.length - 1];
+    const blocks: Anthropic.ContentBlockParam[] = attachments.map((a) =>
+      a.kind === "pdf"
+        ? {
+            type: "document",
+            title: a.name,
+            source: { type: "base64", media_type: "application/pdf", data: a.base64 },
+          }
+        : {
+            type: "document",
+            title: a.name,
+            source: { type: "text", media_type: "text/plain", data: a.text },
+          },
+    );
+    blocks.push({ type: "text", text: typeof last.content === "string" ? last.content : "" });
+    messages[messages.length - 1] = { role: "user", content: blocks };
+  }
 
   try {
     for (let i = 0; i < 8; i++) {
