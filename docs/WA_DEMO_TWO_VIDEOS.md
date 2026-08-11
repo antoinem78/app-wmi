@@ -26,8 +26,9 @@ Screen record in portrait. One take. About forty seconds.
 
 1. Open your browser, fresh tab.
 2. Paste the link and go.
-3. **Tap the address bar once** so the full URL is visible, including the click id. Hold for two seconds. This is the shot that makes the whole thing credible.
-4. Tap out of the address bar. Scroll down the page slowly, as a real visitor would.
+3. Scroll down the page slowly, as a real visitor would.
+
+   **Do not bother expanding the address bar.** Founder ruling 2026-08-11, and it is the right call: mobile Chrome collapses the URL to the domain, and tapping to expand it pops the keyboard and a suggestions dropdown over the page for a messy shot. The proof is the click id appearing in the CRM at the end, because there is no other way it could have got there. The narration carries the setup instead.
 5. **Tap the WhatsApp button.**
 6. WhatsApp opens with a message already written in the box.
 7. **Select all that text and delete it.** Do it visibly and slowly. This is the most important two seconds in either video.
