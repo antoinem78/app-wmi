@@ -4,7 +4,15 @@
 
 **Rules it obeys:** spoken as Anthony, first person singular. No mention of any tool, platform, endpoint or agent by name. No banned claim from the register. The volume caveat is spoken, not skipped, because a demo that hides its limits gets found out on the first busy day.
 
-**Setup before you press record.** Two windows side by side: the website on the left, the CRM enquiry list on the right, filtered to today and empty. Phone screen mirrored or filmed separately for the WhatsApp step. Use a real campaign URL with a real click id, not a test string, because a viewer who pauses the video will read it.
+**Setup before you press record.** Two windows side by side: the website on the left, the CRM enquiry list on the right, filtered to today and empty. Phone screen mirrored or filmed separately for the WhatsApp step.
+
+**The click id in the address bar.** Use a real one, not a test string, because a viewer who pauses the video will read it. We have no paid traffic to our own site, so the practical source is a genuine ad click made in the course of work you were doing anyway; the click is already paid for, so reusing the identifier costs nobody anything further.
+
+**Strip it before it goes on camera.** A landing URL from someone else's ad arrives carrying their campaign name, their campaign id and a pile of tracking parameters. Keep the `gclid` and delete everything else. The gclid is opaque and identifies nobody to a viewer; `utm_campaign` and `gad_campaignid` are another company's confidential data and have no business in a document you send to prospects. One identifier in the address bar also reads better than four.
+
+So the demo URL is `https://www.wmiltd.com/?gclid=<the real value>` and nothing more.
+
+**Delete the demo lead afterwards.** A gclid belongs to the account whose ad was clicked. Harmless today, because nothing uploads offline conversions from this site. Once something does, a demo lead marked won would push a conversion against a click id we do not own. Google would reject it and nothing would break, but deleting the record means the question never comes up.
 
 ---
 
@@ -52,7 +60,7 @@ This shot is the whole demo. Do not skip the deletion. It is the difference betw
 
 ## Two things that will ruin the take
 
-**Do not use a synthetic click id.** The only click record in the system today is a test one from 6 August with a made up value. A prospect who pauses on that frame sees a demo, not a system.
+**Do not use a synthetic click id.** The only click record in the system today is a test one from 6 August with a made up value. A prospect who pauses on that frame sees a demo, not a system. Equally, do not invent a realistic-looking one: that is worse than an obviously fake one, because it dresses a mock up as real and the damage if anyone checks is out of all proportion to what it bought you.
 
 **Do not edit out the wait.** The two or three seconds between sending and the lead appearing is the most persuasive footage in the video. Cutting it makes it look staged.
 
