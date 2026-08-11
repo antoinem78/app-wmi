@@ -7,7 +7,15 @@ Two recordings. Video 1 is your phone. Video 2 is your desktop. They join at the
 ## Before you start, three minutes
 
 1. **Delete the old test contact** in the WMI CRM: "antoine lead", +44 7429 514277. If you skip this, GHL matches your number to the existing record and updates it instead of creating a new one, and video 2 has nothing to show.
-2. **Have the demo link ready to paste on your phone.** Send it to yourself in a note. It is `https://www.wmiltd.com/?gclid=` followed by the real click id, and nothing else on the end.
+2. **Have the demo link ready to paste on your phone.** Send it to yourself in a note. This is the canonical demo URL, reuse it every time so recordings stay consistent:
+
+```
+https://www.wmiltd.com/?gclid=Cj0KCQjwkOvTBhDgARIsAKUNyRvLsDSYKdiAW3mAG1t0C2kUjzXE0E45sZ4m6rXmKqWD5sy3UJdAT_YaAm2xEALw_wcB
+```
+
+That value started life as a genuine click id and has **one character altered in the middle**, so it keeps the exact shape and length a real gclid has while no longer pointing at anybody's actual click. The structural prefix (`Cj0KCQjw`) and tail (`EALw_wcB`) are untouched, because those are the parts a reader familiar with the format would notice if they were mangled.
+
+On a live client call, use a real gclid from their own account instead. Send it to them before the call and have them open it. Same demo, their data, nothing to explain.
 3. **Clear the WhatsApp thread** with +44 7476 925643 if one exists, so the conversation opens empty.
 
 ---
@@ -54,6 +62,12 @@ Start recording before you refresh. About forty seconds.
 
 ---
 
+## Known cosmetic issue, ruled not blocking
+
+The Landing Page field on the contact record can show an older URL than the click id beside it. The widget records the landing page once on first touch and never refreshes it, so a phone that visited the site before carries the earlier value forward while the click id updates. Founder ruling 2026-08-11: not a blocker for the demo, because the point being demonstrated is that the click id arrives at all.
+
+It still wants fixing for real clients, where a record that pairs today's click id with last week's landing page is simply wrong. Tracked separately.
+
 ## After recording
 
-Delete the demo lead. The click id belongs to somebody else's ad account, and it should not sit in a pipeline that will one day upload conversions.
+Nothing to clean up: the demo click id is altered and belongs to no real account, so it can sit in the pipeline harmlessly.
