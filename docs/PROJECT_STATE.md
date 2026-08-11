@@ -94,6 +94,21 @@ Bernard is the **senior paid social strategist and media buyer**, ruled 2026-07-
 | act_575423175548816 Tropical Oasis | Ace Nutrition | ecommerce |
 | act_1801857321221826 Luca Summer | Atelier Brunos | ecommerce |
 | act_27875735492115545 Mondedutabouret | monde_du_tabouret | ecommerce |
+| act_799323799456382 instawarm.shop | instawarm.shop (Vincent) | ecommerce |
+| act_1304153623765783 FR | Vasco Electronics (Vasco Translator France) | ecommerce, largest account: 833,726 PLN lifetime |
+
+### The Meta audit standard, reset 2026-08-11
+
+**Founder ruling: Bernard's Meta audits were not good enough.** The benchmark is the three manually produced client decks (Befitnow.ca, Harvest & Herd, GetUpSpace): a deck rather than a Word document, with cover, mission statement, one finding per screenshot, funnel analysis metric by metric against benchmarks, a strategy section of campaign proposals, and a creative requirements slide. Ad account screenshots sit beside the findings.
+
+**The architectural fix.** The old generator handed raw account JSON to the model and asked for 1,200-1,800 words, which produces plausible generic prose and misses the specific quantified things that cost money. It also had no placement, age, country, audience, exclusion, funnel or creative data at all. Now:
+
+- `src/lib/integrations/meta/audit-deep.ts` does the deep read (breakdowns, audience library, exclusion coverage, ad-level performance, creative variation, monthly trend).
+- `src/lib/audit/meta-findings.ts` holds 14 deterministic detectors. Each finding carries its own evidence and, where computable, its money at stake per 30 days. Two rules: **a section that failed to read is skipped, never reported as an absence** (a permission error on one edge is not evidence a thing is missing), and every finding prices itself where it can.
+- `src/lib/audit/meta-generate.ts` feeds the *verified findings* to the model, which writes them up in order and may not add findings or supply a figure of its own. A "What Is Already Right" section stops the audit reading as a hit list.
+- `node scripts/meta-audit-findings.mjs <account-id> [days]` prints what an account raises, without generating a document.
+
+**Do not port the template decks' findings to a new account.** All three templates were "you have not built X" accounts. Vasco FR is the opposite: 105 audiences, 20 lookalikes, advanced matching already on. Writing "no lookalikes, advanced matching off" there would have been false. Run the detectors and write what they raise.
 
 ### Oscar (Google Ads and Shopping), live 2026-07-30
 
@@ -346,6 +361,10 @@ Two corrections to the audit's supporting figures. Audience Network lifetime is 
 
 **Tropical Oasis** (act_575423175548816, Ace Nutrition). Audit delivered previously. Awaiting client reply.
 
+**Vasco Electronics, account FR** (act_1304153623765783), audited 2026-08-11. The largest account on the business: 833,726 PLN lifetime, 48,976 PLN in the last 30 days at 2.06 ROAS. Deck delivered. What the audit found, so nobody rediscovers it: ROAS halved over twelve months (3.44 in November 2025 to 1.53 in July 2026) on rising spend; 30 conversion ad sets share 1,633 PLN a day so none can leave learning (0.33 events per ad set per week against the 50 needed); Facebook Reels takes 23,075 PLN over 90 days at 0.29 return on a 0.15% link click rate, and with Instagram Stories and rewarded video 35,661 PLN returns 14,291; 24 of 30 live sales ad sets carry no exclusions and frequency reaches 83.93 on one remarketing campaign; **product view to add to cart runs at 1.2% against 8 to 10% typical**, which is the largest single item and sits on the product page rather than in the ad account. Roughly 16,500 PLN a month is going to things measured to lose money.
+
+Two things outstanding on it. **Real Ads Manager screenshots** could not be captured: browser screenshots cannot be written to disk from a Claude Code session, and the founder's display runs at 150% scaling which leaves Ads Manager 515 CSS px of height, so its tables render two rows. Drop scaling to 100% and it is retryable. The five worth having are the audiences list filtered to `FR_all website visitors` (three audiences share that name at 30 days, two at 180, all flagged Below 1000), the ad sets view showing Learning limited, Breakdown by placement, Breakdown by age, and any product-URL retargeting ad set's audience panel showing the empty exclusions box. **The product page diagnosis** needs page and analytics access, and confirmation that the add to cart event fires on every route into the basket, before the 1.2% is treated as a page problem rather than a measurement one.
+
 **Patterns this track will need that the lead gen track does not:** catalog and feed health, Advantage+ Shopping, dynamic product retargeting, `Purchase` and value optimisation rather than `Lead`, ROAS and AOV rather than cost per lead.
 
 **Corrected 2026-07-30: catalog diagnostics are available, and they are worth running.** This file previously said diagnostics were unavailable for both Shopify clients because the catalogs were not properly shared or synced. The Atelier Brunos catalog returns a full `diagnostics` payload on request, and that is where the out-of-stock and single-image faults above came from. WMI also holds ADVERTISE and MANAGE on both Monde du Tabouret catalogs. So the read access is there; nobody had asked. The useful read set is `owned_product_catalogs`, then per catalog `external_event_sources`, `product_sets`, `agencies`, `diagnostics`, and a `products` page for `item_group_id`, `availability`, `size`, `color` and the link host. This is the diagnostic worth packaging, and the two clients between them supply both a healthy case and a shell case to test it against.
@@ -360,6 +379,8 @@ Two corrections to the audit's supporting figures. Audience Network lifetime is 
 
 | Thing | State |
 |---|---|
+| Meta audit findings engine | **Merged to main 2026-08-11, not yet exercised in production.** `audit-deep.ts` + `meta-findings.ts` (14 detectors) + rewired `meta-generate.ts`. Proven against Vasco FR: 13 findings, reproduced everything found by hand. Next run through Bernard's `run_audit` is the production proof. |
+| Vasco FR audit deck | **Delivered 2026-08-11.** `~/Documents/Vasco Translator France - Meta Ads Audit and Strategy Report.pptx`, 43 slides. Exhibits built from account data; real Ads Manager screenshots outstanding (see below). |
 | Bernard attachments + memory | **Live on production** (main, 2026-07-30). 20 memories seeded. |
 | Oscar (renamed from Ask Rexos) + shared `agent_memory` | **Live on production** (main, 2026-07-30). Migration 0003 applied and verified. |
 | Oscar audit document via chat | **Live on production** (main, 2026-07-30). Reuses the existing generator; only the chat route to it was missing. |
