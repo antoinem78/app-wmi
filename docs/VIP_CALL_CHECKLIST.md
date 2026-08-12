@@ -1,6 +1,18 @@
-# VIP Accounting: one call, everything closed
+# VIP Accounting: everything closed in one pass
 
-**Kyle Randall. Prepared 2026-08-12** off his reply of the same day. The aim is that nothing on this list needs a second conversation.
+**Kyle Randall. Prepared 2026-08-12** off his reply of the same day.
+
+**A call is probably not needed.** Almost nothing here requires one: the booking link is a paste, the prices are a paste, the assets are an upload, and the phone and website questions are already answered. The one argument for a call is not information but Kyle himself, who has been parked for weeks and has just apologised for it. Send this as a single numbered message; if he goes quiet for two days, book fifteen minutes and use it as the agenda.
+
+---
+
+## Answered already. Re-asking any of it damages credibility
+
+From `~/Downloads/Google Ads Questionnaire Vipaccounting.md` (31 July) and his reply of 12 August:
+
+Budget £1,500 rising to about £2,500 in three months. **Google Search only**, by his choice. **Essex county**, with a request for our recommendation after keyword research. Focus: limited-company owners wanting ongoing support, not one-off compliance. Priority keyword **"Limited Company Accountant Essex"**. Negatives: jobs, careers, apprenticeships, qualifications, training, university, free software, purely informational. Four USPs. Valuable actions: **phone calls and Calendly bookings**. Schedule **Monday to Friday, 9am to 7pm**, and he is open to out-of-hours if it converts. ICP: established limited-company owner, **£100k+ revenue, already has an accountant and is unhappy with the support**.
+
+From his 12 August reply: phone **07901730271** (a mobile), website managed by his partner and reached through him by email, Slack now working, and the full fee and packages description, which is good and needs no rework.
 
 ---
 
@@ -10,22 +22,17 @@
 
 **Decide the tracking number's area code.** It forwards to his mobile, so the presented number is a positioning choice, not a technical one. Where is he based and where does he want to look local? Ask in advance so the number can be bought during the call rather than after it.
 
-**Do not accept his Calendly login.** He offered it. Decline, and use the screenshare he suggested instead. Ask him to log in *before* sharing and to share the browser tab only, because his Calendly sits behind GoDaddy and you do not want to watch him type a registrar password.
+**Do not accept his Calendly login, and do not take the screenshare either.** He offered both. Credentials never change hands, and his Calendly sits behind GoDaddy, so that password may also be a registrar password. The screenshare only existed to solve the seat problem, and per item 1 there is no seat problem.
 
 ---
 
 ## On the call
 
-### 1. The calendar, and not paying £25 a month for it
+### 1. The calendar: one paste, no seat, no migration
 
-Establish what we actually need before touching his account:
+`docs/VIP_ACCOUNTING_ONBOARDING.md` §3 already ruled this: "keep Calendly, do not force a calendar migration during onboarding; a working client flow beats platform purity." VIP's Google Ads account also has a **Calendly conversion action already firing**, so moving him would break measurement that works today. A live read of his location confirms it holds **zero calendars**, because none was ever meant to be there.
 
-- **If it is only a booking link**, it is public, it is free, and he can paste it in chat right now. Done in ten seconds, no seat, no screenshare.
-- **If we need event types, custom questions, reminders or embedding**, build it in his GHL location instead of Calendly. No seat cost, bookings arrive in the CRM with their source attached, and reminders plus no-show follow-up come free rather than needing a second tool wired in. He connects his own Google or Outlook calendar with one OAuth click, so no password moves.
-
-**Recommendation to give him: cancel the extra-seat idea.** Either we need the free link, or we build it where it costs nothing and works better.
-
-**Get on the call regardless:** his working hours, appointment length, buffer, how far ahead people can book, and whether he wants a qualifying question or two before someone lands in his diary.
+**So there is nothing to build and nothing to migrate. All we need is the public booking URL**, which is free, needs no access, and closes the item in one paste. Tell him to drop the extra-seat idea. His availability, appointment length and buffers are already configured in his own Calendly and are his business, not ours.
 
 ### 2. Fees and packages
 
@@ -55,29 +62,28 @@ His girlfriend manages the site and he passes changes on. So:
 - Confirm nobody else needs to approve changes.
 - Set the expectation that the tracking number swap on the site is what makes call tracking real, and it is on her critical path.
 
-### 5. Brand assets
+### 5. Brand assets, and two questionnaire gaps
 
-- Logo, in a usable format.
-- Brand colours.
-- Any photography of him, because for a one-man accountancy practice the practitioner's face outperforms stock imagery.
-- Existing marketing material worth keeping consistent with.
+He already answered this: no central asset library, but assets "can be provided separately as needed". So it is a request, not a question. Ask for the logo in the best quality file he has, brand colours, and a photograph of him, which for a one-man practice outperforms stock imagery.
 
-### 6. Google Ads
+Two things the questionnaire genuinely does not answer:
 
-- Does an account exist, under whose manager.
-- **Auto-tagging on or off.** Without it there is no click id and conversion tracking has nothing to work with.
-- Whether he has ever run ads, and what happened.
+- **Competitors.** The heading is there and the answer is blank. Two or three local firms he loses work to.
+- **Where the reviews live.** "Highly rated by business owners with excellent client reviews" is one of his four USPs and no source is recorded anywhere. Needed for extensions, and an ad claim has to be substantiable.
 
-### 7. Close the call properly
+### 6. Google Ads: nothing to ask
+
+Verified 2026-08-01, so do not raise any of it: account **6719680160**, under our MCC, GBP, Europe/London, **auto-tagging ON**, not a test account, and Baptiste's campaigns are already live. Asking whether an account exists would read as not having looked.
+
+### 7. Close it properly
 
 - What lands this week, and who owes what.
-- **Slack is now working**, so confirm that is where day-to-day goes.
-- Book the follow-up before hanging up.
+- **Slack is now working**, so confirm that is where day-to-day goes from here.
 
 ---
 
-## Deliberately not on this call
+## Deliberately held back
 
 **The WhatsApp attribution bridge.** His own answer says his packages include 24/5 WhatsApp support, which means he already sells it and cannot attribute a single enquiry arriving through it. He is a warmer prospect for the bridge than Buggy Trip is.
 
-Raising it here would derail an agenda that already has seven items. It is the second call, and it is a strong one.
+Raising it properly here would bury everything else. Mention it in one sentence as something coming separately, and make it the next conversation on its own.
