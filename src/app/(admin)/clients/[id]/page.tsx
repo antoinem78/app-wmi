@@ -5,12 +5,16 @@ import { headers } from "next/headers";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { planNameFor } from "@/lib/tiers";
 import { ACCESS_TASKS, isAccessTaskKey } from "@/lib/access-tasks";
-import { formatMoney } from "@/lib/config";
+import { formatMoney, allowedCurrencies } from "@/lib/config";
+import { listUpsellsForClient, upsellPriceLabel, type Upsell } from "@/lib/upsells";
 import { CopyButton } from "@/components/CopyButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DeleteClientForm } from "@/components/DeleteClientForm";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import {
+  createUpsellForClient,
+  sendUpsellLink,
+  withdrawUpsell,
   approveGoogleAdsLink,
   refreshGoogleAdsLinkStatus,
   deleteClient,
@@ -145,6 +149,8 @@ export default async function ClientDetailPage({
       console.error("Admin dashboard fetch failed:", e);
     }
   }
+
+  const upsells = await listUpsellsForClient(id);
 
   return (
     <div className="p-10">
@@ -478,6 +484,100 @@ export default async function ClientDetailPage({
         </section>
       )}
 
+      {/* Upsells: one-off work and ongoing add-ons */}
+      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <h2 className="text-sm font-semibold text-zinc-900">Upsells</h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          One-off work goes straight to payment. An ongoing add-on issues a
+          signable quote first, then bills as its own subscription, so the client
+          can stop it without touching the retainer.
+        </p>
+
+        {upsells.length > 0 && (
+          <ul className="mt-4 divide-y divide-zinc-100">
+            {upsells.map((u) => (
+              <UpsellRow key={u.id} upsell={u} clientId={id} baseUrl={`${proto}://${host}`} />
+            ))}
+          </ul>
+        )}
+
+        <form action={createUpsellForClient} className="mt-6 space-y-3 border-t border-zinc-200 pt-5">
+          <input type="hidden" name="client_id" value={id} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm">
+              <span className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                What is it
+              </span>
+              <input
+                name="name"
+                required
+                placeholder="Website conversion changes"
+                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm">
+              <span className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                Type
+              </span>
+              <select
+                name="kind"
+                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              >
+                <option value="one_off">One-off</option>
+                <option value="recurring">Ongoing, monthly</option>
+              </select>
+            </label>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm">
+              <span className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                Amount, net of tax
+              </span>
+              <input
+                name="amount"
+                required
+                inputMode="decimal"
+                placeholder="1500"
+                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm">
+              <span className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                Currency
+              </span>
+              <select
+                name="currency"
+                defaultValue={client.currency ?? allowedCurrencies()[0]}
+                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              >
+                {allowedCurrencies().map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="block text-sm">
+            <span className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+              What the client sees, optional
+            </span>
+            <textarea
+              name="description"
+              rows={2}
+              placeholder="The changes we discussed: reworked enquiry form, clearer pricing page, faster mobile load."
+              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <button
+            type="submit"
+            className="rounded-md bg-[#0B1F3A] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0B1F3A]/90"
+          >
+            Create upsell
+          </button>
+        </form>
+      </section>
+
       {/* Questionnaire answers */}
       {hasAnswers && (
         <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -595,5 +695,63 @@ function Row({ label, value }: { label: string; value: string }) {
       <dt className="text-zinc-500">{label}</dt>
       <dd className="text-right font-medium text-zinc-800">{value}</dd>
     </div>
+  );
+}
+
+function UpsellRow({
+  upsell,
+  clientId,
+  baseUrl,
+}: {
+  upsell: Upsell;
+  clientId: string;
+  baseUrl: string;
+}) {
+  const link = `${baseUrl}/upsell/${upsell.id}`;
+  const settled = upsell.status === "paid" || upsell.status === "active";
+  const LABELS: Record<Upsell["status"], string> = {
+    draft: "not sent",
+    quote_sent: "awaiting signature",
+    quote_signed: "signed, awaiting payment",
+    payment_sent: "link opened, unpaid",
+    paid: "paid",
+    active: "active",
+    cancelled: "withdrawn",
+  };
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-3 py-3">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-medium text-zinc-900">{upsell.name}</div>
+        <div className="mt-0.5 text-xs text-zinc-500">
+          {upsellPriceLabel(upsell)} · {LABELS[upsell.status]}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {!settled && upsell.status !== "cancelled" && (
+          <>
+            <CopyButton value={link} />
+            <form action={sendUpsellLink}>
+              <input type="hidden" name="upsell_id" value={upsell.id} />
+              <button
+                type="submit"
+                className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                {upsell.status === "draft" ? "Send" : "Resend"}
+              </button>
+            </form>
+            <form action={withdrawUpsell}>
+              <input type="hidden" name="upsell_id" value={upsell.id} />
+              <input type="hidden" name="client_id" value={clientId} />
+              <button
+                type="submit"
+                className="text-xs text-zinc-400 underline hover:text-zinc-700"
+              >
+                Withdraw
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </li>
   );
 }

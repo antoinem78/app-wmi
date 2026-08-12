@@ -6,7 +6,15 @@ import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { requireAgencyAdmin } from "@/lib/auth/guard";
 import { logActivity } from "@/lib/activity";
 import { allowedCurrencies } from "@/lib/config";
-import { sendOnboardingInvite } from "@/lib/email";
+import { sendOnboardingInvite, sendUpsellInvite } from "@/lib/email";
+import {
+  createUpsell,
+  getUpsell,
+  issueUpsellQuote,
+  cancelUpsell,
+  upsellNeedsQuote,
+  upsellPriceLabel,
+} from "@/lib/upsells";
 import { CUSTOM_TIER_KEY } from "@/lib/tiers";
 import {
   getDashboard,
@@ -653,4 +661,99 @@ export async function sendReportToSlack(
     console.error("sendReportToSlack failed:", e);
     return { ok: false, message: e instanceof Error ? e.message : "Failed to send report." };
   }
+}
+
+/* ================================== UPSELLS =================================
+ * Extra work sold to an existing client. Two founder rulings from 2026-08-11:
+ * a recurring add-on bills as its own Stripe subscription (so dropping it can
+ * never reach the core retainer), and a recurring add-on needs a signable quote
+ * while a one-off does not.
+ * =========================================================================== */
+
+export async function createUpsellForClient(formData: FormData): Promise<void> {
+  const { email: adminEmail } = await requireAgencyAdmin();
+  const clientId = String(formData.get("client_id") ?? "").trim();
+  const kindRaw = String(formData.get("kind") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const amountRaw = String(formData.get("amount") ?? "").trim();
+  const currencyRaw = String(formData.get("currency") ?? "").trim().toUpperCase();
+
+  if (!clientId) throw new Error("Missing client id.");
+  if (kindRaw !== "one_off" && kindRaw !== "recurring") {
+    throw new Error("Choose whether this is one-off or ongoing.");
+  }
+  if (!name) throw new Error("Give the upsell a name the client will recognise.");
+
+  const amount = Number(amountRaw);
+  if (!amountRaw || !Number.isFinite(amount) || amount <= 0) {
+    throw new Error("A positive amount is required.");
+  }
+  const allowed = allowedCurrencies();
+  const currency = allowed.includes(currencyRaw) ? currencyRaw : allowed[0];
+
+  await createUpsell({
+    clientId,
+    kind: kindRaw,
+    name,
+    description,
+    amount,
+    currency,
+    actor: `admin:${adminEmail}`,
+  });
+  revalidatePath(`/clients/${clientId}`);
+}
+
+/** Issue the quote if one is needed, then email the client their link. Safe to
+ *  call again: issuing is idempotent and a resend is often what you want. */
+export async function sendUpsellLink(formData: FormData): Promise<void> {
+  const { email: adminEmail } = await requireAgencyAdmin();
+  const upsellId = String(formData.get("upsell_id") ?? "").trim();
+  if (!upsellId) throw new Error("Missing upsell id.");
+
+  const upsell = await getUpsell(upsellId);
+  if (!upsell) throw new Error("Upsell not found.");
+  if (upsell.status === "cancelled") {
+    throw new Error("This upsell was withdrawn. Create a new one instead.");
+  }
+
+  if (upsellNeedsQuote(upsell.kind) && !upsell.document_id) {
+    await issueUpsellQuote(upsellId, `admin:${adminEmail}`);
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: client } = await supabase
+    .from("clients")
+    .select("company_name, contact_name, contact_email")
+    .eq("id", upsell.client_id)
+    .single();
+  if (!client) throw new Error("Client not found.");
+
+  const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
+  const sent = await sendUpsellInvite({
+    to: client.contact_email,
+    contactName: client.contact_name,
+    companyName: client.company_name,
+    name: upsell.name,
+    amountLabel: upsellPriceLabel(upsell),
+    kind: upsell.kind,
+    link: `${base}/upsell/${upsell.id}`,
+  });
+
+  await logActivity({
+    clientId: upsell.client_id,
+    eventType: sent ? "upsell_link_sent" : "upsell_link_send_failed",
+    actor: `admin:${adminEmail}`,
+    payload: { upsell_id: upsellId, to: client.contact_email },
+  });
+  revalidatePath(`/clients/${upsell.client_id}`);
+}
+
+export async function withdrawUpsell(formData: FormData): Promise<void> {
+  const { email: adminEmail } = await requireAgencyAdmin();
+  const upsellId = String(formData.get("upsell_id") ?? "").trim();
+  const clientId = String(formData.get("client_id") ?? "").trim();
+  if (!upsellId) throw new Error("Missing upsell id.");
+  await cancelUpsell(upsellId, `admin:${adminEmail}`);
+  if (clientId) revalidatePath(`/clients/${clientId}`);
 }

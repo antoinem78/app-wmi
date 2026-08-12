@@ -74,6 +74,134 @@ export async function createCheckoutSessionForClient(client: {
 }
 
 /**
+ * Checkout session for an upsell: extra work sold to an existing client.
+ *
+ * A recurring upsell becomes its OWN subscription rather than an extra line on
+ * the client's retainer. Founder ruling 2026-08-11, and the reason is
+ * cancellation isolation: a client must be able to drop an add-on without that
+ * action being able to reach the core retainer. One subscription carrying both
+ * makes that impossible to offer safely.
+ *
+ * Same tax posture as the retainer (net prices, Stripe Tax adds VAT on top), so
+ * a client never sees two different conventions from us.
+ */
+export async function createUpsellCheckoutSession(
+  upsell: {
+    id: string;
+    kind: "one_off" | "recurring";
+    name: string;
+    description?: string | null;
+    amount: number;
+    currency: string;
+  },
+  client: { id: string; contact_email: string },
+): Promise<string> {
+  if (!upsell.amount || upsell.amount <= 0) {
+    throw new Error("Upsell has no amount.");
+  }
+  const stripe = getStripe();
+  const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
+  const recurring = upsell.kind === "recurring";
+  const metadata = {
+    client_id: client.id,
+    upsell_id: upsell.id,
+    upsell_kind: upsell.kind,
+  };
+
+  const session = await stripe.checkout.sessions.create({
+    mode: recurring ? "subscription" : "payment",
+    line_items: [
+      {
+        price_data: {
+          currency: upsell.currency.toLowerCase(),
+          unit_amount: Math.round(upsell.amount * 100),
+          ...(recurring ? { recurring: { interval: "month" as const } } : {}),
+          product_data: {
+            name: upsell.name,
+            ...(upsell.description ? { description: upsell.description } : {}),
+          },
+          tax_behavior: "exclusive",
+        },
+        quantity: 1,
+      },
+    ],
+    automatic_tax: { enabled: true },
+    billing_address_collection: "required",
+    tax_id_collection: { enabled: true },
+    customer_email: client.contact_email,
+    client_reference_id: client.id,
+    metadata,
+    ...(recurring
+      ? { subscription_data: { metadata } }
+      : // A one-off still wants a proper invoice: the client is a business
+        // booking a cost, and a bare receipt is not enough for their books.
+        { invoice_creation: { enabled: true, invoice_data: { metadata } } }),
+    success_url: `${base}/upsell/${upsell.id}?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${base}/upsell/${upsell.id}`,
+  });
+
+  if (!session.url) throw new Error("Stripe did not return a checkout URL.");
+
+  await createSupabaseAdminClient()
+    .from("upsells")
+    .update({ stripe_session_id: session.id, updated_at: new Date().toISOString() })
+    .eq("id", upsell.id);
+
+  return session.url;
+}
+
+/**
+ * Settle an upsell from its Checkout session. Idempotent, so the webhook and
+ * the success-URL return can both call it and whichever lands first wins.
+ * Returns true if this call is the one that settled it.
+ */
+export async function finalizeUpsellFromSession(
+  upsellId: string,
+  sessionId: string,
+): Promise<boolean> {
+  const stripe = getStripe();
+  const supabase = createSupabaseAdminClient();
+
+  const { data: upsell } = await supabase
+    .from("upsells")
+    .select("id, client_id, kind, name, status")
+    .eq("id", upsellId)
+    .single();
+  if (!upsell) return false;
+  if (upsell.status === "paid" || upsell.status === "active") return false;
+
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  // Never trust the URL: the session must belong to this upsell and be settled.
+  if (session.metadata?.upsell_id !== upsellId) return false;
+  if (session.payment_status !== "paid" && session.status !== "complete") return false;
+
+  const recurring = upsell.kind === "recurring";
+  const { error } = await supabase
+    .from("upsells")
+    .update({
+      status: recurring ? "active" : "paid",
+      paid_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      stripe_subscription_id:
+        typeof session.subscription === "string" ? session.subscription : null,
+      stripe_payment_intent_id:
+        typeof session.payment_intent === "string" ? session.payment_intent : null,
+    })
+    .eq("id", upsellId)
+    // Guard against a concurrent webhook double-settling and double-logging.
+    .in("status", ["draft", "quote_sent", "quote_signed", "payment_sent"]);
+  if (error) throw new Error(error.message);
+
+  await logActivity({
+    clientId: upsell.client_id,
+    eventType: recurring ? "upsell_active" : "upsell_paid",
+    actor: "client",
+    payload: { upsell_id: upsell.id, name: upsell.name, kind: upsell.kind },
+  });
+  return true;
+}
+
+/**
  * Mark a client paid + active. Idempotent: safe to call from both the webhook
  * and the success-URL path — whichever arrives first wins, the other no-ops.
  */

@@ -253,3 +253,45 @@ export async function sendSignedPdfCopyFor(
     return false;
   }
 }
+
+/** Upsell: the link that carries a one-off or an ongoing add-on. For a
+ *  recurring upsell the link opens the quote to sign first; for a one-off it
+ *  goes straight to payment. The client sees one link either way, so the copy
+ *  deliberately does not promise a specific first screen. */
+export async function sendUpsellInvite(args: {
+  to: string;
+  contactName: string | null;
+  companyName: string;
+  name: string;
+  amountLabel: string;
+  kind: "one_off" | "recurring";
+  link: string;
+}): Promise<boolean> {
+  const first = (args.contactName ?? "").trim().split(/\s+/)[0] || "there";
+  const price =
+    args.kind === "recurring"
+      ? `${args.amountLabel} per month, plus tax where it applies`
+      : `${args.amountLabel} one-off, plus tax where it applies`;
+  const text = [
+    `Hi ${first},`,
+    "",
+    `As discussed, here is ${args.name} for ${args.companyName}.`,
+    "",
+    price,
+    "",
+    args.link,
+    "",
+    args.kind === "recurring"
+      ? "The link takes you through the agreement and then payment. It runs alongside your existing plan on its own billing, so you can stop it at any time without affecting anything else."
+      : "The link takes you straight to payment, and you will get a proper invoice for your records.",
+    "",
+    "Any questions, just reply.",
+    "",
+    entityConfig.brandName,
+  ].join("\n");
+  return sendEmail({
+    to: args.to,
+    subject: `${args.name}, ${args.companyName}`,
+    text,
+  });
+}
