@@ -275,7 +275,7 @@ YOUR JOB:
  */
 function buildSystem(memoryBlock: string, focus = ""): Anthropic.TextBlockParam[] {
   const blocks: Anthropic.TextBlockParam[] = [
-    { type: "text", text: SYSTEM_BASE, cache_control: { type: "ephemeral" } },
+    { type: "text", text: SYSTEM_BASE, cache_control: { type: "ephemeral", ttl: "1h" } },
     {
       type: "text",
       text: `=== MEMORY (yours, written by you, persists across all sessions) ===\n${memoryBlock}\n=== END MEMORY ===`,

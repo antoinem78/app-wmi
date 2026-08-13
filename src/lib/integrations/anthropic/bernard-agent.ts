@@ -309,7 +309,7 @@ HOW YOU SPEAK:
  */
 function buildSystem(memoryBlock: string): Anthropic.Beta.BetaTextBlockParam[] {
   return [
-    { type: "text", text: SYSTEM_BASE, cache_control: { type: "ephemeral" } },
+    { type: "text", text: SYSTEM_BASE, cache_control: { type: "ephemeral", ttl: "1h" } },
     {
       type: "text",
       text: `=== MEMORY (yours, written by you, persists across all sessions) ===\n${memoryBlock}\n=== END MEMORY ===`,
