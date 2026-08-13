@@ -1,3 +1,4 @@
+-- TARGET: PORTAL
 -- 0021_platform_client.sql
 -- Phase 1 of the SingularWeb platform integration (one engine, many doorways, R13).
 -- The client-identity spine: one client = one identity across the two planes

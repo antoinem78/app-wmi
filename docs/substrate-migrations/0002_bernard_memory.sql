@@ -1,3 +1,4 @@
+-- TARGET: SUBSTRATE
 -- 0002_bernard_memory.sql
 --
 -- TARGET DATABASE: **PORTAL** (see README in this directory).

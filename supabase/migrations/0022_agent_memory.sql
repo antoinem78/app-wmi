@@ -1,3 +1,4 @@
+-- TARGET: PORTAL
 -- 0022_agent_memory.sql
 -- Cross-session memory for the named agents (bernard = Meta, oscar = Google
 -- Ads). Historically this table was created by hand on the app.wmiltd.com

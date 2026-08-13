@@ -1,3 +1,4 @@
+-- TARGET: PORTAL
 -- Rexos parity P3: per-account narrative guidance. An optional free-text prompt
 -- the account manager sets per client (tone, focus metrics, context the data
 -- can't show). It is appended to the report narrative system prompt as extra

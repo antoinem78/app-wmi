@@ -1,3 +1,4 @@
+-- TARGET: PORTAL
 -- Rexos P5-Lite: execution + audit columns on optimisation proposals. An
 -- approved proposal can be applied (validate_only -> mutate -> verify), with the
 -- full before/after captured immutably and a rollback recorded. Propose-only

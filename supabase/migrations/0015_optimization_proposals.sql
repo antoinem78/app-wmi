@@ -1,3 +1,4 @@
+-- TARGET: PORTAL
 -- Rexos P4: structured optimisation proposals. The AI agent (or the team) files
 -- a typed proposal against a client; a human approves or dismisses it. Approval
 -- does NOT execute anything yet (propose-only) — it records the decision. The

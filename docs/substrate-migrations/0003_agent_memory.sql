@@ -1,3 +1,4 @@
+-- TARGET: SUBSTRATE
 -- 0003_agent_memory.sql
 --
 -- TARGET DATABASE: **PORTAL** (SUPABASE_URL / SUPABASE_SECRET_KEY in .env.local).

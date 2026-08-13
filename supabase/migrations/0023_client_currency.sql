@@ -1,3 +1,4 @@
+-- TARGET: PORTAL
 -- 0023_client_currency.sql
 -- Per-client quote currency (founder request 2026-08-05: FZCO clients may be
 -- quoted in USD or AED). NULL = the deployment's default currency

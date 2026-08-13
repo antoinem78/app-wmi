@@ -1,3 +1,4 @@
+-- TARGET: PORTAL
 -- Rexos writes-on-all-MCC-accounts: cross-cutting security trail for every
 -- Google Ads write attempt (P5-Lite apply/rollback, dry-runs, and boundary
 -- rejections). Non-client-scoped — this is the security ledger, distinct from the

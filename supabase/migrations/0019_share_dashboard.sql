@@ -1,3 +1,4 @@
+-- TARGET: PORTAL
 -- Rexos parity P4: client-shareable read-only dashboard. Each client gets an
 -- unguessable share token; sharing is off until the admin enables it. The public
 -- page /share/<token> renders the dashboard read-only when share_enabled is true.

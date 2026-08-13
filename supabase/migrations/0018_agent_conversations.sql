@@ -1,3 +1,4 @@
+-- TARGET: PORTAL
 -- Rexos parity P2: persistent chat memory for the Rexos assistant. Each turn
 -- (user or assistant) is one row, grouped by `scope` so a conversation survives
 -- page navigation and reloads. Scope is either the literal 'command-center'

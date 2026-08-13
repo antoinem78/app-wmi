@@ -1,3 +1,4 @@
+-- TARGET: SUBSTRATE
 -- 0006: record the Drive modifiedTime we last ingested, so MAINT_kb_ingest can
 -- skip the export call for untouched files.
 --

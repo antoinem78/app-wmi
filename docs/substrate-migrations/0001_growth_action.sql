@@ -1,3 +1,4 @@
+-- TARGET: SUBSTRATE
 -- Substrate (Engine B) migration — applied 2026-07-24 by Code, per the
 -- approved DESIGN_NOTE_CONSOLE_SURFACES (§5). Additive only.
 -- This file is the audit record; the substrate DB is NOT the portal DB
