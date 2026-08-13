@@ -10,7 +10,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { DashboardPayload, Kpi, DashRange } from "../google-ads/reporting";
 import { entityConfig } from "@/lib/config";
 
-const MODEL = "claude-opus-4-8";
+const MODEL = "claude-sonnet-5";
 
 // WMI house style has no em dashes. Deterministically replace em dashes (and the
 // rarer horizontal bar) with a comma, then tidy the punctuation — a guarantee on

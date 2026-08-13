@@ -9,8 +9,7 @@ import { getDeepAuditData, isErr } from "@/lib/integrations/meta/audit-deep";
 import { detectFindings, detectStrengths, totalAtStake, type Finding } from "@/lib/audit/meta-findings";
 import { t, h1, h3, para, bullet, numItem, table, buildAuditDoc, CONTENT_W, NAVY, type CellVal } from "@/lib/audit/docx";
 
-const MODEL = "claude-fable-5";
-const FALLBACK_MODEL = "claude-opus-4-8";
+const MODEL = "claude-sonnet-5";
 
 // The findings are computed in code before the model is called (see
 // meta-findings.ts). The model's job is to write them up, in order, without
@@ -131,15 +130,13 @@ export async function generateMetaAudit(accountRef: string, days = 30): Promise<
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
   // Streamed so long generations can't trip response timeouts; generous
-  // max_tokens because Fable 5's (always-on) thinking spends from the same
-  // budget as the visible text.
+  // max_tokens because adaptive thinking spends from the same budget as the
+  // visible text.
   const tNarrative = Date.now();
   const stream = client.beta.messages.stream({
     model: MODEL,
     max_tokens: 16000,
     output_config: { effort: "medium" },
-    betas: ["server-side-fallback-2026-06-01"],
-    fallbacks: [{ model: FALLBACK_MODEL }],
     system: NARRATIVE_SYSTEM,
     messages: [{
       role: "user", content: [

@@ -11,7 +11,7 @@ import {
   buildAuditDoc, cover, h1, h2, para, bullet, figcap, table, t, type CellVal,
 } from "./docx";
 
-const MODEL = "claude-opus-4-8";
+const MODEL = "claude-sonnet-5";
 
 interface FeedNarrative {
   executiveSummary: string;

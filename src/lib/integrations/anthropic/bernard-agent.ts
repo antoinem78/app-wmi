@@ -1,8 +1,6 @@
 // Bernard chat agent — the Meta Lab supervisor's conversational surface.
-// Founder-ruled runtime: highest Anthropic model (Claude Fable 5) at medium
-// effort. Thinking is always on for Fable 5 (no `thinking` param), and a
-// server-side fallback to Opus 4.8 covers the rare classifier refusal so the
-// founder never gets a dead reply.
+// Founder-ruled runtime (2026-08-13): Claude Sonnet 5 at medium effort, for
+// cost. Adaptive thinking is the model's default (no `thinking` param).
 //
 // Bernard's portal tools are exactly his governed n8n endpoints (src/lib/
 // bernard.ts): read the lab status, decide a proposed fix, stand a client
@@ -35,8 +33,7 @@ import {
 } from "@/lib/agent-memory";
 
 const AGENT = "bernard";
-const MODEL = "claude-fable-5";
-const FALLBACK_MODEL = "claude-opus-4-8";
+const MODEL = "claude-sonnet-5";
 
 const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
   {
@@ -627,8 +624,6 @@ export async function runBernardChatStream(
         // explain it. Headroom here is what lets him dispatch real specs.
         max_tokens: 32000,
         output_config: { effort: "medium" },
-        betas: ["server-side-fallback-2026-06-01"],
-        fallbacks: [{ model: FALLBACK_MODEL }],
         system,
         tools: TOOLS,
         messages,

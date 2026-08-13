@@ -25,7 +25,7 @@ import { makeEmDashScrubber } from "@/lib/emdash";
 import type { Attachment } from "@/lib/attachments";
 
 const AGENT = "oscar";
-const MODEL = "claude-opus-4-8";
+const MODEL = "claude-sonnet-5";
 
 export interface ChatMessage {
   role: "user" | "assistant";

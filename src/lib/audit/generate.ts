@@ -10,7 +10,7 @@ import {
   table, statusRun, exhibitPanel, t, NAVY, type CellVal,
 } from "./docx";
 
-const MODEL = "claude-opus-4-8";
+const MODEL = "claude-sonnet-5";
 
 export type AccountType = "ecommerce" | "lead_gen";
 // Ecommerce when purchases/value are tracked; lead-gen otherwise. Drives the
