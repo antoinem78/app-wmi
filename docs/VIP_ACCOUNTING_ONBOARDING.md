@@ -94,3 +94,40 @@ KST's nurture sequence is written but blocked on a booking page that does not ex
 ## 7. Definition of done for this onboarding
 
 Sub-account live with rewired workflows; substrate tenant provisioned and OCT legs registered; Google Ads account linked with conversion actions receiving call-tracking and Calendly events; campaign built and paused awaiting founder activation; PROJECT_STATE updated at each stage. The snapshot `Accountancy Blueprint v1` stored at agency level is a deliverable in its own right: client three starts from it plus this document.
+
+---
+
+## Kyle's answers, received 2026-08-14. Section 5 is now closed.
+
+**Booking link:** `calendly.com/kylerandall/30min`. No access needed, no seat bought, no migration. The nurture sequence is unblocked and VIP can ship the sequence KST never could.
+
+**Pricing, and he has ruled on what may be public.** Limited-company packages **from £80/month**, most clients **£100-200+/month**, depending on size, transaction volume and scope. One fixed fee covers everything rather than charging per request. Setup or catch-up work **£100-500+**, driven by how far behind the bookkeeping is, transaction count, corrections and outstanding filings; anything materially beyond that is quoted before work starts. **He is happy for starting package pricing to be public and wants the tidy-up fee kept private.**
+
+**Reviews:** his Google Business Profile (VIP Accounting LTD), plus additional reviews that exist only on `vipaccounting.co.uk/reviews`. Those site-only ones cannot be used in Google ad extensions, which take reviews from approved sources, so **moving them onto Google is a free growth action worth asking for**.
+
+**Competitors**, resolved from the share links he sent: **Swan Books Finance** (Essex, similar size) and **Certax Accounting Benfleet and Southend** (bigger). A third, described as "quite a bit bigger", came through as a truncated `google.com/url` and needs resending.
+
+**Assets:** promised for the afternoon of 14 August.
+
+**Phone:** calls go straight to his mobile and he is willing to pick up outside hours. He asked what the alternative would be. See the recommendation below.
+
+### The missed-call recommendation, and why it is not the obvious one
+
+Leaving everything on his mobile works right up to the moment he cannot answer, and then it is **invisible**. That is precisely the KST finding: their office line rang out for two minutes on a Thursday afternoon and nobody knew until the number was measured.
+
+Recommended: tracking number rings his mobile for about 20-25 seconds, then falls back to the CRM rather than to his personal voicemail. A missed call then becomes a record with a notification, so it is a lead to chase rather than a voicemail he may or may not play. Automatic text-back is not available, because UK geographic numbers on our Twilio are voice-only and texting from the 07 would show an unfamiliar mobile.
+
+Since his ads run Monday to Friday 9am to 7pm, out-of-hours volume should be small either way.
+
+### The number nobody has asked for, and the case rests on it
+
+Live account data over thirty days: **£521.20 spend, 32 clicks, 713 impressions**, which is **£16.29 per click**. Normal for this niche and unforgiving of a weak funnel.
+
+At £150/month average, a client is worth £1,800 a year. Whether £16 clicks are viable therefore depends almost entirely on **how long a client stays**, and that number has never been asked for. Accountancy retention is usually measured in years, which is very likely what makes this account work, but it should be a known figure rather than an assumption before the budget rises to £2,500.
+
+### One recommendation against his own ruling
+
+He has approved publishing the £80 starting price. **I would advertise the £100-200 range instead, or nothing.**
+
+His own stated ICP is an established limited-company owner turning over £100k+ who already has an accountant and is unhappy with the service. **That person is not shopping on price.** At £16 a click the goal is fewer, better-qualified clicks, and "from £80" buys exactly the price-sensitive micro-company he said he does not want. The starting price is true and it is the wrong end of the range to lead with.
+
