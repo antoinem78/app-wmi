@@ -18,9 +18,7 @@ From his 12 August reply: phone **07901730271** (a mobile), website managed by h
 
 ## Before the call, not on it
 
-**Raise the GHL support ticket now.** VIP's location needs the one-time LC Phone disable so call tracking can run on our Twilio, and it is processed by a human at GHL over days, not minutes. KST's took a full evening with two agents. If it is raised before the call, the number can be live within a day of it rather than a week. Needs: Location ID, Twilio SID, auth token. Runbook step, same as KST and WMI.
-
-**Decide the tracking number's area code.** It forwards to his mobile, so the presented number is a positioning choice, not a technical one. Where is he based and where does he want to look local? Ask in advance so the number can be bought during the call rather than after it.
+**CORRECTION 2026-08-15, founder. Do not raise a GHL support ticket for VIP, and do not buy a tracking number.** Earlier versions of this file told you to do both. **Call tracking for VIP is CallTrackingMetrics, and it sits on Baptiste's plate**, not on our Twilio and not through GHL. The LC Phone disable, the number purchase and the number swap on the website are all irrelevant to this client. The only live CTM question is the one flagged on 1 August: three call conversions in his Google account are all marked primary, so CTM's integration must demote one or calls count more than once.
 
 **Do not accept his Calendly login, and do not take the screenshare either.** He offered both. Credentials never change hands, and his Calendly sits behind GoDaddy, so that password may also be a registrar password. The screenshare only existed to solve the seat problem, and per item 1 there is no seat problem.
 
@@ -47,11 +45,11 @@ Then get the one thing it does not contain:
 
 Also flag, so it does not surprise him later: his AI assistant will **decline to give tax advice** and offer a handoff instead. That is deliberate and it protects him. His own wording ("tax-saving advice", "keep more of what they earn") is exactly the territory it refuses.
 
-### 3. Call tracking
+### 3. Call tracking: CTM, not ours
 
-- Confirm **07901730271** is the right destination and that it is answered in working hours.
-- Confirm what happens outside hours. There is a real lesson from KST here: their office line rang out for two minutes and went to voicemail during business hours, and nobody knew until it was measured. Ask him what he wants a missed call to do.
-- Explain what he gets: every call from the website logged with its outcome, so unanswered enquiries become visible instead of invisible.
+Baptiste owns this. His number **07901730271** is confirmed and answered, and he is willing to take calls outside hours. Nothing for us to build.
+
+The KST lesson still transfers as advice worth passing to Baptiste: unanswered calls are invisible until someone measures them, and KST's office line rang out for two minutes on a Thursday afternoon before anybody knew.
 
 ### 4. Website changes
 
@@ -60,7 +58,7 @@ His girlfriend manages the site and he passes changes on. So:
 - Confirm the format he wants: one email, plain, copy-paste ready.
 - Get the platform, because that decides what is possible.
 - Confirm nobody else needs to approve changes.
-- Set the expectation that the tracking number swap on the site is what makes call tracking real, and it is on her critical path.
+- The site edits that matter here are the WhatsApp widget and, later, the chat widget. **Not** a tracking number swap; CTM handles numbers.
 
 ### 5. Brand assets, and two questionnaire gaps
 
