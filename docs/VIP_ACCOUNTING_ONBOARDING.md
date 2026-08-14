@@ -143,3 +143,25 @@ He has approved publishing the £80 starting price. **I would advertise the £10
 
 His own stated ICP is an established limited-company owner turning over £100k+ who already has an accountant and is unhappy with the service. **That person is not shopping on price.** At £16 a click the goal is fewer, better-qualified clicks, and "from £80" buys exactly the price-sensitive micro-company he said he does not want. The starting price is true and it is the wrong end of the range to lead with.
 
+---
+
+## Sent to Kyle on Slack, 2026-08-15. What was asked for, and what we now wait on.
+
+The full message went out over Slack (client documents are delivered there, not from this repo). It covered two recommendations, two chases, one question, a plain-English account of what has been built, and three requests.
+
+**Recommendations given.** Missed calls should ring his mobile for about twenty seconds and then fall back to us rather than his own voicemail, so an unanswered call becomes something to chase. And a push back on his own pricing ruling: show the £100-200 range rather than the £80 floor, or no price at all, because his stated ICP is not shopping on price and clicks in his market are not cheap.
+
+**The three requests, which are what we are now waiting on.**
+
+1. **Kyle reviews all six nurture emails** before they send. He is the accountant and they go out under his name. Email 3's Making Tax Digital dates and thresholds are deliberately blank for him to fill.
+2. **DNS records at SiteGround**, for a proper sending domain. **Newly established: his partner looks after the website's domain settings**, so this routes through her, the same person who does site edits. Bundle future site work with her accordingly.
+3. **Source material for the knowledge base**: the questions he answers repeatedly on first calls, what he needs from a new client, turnaround times, software. This is the only item on the whole plan that nobody but Kyle can do.
+
+**One question outstanding, and it is the important one: how long does a typical client stay?** At £16.29 a click on live data, that single number decides whether the budget can go to £2,500.
+
+**Also flagged to him:** the assistant refuses tax advice by design and hands off instead. Told upfront on purpose, because an accountant discovering that after launch would reasonably feel misled.
+
+**A call was offered for Monday.**
+
+**Two notes for whoever picks this up.** The message still asks for the third competitor link, which Kyle had already supplied (`pocknells.co.uk`); if he replies pointing that out, it is our slip, not his. And the message uses the agency "we" in a few places where the standing ruling wants first person singular; harmless here, worth catching in the next draft.
+
