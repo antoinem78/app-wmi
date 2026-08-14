@@ -105,7 +105,19 @@ Sub-account live with rewired workflows; substrate tenant provisioned and OCT le
 
 **Reviews:** his Google Business Profile (VIP Accounting LTD), plus additional reviews that exist only on `vipaccounting.co.uk/reviews`. Those site-only ones cannot be used in Google ad extensions, which take reviews from approved sources, so **moving them onto Google is a free growth action worth asking for**.
 
-**Competitors**, resolved from the share links he sent: **Swan Books Finance** (Essex, similar size) and **Certax Accounting Benfleet and Southend** (bigger). A third, described as "quite a bit bigger", came through as a truncated `google.com/url` and needs resending.
+**Competitors**, all three now identified. Note that the link he resent for the third was his own Google listing (`/g/11ty6spxs6`, VIP Accounting LTD) rather than a competitor, so it was asked for by name instead:
+
+| Firm | Kyle's description |
+|---|---|
+| Swan Books Finance (Essex) | similar size |
+| Certax Accounting, Benfleet and Southend | bigger |
+| **Pocknells**, `pocknells.co.uk` | quite a bit bigger, doing well |
+
+**Pocknells is the one to study, and it settles the pricing argument.** Their homepage is titled *"Accountants Who Think Like Business Owners"* and describes *"Chartered Accountants who think like business owners. Helping ambitious businesses with proactive accountancy, tax and strategic advice."*
+
+That is **VIP's own differentiator, word for word in substance**: Kyle's fee write-up leads on being proactive throughout the year rather than filing at year end. The firm he names as the biggest and best-performing of the three occupies exactly the position he wants, at greater scale, **and publishes no price anywhere on the homepage.**
+
+Two further observations, held at the level the evidence supports. Pocknells says **Chartered**, which is a credential claim VIP's own homepage title does not make, and in this market that is a real differentiator to plan around rather than ignore. And both sites run a GTM container (VIP `GTM-PGK3FJWX`, Pocknells `GTM-K7ZCJ49D`); no Google Ads conversion id appears in either served HTML, but **GTM loads tags client-side, so that is not evidence of absence** and nothing should be concluded about their measurement without checking the surface a real visitor loads.
 
 **Assets:** promised for the afternoon of 14 August.
 
