@@ -43,6 +43,7 @@ function run({ href, stored }) {
     head: { appendChild() {} },
     body: { appendChild() {} },
     createElement: () => stubElement(),
+    createTextNode: () => stubElement(),
     querySelector: () => null,
   };
   const sandbox = {

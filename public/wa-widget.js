@@ -8,6 +8,11 @@
  *     data-cta="Chat on WhatsApp"           (optional button label)
  *     data-color="#25D366"                  (optional brand colour)
  *     data-position="right"                 (optional: right|left)
+ *     data-consent="..."                    (optional; "off" hides the consent
+ *                                            line, any other value replaces it.
+ *                                            Read the note by CONSENT_DEFAULT
+ *                                            before turning it off.)
+ *     data-privacy-url="https://..."        (optional; adds a Privacy link)
  *   ></script>
  *
  * What it does: captures ad click ids (gclid, gbraid, wbraid, fbclid, msclkid,
@@ -53,6 +58,17 @@
   var CTA = script.getAttribute("data-cta") || "Chat on WhatsApp";
   var COLOR = script.getAttribute("data-color") || "#25D366";
   var POSITION = script.getAttribute("data-position") === "left" ? "left" : "right";
+  // Any follow-up messaging to this person later, by WhatsApp template or by
+  // SMS, leans on PECR's soft opt-in, and one of its four conditions is that
+  // the person was offered a way to refuse AT THE POINT their details were
+  // collected. That point is this card. Without the line below the condition
+  // is not met and no nurture on this number is lawful, so it defaults on.
+  // data-consent="off" removes it, for a client whose lawful basis is
+  // elsewhere; any other value replaces the wording.
+  var CONSENT_DEFAULT = "By starting a chat you agree I can reply by WhatsApp or text message. You can stop the messages at any time.";
+  var CONSENT = script.getAttribute("data-consent");
+  if (CONSENT === null) CONSENT = CONSENT_DEFAULT;
+  var PRIVACY_URL = script.getAttribute("data-privacy-url") || "";
   var BEACON = "https://singularweb.app.n8n.cloud/webhook/wa-click";
   var LS_KEY = "sw_wa_attr";
 
@@ -130,7 +146,9 @@
     ".sw-wa-foot{padding:12px;background:#fff;display:flex;flex-direction:column;gap:9px}",
     ".sw-wa-input{width:100%;box-sizing:border-box;border:1px solid #d5d9dd;border-radius:9px;padding:9px 11px;font:inherit;resize:none;min-height:44px;max-height:110px}",
     ".sw-wa-send{background:" + COLOR + ";color:#fff;border:none;border-radius:9px;padding:11px;font:inherit;font-weight:600;cursor:pointer}",
-    ".sw-wa-send:hover{filter:brightness(1.05)}"
+    ".sw-wa-send:hover{filter:brightness(1.05)}",
+    ".sw-wa-consent{font-size:11px;line-height:1.4;color:#6b7280;margin:0}",
+    ".sw-wa-consent a{color:#6b7280}"
   ].join("\n");
   var style = document.createElement("style");
   style.textContent = css;
@@ -151,9 +169,29 @@
     '<div class="sw-wa-head"><span>WhatsApp</span><button class="sw-wa-close" aria-label="Close">&times;</button></div>' +
     '<div class="sw-wa-body"><div class="sw-wa-msg"></div></div>' +
     '<div class="sw-wa-foot"><textarea class="sw-wa-input" rows="2" placeholder="Type your message..."></textarea>' +
-    '<button class="sw-wa-send"></button></div>';
+    '<button class="sw-wa-send"></button><p class="sw-wa-consent"></p></div>';
   card.querySelector(".sw-wa-msg").textContent = GREETING;
   card.querySelector(".sw-wa-send").textContent = CTA;
+
+  var consentEl = card.querySelector(".sw-wa-consent");
+  if (consentEl) {
+    if (!CONSENT || CONSENT === "off") {
+      consentEl.style.display = "none";
+    } else {
+      // textContent, never innerHTML: the wording is a client-supplied
+      // attribute and must not be able to inject markup into the host page.
+      consentEl.textContent = CONSENT;
+      if (PRIVACY_URL) {
+        var link = document.createElement("a");
+        link.href = PRIVACY_URL;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = "Privacy";
+        consentEl.appendChild(document.createTextNode(" "));
+        consentEl.appendChild(link);
+      }
+    }
+  }
 
   document.body.appendChild(btn);
   document.body.appendChild(card);
