@@ -1,6 +1,12 @@
 # Shallowford Smiles
 
-**Channel file.** Read `docs/PROJECT_STATE.md` §1, §2 and §7 first; this file is owned by the shallowford-smiles session. **Assembled 2026-08-15 during the lead-gen split, not moved**: this client had no PROJECT_STATE blob, so the state below is gathered from session history and live reads. Treat undated claims as needing verification.
+**⚠ THIS FILE IS THIN AND PROVISIONAL. DO NOT TREAT IT AS THIS CLIENT'S STATE.**
+
+**The real context lives in long sessions on another machine** (founder, 2026-08-15). This file was assembled on 2026-08-15 during the lead-gen split from what *this* machine happened to know, which is a fraction of it. It was written before anyone knew the other machine existed for this client.
+
+**Whoever holds those sessions should overwrite this file wholesale**, not merge into it. Nothing below is authoritative and nothing below should be defended.
+
+**Channel file.** Read `docs/PROJECT_STATE.md` §1, §2 and §7 first. Once rewritten from the machine that holds the history, it becomes this client's living state and is owned by the shallowford-smiles session.
 
 ---
 

@@ -206,7 +206,7 @@ The fix moves the cheap check in front of the expensive one. New column `kb_docu
 - [KST Accountants](clients/kst.md): the blueprint; call tracking complete and site swapped; nurture written, unbuilt, client unresponsive
 - [VIP Accounting](clients/vip-accounting.md): blueprint run 1; knowledge base ingested 2026-08-15; nurture written and ready to build; call tracking is CTM, not ours
 - [DentalMastery.ai](clients/dental-mastery.md): B2B, runs inside the WMI UK ad account; no Google measurement on the site at all
-- [Shallowford Smiles](clients/shallowford-smiles.md): deliberately untouched; 37 KB documents, the largest in the estate; three unidentified 423 numbers, touch nothing
+- [Shallowford Smiles](clients/shallowford-smiles.md): **channel file is thin and provisional**; the real history is in long sessions on another machine and should overwrite it wholesale
 - [Steffen Foerster](clients/steffen-foerster.md): Galapagos workshops, $16,900 ticket; conversion actions live; launch-week GCLID capture is the open risk
 - [Buggy Trip Marrakech](clients/buggy-trip.md): first waiting client for the WhatsApp bridge; proposal with Baptiste, unsent; auto-tagging unconfirmed and it gates everything
 - [WMI's own site and demo estate](clients/wmi-website.md): where products get proven first; WhatsApp widget live, one synthetic click ever
