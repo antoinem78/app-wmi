@@ -5,8 +5,18 @@
 //
 // Run:  node scripts/get-google-refresh-token.mjs
 // It prints a Google URL — open it, sign in with the account that admins the
-// PPC Mastery MCC, approve. The script catches the redirect locally and prints
-// the refresh token to paste into .env.local as GOOGLE_ADS_REFRESH_TOKEN.
+// PPC Mastery MCC, approve. The script catches the redirect locally and writes
+// the refresh token into .env.local as GOOGLE_ADS_REFRESH_TOKEN.
+//
+// Scopes requested (2026-08-12): the full superset the platform uses. A token
+// minted here must never carry FEWER scopes than the one it replaces:
+//   adwords      — Google Ads API (portal reporting, OCT click conversions)
+//   datamanager  — Google Data Manager (OCT Route 2)
+//   content      — Content API for Shopping (Merchant Center reads/writes;
+//                  enable "Content API for Shopping" in the same Google Cloud
+//                  project before first use)
+// Minting a new token does NOT invalidate the old one, so the deployed portal
+// keeps working on its existing token until Vercel is deliberately updated.
 import { readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 
@@ -30,7 +40,11 @@ const authUrl =
   `?client_id=${encodeURIComponent(clientId)}` +
   `&redirect_uri=${encodeURIComponent(redirectUri)}` +
   "&response_type=code" +
-  `&scope=${encodeURIComponent("https://www.googleapis.com/auth/adwords")}` +
+  `&scope=${encodeURIComponent([
+    "https://www.googleapis.com/auth/adwords",
+    "https://www.googleapis.com/auth/datamanager",
+    "https://www.googleapis.com/auth/content",
+  ].join(" "))}` +
   "&access_type=offline" +
   "&prompt=consent";
 
