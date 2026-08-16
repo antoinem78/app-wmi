@@ -6,9 +6,15 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Read the project state before you start
 
-**`docs/PROJECT_STATE.md` is the first thing to read in a new session.** It carries what the code and git history do not: what is live versus staged, what is blocked and on whom, the founder's standing rulings, and where each client stands. Sessions run in parallel on this repo (one on lead generation, one on ecommerce), so it is also how they avoid contradicting each other.
+**`docs/PROJECT_STATE.md` is the first thing to read in a new session.** It carries what the code and git history do not: what is live versus staged, what is blocked and on whom, and the founder's standing rulings. Many sessions run in parallel on this repo, so it is also how they avoid contradicting each other.
 
-Read §1 (entities) and §2 (standing rulings) always. Then read your own track. Update the file when something lands, gets blocked, or the founder rules on something. If it is stale, fix it rather than working around it.
+**Work is segmented by client, one session per client (2026-08-15).** Each client or project has a channel file at `docs/clients/<slug>.md` which holds its living state. The session working that client OWNS that file; two sessions never edit the same one. Slugs are hyphenated and match the substrate `clients.slug` wherever a row exists.
+
+**Reading order for a client session:** `PROJECT_STATE` §1 (entities), §2 (standing rulings), §7 (working notes and the cross-session convention), then your own channel file. That is all of it. Do not read the whole monolith; the point of the split is that you no longer have to.
+
+**Where things go when you learn them.** Client-specific facts go in that client's channel file. Anything that generalises across clients goes to the shared memory directory, never into a channel file, because memory is the only layer every session sees automatically. That discipline is the entire cost of segmenting by client: isolation hides patterns unless someone deliberately lifts them out. **Check `MEMORY.md` before filing a lesson**, in case a sibling session already wrote it.
+
+Update your files when something lands, gets blocked, or the founder rules on something. If something is stale, fix it rather than working around it.
 
 Two rulings from §2 that catch people out immediately, so they are repeated here: **all Meta API access is read-only, no exceptions**, and **client-facing writing carries no em dashes and never mentions APIs or tooling**.
 
@@ -20,4 +26,4 @@ Two rulings from §2 that catch people out immediately, so they are repeated her
 
 **Never assert something is absent from a single API reading.** Check the surface a real user sees before any "there is no X" claim. A permission error on a nearby endpoint disqualifies the whole area from absence claims.
 
-**Verify who controls a system before drafting anything addressed to anyone about it** (dig NS before any DNS request), and never speculate in client-facing writing about the founder's own access. Ask him.
+**Verify who controls a system before drafting anything addressed to anyone about it.** `dig NS` **and** `dig SOA` before any DNS request, because a former provider can still hold a zone that accepts edits invisibly (Bluehost does exactly this for webmarketinginternational.com, whose real DNS is Cloudflare). Prove a record from outside afterwards, never from the provider's own panel. And never speculate in client-facing writing about the founder's own access. Ask him.
