@@ -20,7 +20,11 @@ Widget live and serving from `app.wmiltd.com/wa-widget.js`, embedded on the home
 
 **One click record exists, ever, and it is synthetic.** Created 6 August with `gclid: CLEAN_TEST_789`. No real visitor has used the widget. That is the honest state, and it is why the demo needed a real-format click id borrowed from elsewhere.
 
-**The chain stops at the contact. Found 2026-08-16.** `RCV_wa_inbound_wmi` upserts the contact, stamps the five attribution fields, claims the ref and logs the task. It does **not** create an opportunity, and the location holds zero opportunities as a result. Three consequences: the pipeline board is empty so there is nothing to mark won, `CAP_offline_conversions_push` has no won event and no value to push, and the approved claim that completed bookings feed back to Google and Meta is currently unbacked on our own account. The fix is one HTTP node after `Parse upsert`, specified in `docs/NURTURE_BLUEPRINT_WA_SMS.md` Part 5. It is a live workflow, so it waits on a founder go.
+**The chain stopped at the contact, and now it does not. Found and fixed 2026-08-16.** `RCV_wa_inbound_wmi` upserted the contact, stamped the five attribution fields, claimed the ref and logged the task, but never created an opportunity, so the location held zero of them. That emptied the pipeline board, left `CAP_offline_conversions_push` with no won event and no value to push, and left the approved claim that completed bookings feed back to Google and Meta unbacked on our own account.
+
+**Founder go given 2026-08-16, node added and proven.** `Create opportunity` sits between `Claim ref + log` and `Respond ok`, posting to `/opportunities/` into New Business / New Lead, reading `Parse upsert` by node name because the item arriving there is the postgres result rather than the lead. Fired twice against the test contact: one opportunity created (`UFhrtXFkfAMcmcsAqmji`, source `whatsapp organic`), and the second fire created no duplicate, so `allowDuplicateOpportunity: false` is doing the dedupe. Webhook response shape unchanged, workflow still active. Backup of the previous version at `~/Downloads/n8n-archive/RCV_wa_inbound_wmi_2026-08-16_before-opportunity-node.json`.
+
+Contract note for anyone doing this on another location: `status` is required and must be one of `open, won, lost, abandoned`. A create without it returns 422, which is how the shape was confirmed without creating anything.
 
 ## The demo
 
@@ -32,13 +36,15 @@ Two recordings planned, phone then desktop: `docs/WA_DEMO_TWO_VIDEOS.md`. Video 
 
 **Canonical demo click id** is a real gclid with one character altered in the middle, so it holds the exact shape of a real one while pointing at nobody's account. Prefix and tail untouched. Use the value at the top of `WA_DEMO_TWO_VIDEOS.md`; the 11 August record used a different altered character.
 
-## The landing-page defect: fixed, not merged
+## The landing-page defect: fixed and live
 
 The widget stored the landing page **once on first touch and never refreshed it**, so a record could pair today's click id with a landing page from a previous visit. Founder ruled 2026-08-11 that this did not block the demo.
 
-**Fixed 2026-08-16 on branch `wa-widget-landing-fix`, two commits, not merged because `main` auto-deploys.** A click id the visitor has not arrived with before counts as a fresh ad click and re-stamps the landing page and referrer beside it; `first_seen` stays the genuine first touch and a new `landing_seen` moves with the landing page. Reloads, same-id returns and utm-only changes deliberately leave it alone. Six tests in `tests/wa-widget-attribution.test.js` run the real file in a stubbed DOM, and the defect case was confirmed failing against the pre-fix version so the suite is not vacuous. Also verified in a browser end to end.
+**Fixed 2026-08-16 and merged to `main` on founder go, so it is live on `app.wmiltd.com`** and confirmed serving. A click id the visitor has not arrived with before counts as a fresh ad click and re-stamps the landing page and referrer beside it; `first_seen` stays the genuine first touch and a new `landing_seen` moves with the landing page. Reloads, same-id returns and utm-only changes deliberately leave it alone. Six tests in `tests/wa-widget-attribution.test.js` run the real file in a stubbed DOM, and the defect case was confirmed failing against the pre-fix version so the suite is not vacuous. Also verified in a browser end to end.
 
-**The second commit on that branch adds a consent line to the widget card**, defaulting on. See below.
+**The second commit adds a consent line to the widget card**, defaulting on. See below.
+
+**Timing detail that catches people out:** an existing visitor's `sw_wa_attr` still holds the stale landing page until their next arrival with a click id, which is when it heals. The founder's phone included.
 
 **One loose end:** `landing_seen` is not in the `ALLOW` array in `RCV_wa_click`, so it is dropped server-side. Harmless, but the field is useless until one word is added to that list.
 
@@ -48,7 +54,9 @@ The widget stored the landing page **once on first touch and never refreshed it*
 
 Any nurture on these numbers rests on PECR's soft opt-in, and one of its four conditions is that the person was given a chance to refuse **at the point their details were collected**. On 2026-08-16 neither collection surface met it.
 
-- **The widget card said nothing. Fixed** on the branch above, `data-consent` to override or turn off, `data-privacy-url` for the link, wording set with `textContent` so a client attribute cannot inject markup.
+- **The widget card said nothing. Fixed and live**, `data-consent` to override or turn off, `data-privacy-url` for the link, wording set with `textContent` so a client attribute cannot inject markup.
+
+  Two things about the homepage embed, which lives in the marketing site repo rather than this one. It sets no `data-privacy-url`, so the line shows without the link to `/legal`, which is worth adding. And its greeting reads "Ask us anything about your ad accounts. We reply fast on WhatsApp", which is the agency "we" immediately before a nurture sequence written entirely in Anthony's first person singular. Two consecutive messages in two different voices. Founder's call, one line to change.
 - **`/free-audit` says only "No obligation. We reply within 1 working day." Not fixed.** It collects a phone number, so until it carries the same line the SMS nurture has no lawful basis and must stay off.
 
 Privacy policy exists at `https://www.wmiltd.com/legal`.
@@ -57,7 +65,7 @@ Privacy policy exists at `https://www.wmiltd.com/legal`.
 
 `docs/NURTURE_BLUEPRINT_WA_SMS.md`, written 2026-08-16. Built here first so the mistakes happen on our own number, then cloned; Part 1 is the reusable half and Part 4 is the per-client variable table.
 
-**Hard blocker: there is no booking link anywhere.** The WMI location has zero calendars, the site carries no Calendly or Cal.com, and `/free-audit` is a form promising a written report rather than a call. Every message in the sequence points at a `{{booking}}` that does not exist. Same shape as the VIP build, which sat blocked on Kyle's Calendly link until 14 August. Founder decision: a GHL calendar in this location, or an existing external link.
+**Booking link: the founder has one and is sending it (2026-08-16).** There is none in the location or on the site, so every `{{booking}}` in the blueprint is a placeholder until his link arrives. Drop it into the two message sets and both template submissions when it does; nothing else changes.
 
 Second blocker is the `/free-audit` consent line above. Neither blocks writing the workflows and leaving them off.
 
