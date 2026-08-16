@@ -9,3 +9,35 @@
 Live: a warm-up engagement campaign and a leads campaign using Meta Instant Forms against the Apollo list audience (`Apollo Dental Mega List July 26`, 16,536 contacts uploaded, ~4,300-5,100 matched). Targeting is list-only and verified so: `advantage_audience: 0`, `targeting_relaxation: {custom_audience: 0, lookalike: 0}`. Conversion spine is live and Meta-verified, `Lead` and `Schedule` server-side into dataset 867153482888947 via `CAP_meta_conversions`, GHL workflows firing it, Slack to #dentalmastery-leads. Legal pages published (privacy, terms, cookie settings) with a consent banner gating the pixel.
 
 Open: as at 2026-07-30 the leads campaign had produced no leads on roughly 15 clicks, and the budget reads £15/day rather than the £30 the founder set. The decision point is ~30 cumulative clicks: still zero and the problem is the ask, not delivery. Frequency is already ~2.1 against a small pool, so the list-only experiment has about 7 to 10 clean days before ad blindness contaminates it. Performance goal cannot be changed after publish, so any change of optimisation means a duplicate ad set.
+
+---
+
+## Task 21, paid traffic readiness (Google plus Bing)
+
+Audit: `docs/DMAI_PAID_TRAFFIC_AUDIT.md`, dated 2026-08-08, **corrected 2026-08-16**. Read the correction block before acting on the build order; three of the eight steps changed size.
+
+**Live state re-read 2026-08-16, all from the location (`YT3zkRv2oyeo1PSUQqVR`) and the live site.** Nothing had moved in the eight days since the audit: 6 contacts (most recent 5 August), **0 opportunities**, 7 pipeline stages, 3 forms, 10 workflows of which the same 6 nurture drafts are unpublished. The site still carries no Google or Microsoft measurement of any kind, re-verified on the served HTML (no `gtag`, `GTM-`, `AW-`, `G-`, `dataLayer`, `uetq`, `bat.bing`). The Meta pixel `867153482888947` is still loading.
+
+### What changed in the picture
+
+**The site is a GHL funnel in this same location.** The served HTML is a LeadConnector funnel bundle with every asset under `assets.cdn.filesafe.space/YT3zkRv2oyeo1PSUQqVR/`. Tagging is therefore a GHL settings change by whoever holds UI access, not a developer ticket, and the three forms are GHL forms on GHL pages. That answered audit open questions 2 and 3 outright.
+
+**GHL already captures the Google click id family, natively, with nothing built.** `contact.gclid` is a GHL standard field and always was; every contact carries `attributionSource` and `lastAttributionSource`, and the website form shape includes `gclid`, `wbraid`, `gbraid`, `adId`, `adGroupId`, `adName`, `url`, `referrer`, `ip`, `userAgent`, `gaClientId`, `gaSessionId` and the full utm set. Populated and working today. The audit's "there is no gclid field" was read off the custom fields endpoint, which lists neither standard fields nor the attribution object. Generalises to every GHL client, so it is in shared memory as `ghl-native-click-id-capture`, not here.
+
+**`msclkid` is the only click id genuinely missing.** It is not in the attribution shape. So the entire remaining engineering cost of this project is the Microsoft leg.
+
+### Done
+
+**Step 2, closed 2026-08-16.** Created as custom text fields on the location: `wbraid` (`WYBiB2Q7Sen2tY4NPlUh`), `gbraid` (`9UfOUHMYgyLfpE9aHMcM`), `msclkid` (`hXQiVeHQCJxIkg93J4Ds`). Read back and verified, 19 custom fields now. No `gclid` field created (standard, exists) and no landing page field (it is `attributionSource.url`). A fourth field, `fbclid`, was created only to test whether it was standard, found not to be, and deleted the same minute; it duplicated the existing `contact_meta_click_id` and was never wanted. **`wbraid` and `gbraid` sit empty until step 4 populates them, and must not be read as evidence of anything before then.**
+
+### Blocked on the founder
+
+**Step 1, account creation and billing, is founder-only and blocks steps 3, 5 and 8.** Two settings that are silent killers if missed at creation: **Google auto-tagging ON**, and **Microsoft auto-tagging of msclkid ON**, which is a separate setting on a separate account and Google's being on tells you nothing about it. Build Google properly first, then import the campaigns into Microsoft, which is the standard path and halves the setup. Audit open question 1 is still unanswered: which manager account should Google Ads sit under, and does Microsoft need its own manager structure.
+
+### The risk that is not technical
+
+Zero opportunities have ever entered the pipeline in eight months, and offline conversion upload works by reading stage changes. Built as specified, the whole spine sits idle. The mitigation now written into the audit as step 6a: automate New Lead on form submission and Booked Call off the calendar booking, both machine-observable, which makes the volume signal fully automatic and leaves only Proposal Sent, Signed and Deposit Paid needing a human. **If nobody will move a deal to Proposal Signed, the revenue leg of step 8 should not be built at all** and this becomes a booked-call optimisation build. That is the founder's call and it is the one question worth putting to him first.
+
+### Not verified, flagged rather than assumed
+
+The PIT returns 401 on the funnels scope, so the funnel inventory was inferred from the served HTML rather than listed. Before the tags are called done, confirm from outside that they are on every page, rather than trusting a location-level setting to have applied everywhere.

@@ -22,6 +22,8 @@ Site is Astro, French-first with English, Spanish and Dutch. DNS at Cloudflare. 
 
 **Auto-tagging must be confirmed ON in their Google Ads account.** Without it there is no gclid, the bridge captures nothing, and the proposal promises something that cannot happen. Baptiste can check it in a minute and has not. **Do not let the proposal go out before this is confirmed.**
 
+**2026-08-16, checked before asking: we cannot clear this ourselves.** Oscar listed every account across the SingularWeb and WMI UK MCCs. Buggy Trip is in neither, because **Baptiste's MCC is not linked into ours at all**. So the setting is unreadable from here. Record this as "not visible to check", never as "auto-tagging is off"; nothing has been read. Oscar holds it as a standing gap and will flag the moment a link appears. Ask drafted for Baptiste covering both the auto-tagging read and the link (either he links the account to the SingularWeb MCC directly, or a link request goes to the client to approve). Sitting with the founder to send; not sent as of this entry.
+
 ## Decisions the client owes
 
 1. Which WhatsApp number strategy: A, a new number for website enquiries and full automation; B, migrate their existing +212 707 01 44 44 and change how the team replies; C, no inbound integration. **Recommendation is A.**
