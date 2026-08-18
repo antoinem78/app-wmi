@@ -683,7 +683,11 @@ export async function runAgentChat(
     markConversationCache(messages);
     const resp = await client.messages.create({
       model: MODEL,
-      max_tokens: 8000,
+      // Sonnet 5 thinks by default and thinking spends from max_tokens. At
+      // 8000 a hard question exhausted the whole budget inside thinking and
+      // the visible reply came back empty. 32000 matches Bernard.
+      max_tokens: 32000,
+      output_config: { effort: "medium" },
       system,
       tools: ALL_TOOLS,
       messages,
@@ -796,9 +800,11 @@ export async function runAgentChatStream(
       markConversationCache(messages);
       const stream = client.messages.stream({
         model: MODEL,
-        // Was 2000, which truncated a long analysis mid-sentence. Bernard runs
-        // far higher; Oscar needs room to lay out a build spec or a full read.
-        max_tokens: 8000,
+        // Was 2000 (truncated mid-sentence), then 8000, which Sonnet 5's
+        // default thinking exhausted on hard questions, returning an empty
+        // reply. Thinking and text share this budget; 32000 matches Bernard.
+        max_tokens: 32000,
+        output_config: { effort: "medium" },
         system,
         tools: ALL_TOOLS,
         messages,
