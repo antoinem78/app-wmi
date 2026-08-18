@@ -98,11 +98,11 @@ Bernard is the **senior paid social strategist and media buyer**, ruled 2026-07-
 | act_799323799456382 instawarm.shop | instawarm.shop (Vincent) | ecommerce |
 | act_1304153623765783 FR | Vasco Electronics (Vasco Translator France) | ecommerce, largest account: 833,726 PLN lifetime |
 
-### BERNARD_optimise ruled 2026-08-18, and Norbert named
+### The agents-and-contractors operating model, ruled 2026-08-18 (supersedes the collision note that briefly stood here)
 
-All seven design decisions ruled in one pass: own R15.1 bar (**fifty approved moves, zero reversals**), no waiting on build's graduation, **pause and budget only** in v1, the Critic is a **different model named Norbert**, daily ceiling 3 per account, on demand only, first client Steffen. Spec: `docs/BERNARD_OPTIMISE_SPEC.md`; reasoning: `docs/BERNARD_OPTIMISE_DESIGN_NOTE.md`. Nothing built yet.
+**Human contractors stay. Both Gopoxy and Steffen are freelancer-managed, and the founder is not parting with his human contractors.** What changes: **Bernard (Meta) and Oscar (Google) now hold build and optimise capabilities, exercised only in founder-triggered sessions**: the founder decides, triggers an audit, then a build and/or optimisation session follows. The purpose is to **complement, improve or correct the freelancer's work**, never to replace it or race it. **Norbert supervises both agents**: every build or optimise session passes his review before the founder sees it. This resolves the apparent 2026-08-13/2026-08-18 Gopoxy conflict: watch-and-flag remains the standing posture between sessions, and a founder trigger is the only thing that opens a write window.
 
-**One ruling collision is open and blocks Gopoxy only:** the founder named Gopoxy as a first client, but 2026-08-13 ruled Gopoxy accounts untouched, freelancer-managed, agents watch-and-flag. Both cannot stand. Steffen proceeds; Gopoxy waits for one word. Steffen also needs a substrate `clients` row before any dispatch (neither first client has one).
+Consequence for anyone building or running the optimise executor: on a freelancer-managed account the pre-flight must read the platform's own change history, not just `move_snapshots`, because the thrash gate has to count the freelancer's changes too, and **no agent move may reverse a recent human change without that fact being stated in the approval item**. Spec: `docs/BERNARD_OPTIMISE_SPEC.md`; seven prior rulings recorded there.
 
 ### The Meta audit standard, reset 2026-08-11
 

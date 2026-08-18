@@ -33,3 +33,7 @@
 - [Automated message never claims attention](automated-message-never-claims-attention.md): warm and first person is fine, "I had a look at your account" is not, because the bluff gets called on the first reply
 - [Contact created is not opportunity created](contact-created-is-not-opportunity-created.md): an intake that creates a contact often creates no opportunity, so there is no won event to feed back; check the pipeline holds rows
 - [Validate backups by reading executions](validate-backups-by-reading-executions.md) — the nightly n8n backup failed 30/30 while looking active; check execution history and the destination, not the workflow status
+- [Feed accurate, store still lies](feed-accurate-store-still-lies.md): join the feed against the storefront first; if it matches, the fault is the merchant selling backorder stock as available, not the pipeline; and pair the join with a random sample, which catches the deleted-product tail a join is blind to
+- [Shopify Google channel takes SEO title](shopify-google-channel-takes-seo-title.md): shopping titles reading like marketing copy means the channel is sourcing the SEO page title; inconsistent variants prove it is hand-typed, and the fix is one setting
+- [Merchant API v1 read shapes](merchant-api-v1-read-shapes.md): v1beta is dead, product_view needs id in SELECT, and local~ rows inflate catalog counts several-fold
+- [Agents complement contractors](agents-complement-contractors.md) — build/optimise only in founder-triggered sessions; Norbert supervises both agents; watch-and-flag between sessions

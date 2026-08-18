@@ -1,6 +1,8 @@
-# BERNARD_optimise v1: executor spec
+# Agent optimise v1: executor spec (Bernard and Oscar, supervised by Norbert)
 
-**2026-08-18. All seven design decisions ruled by the founder; this is the buildable spec.** Companion: `docs/BERNARD_OPTIMISE_DESIGN_NOTE.md` (the reasoning), Executor Contract v2 (the conventions this inherits). Quarantined under R15.1 as a new capability. **Graduation bar: fifty approved moves with no reversal.**
+**2026-08-18. All seven design decisions ruled, then the operating model ruled the same day and folded in.** Companion: `docs/BERNARD_OPTIMISE_DESIGN_NOTE.md` (the reasoning), Executor Contract v2 (the conventions this inherits). Quarantined under R15.1 as a new capability. **Graduation bar: fifty approved moves with no reversal, counted per agent.**
+
+**The operating model, which frames everything below.** Human contractors stay; Gopoxy and Steffen are freelancer-managed and remain so. Build and optimise run **only in founder-triggered sessions** (audit first, then build and/or optimise on the founder's word), to complement, improve or correct the freelancer's work. Between sessions the agents watch and flag. **Norbert supervises both Bernard (Meta) and Oscar (Google)**: his review precedes the founder's on every session. v1 builds the Meta leg because that is where the executor machinery lives; Oscar's Google leg reuses his existing proposals path with Norbert's review inserted ahead of the founder, and is scoped in §9.
 
 ## 0. The rulings this implements
 
@@ -12,7 +14,7 @@
 | 4 | Critic is a different model from Bernard, named **Norbert** |
 | 5 | Daily ceiling: **3 moves per account**, config per client |
 | 6 | **On demand only**, no schedule |
-| 7 | First client **Steffen**; **Gopoxy conditional** on the founder resolving the 2026-08-13 freelancer-managed ruling |
+| 7 | First accounts **Steffen and Gopoxy**, both freelancer-managed, both write-eligible **only inside a founder-triggered session**. The 2026-08-13 watch-and-flag ruling is the resting posture between sessions, not a contradiction |
 
 ## 1. Workflows
 
@@ -42,7 +44,8 @@ Machine limits, enforced in code before Norbert ever sees a proposal:
 In order, each with its refusal logged as a `gate_blocked` counterfactual:
 
 1. Kill switch, stand-down, client `enabled`, exactly as build.
-2. **Thrash gate:** 4 or more moves on the entity in 7 days (config `thrash_n`) refuses, attaching the change history. Reads `move_snapshots`, **never `tasks`**, which carries 1,177 OpenDental rows that are not moves.
+2. **Thrash gate:** 4 or more changes on the entity in 7 days (config `thrash_n`) refuses, attaching the change history. On a freelancer-managed account, which is now the normal case, it counts **the platform's own change history plus `move_snapshots`**, because the freelancer's edits destabilise an entity exactly as ours do. Never reads `tasks`, which carries 1,177 OpenDental rows that are not moves.
+2b. **Human-change check:** any proposal that would reverse a change made by a human in the last 14 days must say so, named, in the approval item. The founder arbitrates between agent and freelancer; the agent never does.
 3. **Daily ceiling:** counting `executed` rows today for this account; at 3, the run refuses to propose more.
 4. **Data maturity:** any read taken intraday marks every resulting proposal `immature_data: true`, and that flag renders in the founder's approval item verbatim.
 
@@ -62,11 +65,14 @@ Different model family from Bernard's runtime, temperature default, no shared co
 
 ## 7. Prerequisites before first dispatch
 
-1. **Steffen substrate row.** Neither first client has one and the executor gates on it. Steffen's needs: slug `steffen-foerster`, his ad account id, `write_budget`, `thrash_n`, `daily_ceiling`. Founder go before the write, per convention.
-2. **Gopoxy: blocked on the ruling collision.** No row, no dispatch, until the founder reconciles this with the 2026-08-13 watch-and-flag ruling in `docs/clients/gopoxy.md`.
-3. Norbert model choice and credential in n8n.
-4. The em dash in build's ad-name fallback gets fixed in the same deploy window, since both workflows ship together.
+1. **Substrate rows for both accounts.** Neither Steffen nor Gopoxy has one and the executor gates on it. Each needs: slug, ad account id, `write_budget`, `thrash_n`, `daily_ceiling`. Founder go before each write, per convention.
+2. Norbert model choice and credential in n8n.
+3. The em dash in build's ad-name fallback gets fixed in the same deploy window, since both workflows ship together.
 
 ## 8. Explicitly out of v1
 
-Creative swaps, targeting, bid strategy (destroy learning history). Scheduling. Any grading of moves (snapshots accumulate; grading is a later, separately-reviewed decision). Meta writes outside the two-op grammar. Any Gopoxy dispatch.
+Creative swaps, targeting, bid strategy (destroy learning history). Scheduling, and any write outside a founder-triggered session. Any grading of moves (snapshots accumulate; grading is a later, separately-reviewed decision). Meta writes outside the two-op grammar.
+
+## 9. Oscar's leg, scoped not built
+
+Oscar already has the machinery this spec would otherwise invent: `list_proposals`, `decide_proposal`, `apply_proposal` with guardrail re-checks, and `write_audit`. What he gains is **Norbert inserted between proposal and founder**, the same two questions, the same one revision round, and the same session-only trigger. No new Google write surface. The thrash gate and human-change check apply identically, reading the Google Ads change history. Build order: Meta leg first because it is net-new; Oscar's insertion is a follow-up in the same pattern once Norbert exists.
