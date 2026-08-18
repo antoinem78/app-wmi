@@ -1,0 +1,35 @@
+# Memory index
+
+- [SingularWeb brand/entity map](singularweb-brand-entity-map.md) — "Mastery" brands are outside SingularWeb; SingularWeb owns the infra + Rexos
+- [SingularWeb substrate sprint context](singularweb-substrate-sprint-context.md) — where the workspace, briefs, and substrate creds live on this machine
+- [GitHub SSH push access](github-ssh-push-access.md) — this Mac can push antoinem78 repos; kst site main auto-deploys; Rexos main = production, use preview branches
+- [KST domain lesson](kst-client-domain-lesson.md) — client is kst-accountants.co.uk (hyphen); unhyphenated = different firm; confirm domains from systems of record
+- [Claude Meta read-only ruling](claude-meta-read-only-ruling.md) — Claude never writes to Meta; writes go via Manus/Bernard lab pattern or founder manual
+- [Meta API absence claims](meta-api-absence-claims.md) — never lead a client doc with "there is no X" from one API field; check the public surface first
+- [Cross-surface relevance check](cross-surface-relevance-check.md) — a finding on one surface must be joined against the spending surface before any impact claim; geo vs campaign targeting was the 2026-08-12 lesson
+- [Client document voice](client-document-voice.md) — client docs are written as Anthony, first person; never mention APIs, tooling or how data was obtained
+- [Verify who controls infrastructure](verify-who-controls-infrastructure.md) — dig NS *and* SOA before any DNS request; Bluehost holds an orphan zone for webmarketinginternational.com that silently accepts edits, real DNS is Cloudflare
+- [KST is the blueprint](kst-is-the-blueprint.md) — minor account by revenue, but it's the clonable template for the next accountancy and next non-dental client
+- [Substrate verified shapes](substrate-verified-shapes.md) — 2026-07-30 live facts: n8n 2.31.5, raw-body HMAC proven, postgres role bypasses RLS, OCT's two legs, report path
+- [SingularCommerce origin](singularcommerce-origin.md) — the whole commerce programme started as the founder's own skincare brand; now scoped: one face cream, Korean ODM, UAE market, verdict PROTOTYPE
+- [Agents chat execution](agents-chat-execution.md) — Bernard/Oscar execute from chat (2026-08-01); GOOGLE_build search-only + why; ALLOW_ALL_MCC lifts the allowlist
+- [Check access before requesting it](check-access-before-requesting-it.md) — read the live systems first, and route Meta/Google work through Bernard/Oscar rather than doing it myself
+- [Never infer delivery from the repo](never-infer-delivery-from-repo.md) — client docs go out over Slack; a missing file in docs/ is not evidence anything is outstanding
+- [No cross-client comparisons](no-cross-client-comparisons.md) — findings stand on the account's own data and platform behaviour; other clients' names never appear in per-client analyses
+- [Match windows to the break](match-windows-to-the-break.md) — two windows cannot tell a fall from a return to normal; plot four before comparing two
+- [Shopify theme duplicate stages design only](shopify-theme-duplicate-stages-design-only.md) — pages, product copy and app config are shared store data; never promise a preview link before classifying every item
+- [Client product facts need verifying](client-product-facts-need-verifying.md) — a client confirming what is in the box is not verification; dropshippers often have never handled their own product
+- [Agent relay truncates long turns](agent-relay-truncates-long-turns.md) — long Bernard/Oscar replies get cut mid-word and the turn may never persist; capture to a file and check it ends cleanly
+- [Prove offline conversions account-side](prove-offline-conversions-account-side.md) — a recorded UPLOAD_CLICKS conversion attributed to a campaign proves GCLID capture; upload diagnostics resources are not an absence test
+- [Meta guided-creation rebuild trap](meta-guided-creation-rebuild-trap.md) — rebuilds silently re-enable Advantage defaults incl. personalised destinations; check Ads Manager after every rebuild
+- [GBP is a separate call surface](gbp-is-a-separate-call-surface.md): website call tracking never sees map-pack calls; swap the Google Business Profile number too, and check it on public Maps
+- [Silence is not a signal without traffic](silence-is-not-a-signal-without-traffic.md): before auditing a tracking layer that fired zero times, check the input surface delivered anything in the window
+- [Baptiste's MCC is not linked](baptiste-mcc-not-linked.md) — verified 2026-08-16: nothing under his MCC is readable from ours; "not visible to check" is not "the setting is off"
+- [GHL native click-id capture](ghl-native-click-id-capture.md) — GHL captures gclid/wbraid/gbraid in attributionSource and has a standard contact.gclid; the customFields endpoint is not an absence test
+- [Blueprint clone rewire incomplete](blueprint-clone-rewire-incomplete.md) — cloned clients keep the source client's literal strings; VIP still held KST's emergency phone and pipeline name two weeks in; treat identical cross-tenant values as guilty
+- [Agent runtime CRM write allow-list](agent-runtime-crm-write-allowlist.md) — AGENT_postpass gates CRM writes to three hardcoded GHL locations, so shadow-testing an unlisted tenant is safe; Slack is NOT gated
+- [Nurture consent at collection](nurture-consent-at-collection.md): PECR soft opt-in needs an opt-out where the details were collected, so the widget or form is part of the nurture build; both of ours failed it
+- [WhatsApp nurture window shape](whatsapp-nurture-window-shape.md): the 24-hour window dictates the design, not taste; front-load, check the window every step, cap templates at three, one channel per contact
+- [Automated message never claims attention](automated-message-never-claims-attention.md): warm and first person is fine, "I had a look at your account" is not, because the bluff gets called on the first reply
+- [Contact created is not opportunity created](contact-created-is-not-opportunity-created.md): an intake that creates a contact often creates no opportunity, so there is no won event to feed back; check the pipeline holds rows
+- [Validate backups by reading executions](validate-backups-by-reading-executions.md) — the nightly n8n backup failed 30/30 while looking active; check execution history and the destination, not the workflow status
