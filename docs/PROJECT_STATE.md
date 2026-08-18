@@ -256,12 +256,13 @@ API quirks learned during submission, so nobody rediscovers them: end-user attri
 **Channel index (one session owns one file; see §7 for the convention):**
 
 - [instawarm.shop](clients/instawarm.md): connected merchant #1 on the commerce pipeline; $350/mo FZCO retainer + $225 fix package in flight
-- [GoPoxy](clients/gopoxy.md): freelancer-managed, analysis-only; 31 July step-down under investigation
+- [GoPoxy](clients/gopoxy.md): freelancer-managed, analysis-only; Shopify connected; distributor leg reframed to stockists (their GHL already holds a pipeline of enquiries); OCT to be offered free as the retention wedge per the bridge doctrine
 - [Atelier Brunos](clients/atelier-brunos.md): Gibran Zaki, AED 1,800/mo via FZCO portal; destination misconfig found and corrected 2026-08-15
 - [Super Henry](clients/super-henry.md): prospect (Rhodri); free review in flight; unit-economics rebuild is the lead finding
 - [Monde du Tabouret](clients/monde-du-tabouret.md): Phase 0 blocked on client Shopify app setup; monitor fixed 2026-07-30
 - [Tropical Oasis](clients/tropical-oasis.md): audit delivered; awaiting client
 - [Vasco Electronics](clients/vasco-electronics.md): prospect; FR account audited 2026-08-11, deck delivered
+- [House of Isabella UK](clients/house-of-isabella.md): Google only, under Oscar (founder ruling 2026-08-18); OOS-revenue and catalog findings on record; client report drafted
 - [The skincare venture](clients/korean-cream.md): founder's own brand; UAE; V1 to V8 verifications open
 
 Client operational history that predates the split lives in git (checkpoint d71cf65) and in the channel files. Below: track-wide lessons and the commerce programme, which stay here per the cross-session agreement.
