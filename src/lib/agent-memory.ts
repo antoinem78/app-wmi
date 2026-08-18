@@ -164,6 +164,26 @@ export async function remember(
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
   const text = content.trim();
   if (!text) return { ok: false, error: "Nothing to remember (empty content)." };
+  // Principles, never numbers (Denis brief 2.4). This is the STRUCTURAL half of
+  // the rule and it is deliberately narrow: it blocks the clearest volatile-fact
+  // shapes (a budget or bid with a figure, a current entity status) rather than
+  // every number, because lessons legitimately cite historical figures as
+  // evidence. The broad version of the rule lives in each agent's doctrine and
+  // is instructional. Stated plainly: everything this regex misses is enforced
+  // by prompt only.
+  const volatile =
+    /\b(budget|bid|cap|ceiling)\b[^.\n]{0,24}?[£$€]?\s?\d/i.test(text) ||
+    /\bstatus\s+(is|=)\s*(ACTIVE|PAUSED|ENABLED|REMOVED)\b/i.test(text) ||
+    /\b(currently|right now|as of (today|now))\b[^.\n]{0,40}\d/i.test(text);
+  if (volatile) {
+    return {
+      ok: false,
+      error:
+        "Refused: this reads as a volatile fact (a budget, status or current figure). " +
+        "Those are re-read live every run; a remembered number is a stale number wearing the clothes of knowledge. " +
+        "Restate the durable lesson without the current value.",
+    };
+  }
   try {
     const supabase = memoryClient();
     const { data, error } = await supabase

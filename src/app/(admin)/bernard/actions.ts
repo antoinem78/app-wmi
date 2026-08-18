@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { auth0 } from "@/lib/auth/auth0";
 import { isAgencyAdmin } from "@/lib/auth/roles";
 import { decideFix, standDown } from "@/lib/bernard";
+import { leaveFeedback } from "@/lib/agent-feedback";
 
 async function requireAdmin(): Promise<string> {
   const session = await auth0.getSession();
@@ -31,3 +32,17 @@ export async function standDownAction(formData: FormData): Promise<void> {
   await standDown(slug, "founder stand-down from portal", email);
   revalidatePath("/bernard");
 }
+
+// The feedback inbox (Denis brief item 3): a one-off steering note the agent
+// reads at the start of its next run and then archives. Not a memory, not a
+// chat turn; the missing middle between the two.
+export async function leaveFeedbackAction(formData: FormData): Promise<void> {
+  const email = await requireAdmin();
+  const agent = String(formData.get("agent") ?? "bernard");
+  const note = String(formData.get("note") ?? "").trim();
+  if (!note) return;
+  if (!["bernard", "oscar", "all"].includes(agent)) throw new Error("Unknown agent.");
+  await leaveFeedback(agent, note, email);
+  revalidatePath("/bernard");
+}
+

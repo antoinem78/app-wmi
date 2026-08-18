@@ -99,3 +99,36 @@ export interface BuildDispatch {
 export async function dispatchBuild(spec: BuildDispatch): Promise<unknown> {
   return call("bernard-build", { method: "POST", body: spec });
 }
+
+// ---- Optimise dispatch (agent-optimise v1, docs/BERNARD_OPTIMISE_SPEC.md) ----
+// Same trust model as dispatch_build: the founder's word in chat triggers, the
+// substrate gates (allow-list, daily ceiling, thrash, budget bounds) decide,
+// Norbert reviews, and nothing executes until decide_move approves ONE move.
+export interface OptimiseMove {
+  op: "pause" | "budget" | "unpause";
+  entity_type: "campaign" | "adset" | "ad";
+  entity_id: string;
+  from_minor?: number;
+  to_minor?: number;
+  evidence: string;
+}
+export interface OptimiseDispatch {
+  client_slug: string;
+  account_id: string;
+  session_note?: string;
+  moves: OptimiseMove[];
+}
+export async function dispatchOptimise(spec: OptimiseDispatch): Promise<unknown> {
+  return call("bernard-optimise", { method: "POST", body: spec });
+}
+export async function decideMove(
+  moveId: string,
+  decision: "approve" | "reject",
+  reason: string,
+): Promise<unknown> {
+  return call("bernard-optimise-execute", {
+    method: "POST",
+    body: { move_id: moveId, decision, reason },
+  });
+}
+

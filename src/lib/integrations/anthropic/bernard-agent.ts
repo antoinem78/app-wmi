@@ -6,7 +6,7 @@
 // bernard.ts): read the lab status, decide a proposed fix, stand a client
 // down. Meta reads and executor dispatches run in the substrate, not here.
 import Anthropic from "@anthropic-ai/sdk";
-import { getBernardStatus, decideFix, standDown, dispatchBuild, type BuildDispatch } from "@/lib/bernard";
+import { getBernardStatus, decideFix, standDown, dispatchBuild, type BuildDispatch , dispatchOptimise, decideMove } from "@/lib/bernard";
 import {
   listMetaAdAccounts,
   getMetaAuditData,
@@ -31,6 +31,8 @@ import {
   MEMORY_KINDS,
   type MemoryKind,
 } from "@/lib/agent-memory";
+import { logAgentUsage } from "@/lib/agent-usage";
+import { consumeFeedback, renderFeedback } from "@/lib/agent-feedback";
 
 const AGENT = "bernard";
 const MODEL = "claude-sonnet-5";
@@ -201,6 +203,47 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
     },
   },
   {
+    name: "dispatch_optimise",
+    description: "Stage pause/budget optimisation moves for a client account. Machine gates (allow-list, ceiling, thrash, budget bounds) run first, then Norbert reviews. Returns approval items with move_ids; NOTHING executes until decide_move. Founder-triggered sessions only.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_slug: { type: "string" as const },
+        account_id: { type: "string" as const },
+        session_note: { type: "string" as const, description: "Why this session was triggered" },
+        moves: {
+          type: "array" as const,
+          items: {
+            type: "object" as const,
+            properties: {
+              op: { type: "string" as const, enum: ["pause", "budget", "unpause"] },
+              entity_type: { type: "string" as const, enum: ["campaign", "adset", "ad"] },
+              entity_id: { type: "string" as const },
+              from_minor: { type: "number" as const, description: "budget op only: current daily budget, minor units" },
+              to_minor: { type: "number" as const, description: "budget op only: proposed daily budget, minor units" },
+              evidence: { type: "string" as const, description: "The specific numbers that justify this move" },
+            },
+            required: ["op", "entity_type", "entity_id", "evidence"],
+          },
+        },
+      },
+      required: ["client_slug", "account_id", "moves"],
+    },
+  },
+  {
+    name: "decide_move",
+    description: "Execute or reject ONE staged optimisation move, on the founder's explicit word for that specific move. Executes with read-back verification; a 200 that reads back unchanged reports verification_failed.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        move_id: { type: "string" as const },
+        decision: { type: "string" as const, enum: ["approve", "reject"] },
+        reason: { type: "string" as const, description: "Required on reject: why, for the counterfactual record" },
+      },
+      required: ["move_id", "decision"],
+    },
+  },
+  {
     name: "remember",
     description:
       "Write something to your permanent memory. Your memory survives the founder clearing the chat and every future session, so use it for anything you would be embarrassed to have forgotten next week: how a client operates, an account's baselines and quirks, a ruling the founder made and why, a standing preference about how he wants you to work, a strategic position you have taken. Do NOT store things you can look up live (current spend, today's status, pending fixes) — store the judgement, not the reading. Check your existing memory first: if a memory is merely out of date, use revise_memory instead of adding a second version.",
@@ -275,6 +318,14 @@ WHAT YOU CAN DO HERE:
 - list_meta_accounts shows every ad account the system user can see, live. Any account there is yours to read and audit immediately — assignment in Business Manager is the onboarding for reads. (Executor dispatch for a client still requires lab registration in the substrate.)
 - run_audit reads one account's full ground truth (read-only) so you can audit it right here in chat. Lead with the verdict and the strongest evidence; keep the chat version tight. The tool result carries download_path — ALWAYS give the founder that link at the end of an audit, on its own line, e.g. "Word document: /api/bernard/audit/123456?days=30". The document is generated fresh from the same live data when they click it.
 - dispatch_build sends an agreed spec to the substrate executor, which creates everything PAUSED behind machine-enforced gates and reads back what it made. You CAN build from this chat: lay the spec out, get the founder's explicit go, dispatch, then report the verified result. The founder activates; you never do.
+- dispatch_optimise stages pause and budget moves (the only two ops that exist) behind the same machine gates, then Norbert, a separate supervising model, reviews the set before the founder sees it. Only a founder-triggered session may dispatch: the freelancer manages these accounts and you complement his work, never race it. Budget moves are bounded to 25% per move. If your move would reverse a recent human change, the approval item says so and the founder arbitrates, never you.
+- decide_move executes or rejects ONE staged move on the founder's explicit word, one call per move. Approval is per move, never per batch.
+
+Operating doctrine, adopted 2026-08-18 from a reviewed external field study:
+- Every operating report OPENS with problems ranked by money at stake, stated explicitly, before any narrative. "Client X is losing $Y/week" outranks "client Z could use $50 more". A status-shaped report is a failed report.
+- Before recommending any change to a campaign, ad set or ad, state that entity's recent change history (what, when, by whom). Four or more changes in 7 days means the entity is thrashing, and a thrashing entity needs stability, not another move; every change must be worth the learning reset it causes.
+- Never act on immature intraday data. Meta backloads delivery, so any judgement made mid-day on partial numbers carries an explicit immature-data caveat, stated where the founder will read it.
+- Memory stores principles and lessons, never volatile facts. A budget, a status, a count or a spend figure is re-read live every run; a remembered number is a stale number wearing the clothes of knowledge. The memory tool now refuses entries that look like volatile facts; that refusal is correct, restate the lesson without the number.
 - decide_fix records the founder's approve/reject on a specific pending fix. The founder's word in this chat IS the approval gate — so only call it on an explicit, unambiguous instruction naming (or clearly identifying) one fix. If they say "approve it" and more than one fix is pending, ask which.
 - stand_down is the emergency brake for one client. Explicit orders only. Confirm you understood ("Standing down <client> — all executor work halts") after doing it, not before.
 
@@ -376,6 +427,8 @@ function statusLabel(name: string): string {
     case "get_pixel_stats": return "Reading pixel event volume…";
     case "dispatch_copy_fix": return "Rebuilding the ad with corrected copy…";
     case "dispatch_build": return "Dispatching the build to the substrate…";
+    case "dispatch_optimise": return "Staging moves through the gates and Norbert…";
+    case "decide_move": return "Recording the decision…";
     case "remember": return "Committing that to memory…";
     case "revise_memory": return "Updating what I know…";
     case "forget": return "Forgetting that…";
@@ -525,6 +578,22 @@ async function runTool(
       try { return await dispatchBuild(spec); }
       catch (e) { return { error: e instanceof Error ? e.message : String(e) }; }
     }
+    case "dispatch_optimise": {
+      if (!input.client_slug || !input.account_id || !Array.isArray(input.moves) || !input.moves.length)
+        return { error: "dispatch_optimise needs client_slug, account_id and a non-empty moves array." };
+      try { return await dispatchOptimise(input as never); }
+      catch (e) { return { error: e instanceof Error ? e.message : String(e) }; }
+    }
+    case "decide_move": {
+      const moveId = String(input.move_id ?? "");
+      const decision = String(input.decision ?? "");
+      if (!moveId || !["approve", "reject"].includes(decision))
+        return { error: "decide_move needs move_id and decision approve|reject." };
+      if (decision === "reject" && !String(input.reason ?? "").trim())
+        return { error: "a rejection carries its reason; it becomes the counterfactual record." };
+      try { return await decideMove(moveId, decision as "approve" | "reject", String(input.reason ?? "")); }
+      catch (e) { return { error: e instanceof Error ? e.message : String(e) }; }
+    }
     case "remember": {
       const kind = String(input.kind ?? "");
       if (!(MEMORY_KINDS as string[]).includes(kind))
@@ -582,7 +651,8 @@ export async function runBernardChatStream(
   const client = new Anthropic({ apiKey });
   // Memory is read fresh each turn, so anything Bernard remembered a moment ago
   // is already in scope, and a founder edit lands without a restart.
-  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT));
+  const feedback = renderFeedback(await consumeFeedback(AGENT));
+  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT) + feedback);
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m) => ({
     role: m.role,
     content: m.content,
@@ -612,6 +682,9 @@ export async function runBernardChatStream(
     messages[messages.length - 1] = { role: "user", content: blocks };
   }
 
+  const runUsage = { model: MODEL as string, turns: 0, tokensIn: 0, tokensOut: 0 };
+  // Bernard's portal chat is a single fixed scope (see /api/bernard/chat).
+  const flushUsage = () => { void logAgentUsage(AGENT, "bernard", null, runUsage); };
   try {
     for (let i = 0; i < 8; i++) {
       markConversationCache(messages);
@@ -634,6 +707,10 @@ export async function runBernardChatStream(
         emit({ type: "delta", text: t });
       });
       const final = await stream.finalMessage();
+      runUsage.turns += 1;
+      runUsage.tokensIn += final.usage?.input_tokens ?? 0;
+      runUsage.tokensOut += final.usage?.output_tokens ?? 0;
+      runUsage.model = final.model || runUsage.model;
 
       if (final.stop_reason === "refusal") {
         emit({ type: "reset" });
@@ -682,5 +759,7 @@ export async function runBernardChatStream(
     emit({ type: "done" });
   } catch (e) {
     emit({ type: "error", text: e instanceof Error ? e.message : String(e) });
+  } finally {
+    flushUsage();
   }
 }

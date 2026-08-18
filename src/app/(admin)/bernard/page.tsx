@@ -4,7 +4,7 @@
 // the (admin) layout has already enforced agency_admin before this renders.
 import { bernardConfigured, getBernardStatus, type BernardStatus } from "@/lib/bernard";
 import { BernardChat } from "@/components/BernardChat";
-import { decideFixAction, standDownAction } from "./actions";
+import { decideFixAction, standDownAction, leaveFeedbackAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -179,6 +179,36 @@ export default async function BernardPage() {
 
       {/* Talk to Bernard — sticky chat column on wide screens, stacked below on narrow */}
       <div className="xl:sticky xl:top-6 xl:self-start">
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <h2 className="text-sm font-semibold text-zinc-900">Note for the next run</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            One-off steering ("go easy on client X this week"). The agent reads it at
+            the start of its next run, applies it, and archives it. Not a memory:
+            it expires by design.
+          </p>
+          <form action={leaveFeedbackAction} className="mt-3 space-y-2">
+            <textarea
+              name="note"
+              rows={2}
+              required
+              placeholder="Go easy on Steffen this week; the freelancer is mid-restructure."
+              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+            />
+            <div className="flex items-center gap-2">
+              <select name="agent" className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm">
+                <option value="bernard">Bernard</option>
+                <option value="oscar">Oscar</option>
+                <option value="all">Both</option>
+              </select>
+              <button
+                type="submit"
+                className="rounded-md bg-[#0B1F3A] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#0B1F3A]/90"
+              >
+                Leave note
+              </button>
+            </div>
+          </form>
+        </section>
         <BernardChat heightClass="h-[32rem] xl:h-[calc(100vh-6rem)]" />
       </div>
       </div>

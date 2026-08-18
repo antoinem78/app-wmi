@@ -12,6 +12,8 @@ import {
   MEMORY_KINDS,
   type MemoryKind,
 } from "@/lib/agent-memory";
+import { logAgentUsage } from "@/lib/agent-usage";
+import { consumeFeedback, renderFeedback } from "@/lib/agent-feedback";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { getDashboard, getWeeklyOptimisations } from "@/lib/integrations/google-ads/reporting";
 import { gaqlSearch, listManagedAccounts } from "@/lib/integrations/google-ads";
@@ -259,6 +261,12 @@ YOUR JOB:
 - NEGATIVE KEYWORDS: before proposing ANY negative keyword, call get_search_terms and cite the actual wasted queries (meaningful cost, zero/low conversions). Never invent a query. If get_search_terms returns nothing, say so and do not fabricate one. If a wasted query is spending across many Search campaigns, file a shared negative (add_shared_negative); if it is confined to one campaign, file a campaign-level add_negative_keyword against that exact campaign.
 - If asked whether an optimisation is needed and you think NOT, prove it with the figures.
 - dispatch_build creates a full Search campaign from a spec: campaign PAUSED always, atomic (all or nothing), gates in code, result verified by re-read. You CAN build from this chat. Lay the spec out, get the founder's explicit go, run validate_only first if anything is uncertain, then build and report the verified counts. The founder activates; you never do. PMax, Demand Gen and Shopping builds do not exist here; say so rather than improvising.
+
+Operating doctrine, adopted 2026-08-18 from a reviewed external field study:
+- Every operating report OPENS with problems ranked by money at stake, stated explicitly, before any narrative. "Client X is losing £Y/week" outranks "client Z could use £50 more". A status-shaped report is a failed report.
+- Before recommending any change to a campaign, ad group or ad, state that entity's recent change history (what, when, by whom). Four or more changes in 7 days means the entity is thrashing, and a thrashing entity needs stability, not another move; every change must be worth the learning reset it causes. On freelancer-managed accounts his changes count exactly as yours do, and a recommendation that would reverse his recent change says so by name; the founder arbitrates, never you.
+- Never act on immature intraday data; any judgement made mid-day on partial numbers carries an explicit immature-data caveat, stated where the founder will read it.
+- Memory stores principles and lessons, never volatile facts. A budget, a status, a count or a spend figure is re-read live every run. The memory tool refuses entries that look like volatile facts; that refusal is correct, restate the lesson without the number.
 - run_audit prepares the written Google Ads audit. Give the founder the download_path on its own line at the end of your reply, e.g. "Audit document: /api/audit/<id>". Keep your chat read tight; the document carries the detail. It only covers imported clients, so if he names a bare MCC account say plainly that there is no client record to attach it to rather than inventing an id.`;
 
 /** The system prompt for one turn: the fixed brief plus everything Oscar has
@@ -675,7 +683,7 @@ export async function runAgentChat(
   const ctx: ToolContext = { roster: await loadRoster(), actor };
   // Memory is read fresh each turn, so a memory written a moment ago is already
   // in scope, and it is scoped to Oscar so Bernard's notes never leak in.
-  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT), focusNote(ctx.roster, focusClientId));
+  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT) + renderFeedback(await consumeFeedback(AGENT)), focusNote(ctx.roster, focusClientId));
 
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
 
@@ -767,7 +775,7 @@ export async function runAgentChatStream(
   const ctx: ToolContext = { roster: await loadRoster(), actor };
   // Memory is read fresh each turn, so a memory written a moment ago is already
   // in scope, and it is scoped to Oscar so Bernard's notes never leak in.
-  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT), focusNote(ctx.roster, focusClientId));
+  const system = buildSystem(renderMemories(await loadMemories(AGENT), AGENT) + renderFeedback(await consumeFeedback(AGENT)), focusNote(ctx.roster, focusClientId));
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
 
   // Files ride on the turn they were sent with, as document blocks ahead of the
@@ -795,6 +803,8 @@ export async function runAgentChatStream(
     messages[messages.length - 1] = { role: "user", content: blocks };
   }
 
+  const runUsage = { model: MODEL as string, turns: 0, tokensIn: 0, tokensOut: 0 };
+  const flushUsage = () => { void logAgentUsage(AGENT, focusClientId ?? "oscar", focusClientId ?? null, runUsage); };
   try {
     for (let i = 0; i < 8; i++) {
       markConversationCache(messages);
@@ -815,6 +825,10 @@ export async function runAgentChatStream(
         emit({ type: "delta", text: t });
       });
       const final = await stream.finalMessage();
+      runUsage.turns += 1;
+      runUsage.tokensIn += final.usage?.input_tokens ?? 0;
+      runUsage.tokensOut += final.usage?.output_tokens ?? 0;
+      runUsage.model = final.model || runUsage.model;
       const toolUses = final.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
       if (final.stop_reason !== "tool_use" || toolUses.length === 0) {
         emit({ type: "done" });
@@ -848,5 +862,7 @@ export async function runAgentChatStream(
     emit({ type: "done" });
   } catch (e) {
     emit({ type: "error", text: e instanceof Error ? e.message : String(e) });
+  } finally {
+    flushUsage();
   }
 }
