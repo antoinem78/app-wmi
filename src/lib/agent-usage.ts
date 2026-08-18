@@ -15,16 +15,29 @@ const RATES: [prefix: string, inPerM: number, outPerM: number][] = [
   ["claude-haiku-4", 1, 5],
 ];
 
-export function costUsd(model: string, tokensIn: number, tokensOut: number): number {
+// Cache pricing: reads bill at 10% of the input rate, writes at 125%. The
+// first production row proved this matters: a cached agent turn reported
+// tokens_in of 2 while reading tens of thousands of tokens from cache, so a
+// meter that ignores cache fields understates the exact number the economics
+// ledger exists to capture.
+export function costUsd(model: string, u: RunUsage): number {
   const hit = RATES.filter(([p]) => model.startsWith(p)).sort((a, b) => b[0].length - a[0].length)[0];
   if (!hit) return 0;
-  return (tokensIn * hit[1] + tokensOut * hit[2]) / 1e6;
+  const [, inRate, outRate] = hit;
+  return (
+    (u.tokensInUncached * inRate +
+      u.tokensCacheWrite * inRate * 1.25 +
+      u.tokensCacheRead * inRate * 0.1 +
+      u.tokensOut * outRate) / 1e6
+  );
 }
 
 export interface RunUsage {
   model: string;
   turns: number;
-  tokensIn: number;
+  tokensInUncached: number;
+  tokensCacheWrite: number;
+  tokensCacheRead: number;
   tokensOut: number;
 }
 
@@ -34,7 +47,8 @@ export async function logAgentUsage(
   clientId: string | null,
   u: RunUsage,
 ): Promise<void> {
-  if (!u.tokensIn && !u.tokensOut) return;
+  const totalIn = u.tokensInUncached + u.tokensCacheWrite + u.tokensCacheRead;
+  if (!totalIn && !u.tokensOut) return;
   try {
     await createSupabaseAdminClient().from("agent_usage").insert({
       agent,
@@ -42,9 +56,12 @@ export async function logAgentUsage(
       client_id: clientId,
       model: u.model,
       turns: u.turns,
-      tokens_in: u.tokensIn,
+      // tokens_in is TOTAL input processed (uncached + cache write + cache
+      // read), so volume is honest; cost_usd already prices each class at its
+      // own rate, so the money is exact even though the split is not stored.
+      tokens_in: totalIn,
       tokens_out: u.tokensOut,
-      cost_usd: costUsd(u.model, u.tokensIn, u.tokensOut).toFixed(6),
+      cost_usd: costUsd(u.model, u).toFixed(6),
     });
   } catch {
     /* metering is best-effort by design */

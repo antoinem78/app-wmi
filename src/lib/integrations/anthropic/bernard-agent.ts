@@ -682,7 +682,7 @@ export async function runBernardChatStream(
     messages[messages.length - 1] = { role: "user", content: blocks };
   }
 
-  const runUsage = { model: MODEL as string, turns: 0, tokensIn: 0, tokensOut: 0 };
+  const runUsage = { model: MODEL as string, turns: 0, tokensInUncached: 0, tokensCacheWrite: 0, tokensCacheRead: 0, tokensOut: 0 };
   // Bernard's portal chat is a single fixed scope (see /api/bernard/chat).
   const flushUsage = () => { void logAgentUsage(AGENT, "bernard", null, runUsage); };
   try {
@@ -708,7 +708,9 @@ export async function runBernardChatStream(
       });
       const final = await stream.finalMessage();
       runUsage.turns += 1;
-      runUsage.tokensIn += final.usage?.input_tokens ?? 0;
+      runUsage.tokensInUncached += final.usage?.input_tokens ?? 0;
+      runUsage.tokensCacheWrite += (final.usage as { cache_creation_input_tokens?: number })?.cache_creation_input_tokens ?? 0;
+      runUsage.tokensCacheRead += (final.usage as { cache_read_input_tokens?: number })?.cache_read_input_tokens ?? 0;
       runUsage.tokensOut += final.usage?.output_tokens ?? 0;
       runUsage.model = final.model || runUsage.model;
 
