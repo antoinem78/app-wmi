@@ -2,7 +2,9 @@
 
 **2026-08-17.** Founder-requested: an optimisation executor, human in the loop always, with an agent reviewing before the human. This is also the note owed under the 2026-08-05 risk brief §3 and the Denis brief §4, because the reviewer the founder asked for and the Critic that brief specifies are the same organ. One note, four parts.
 
-**Nothing here is built. No workflow exists. This is for review.**
+**RULED BY THE FOUNDER 2026-08-18, all seven.** (1) Optimisation gets its own R15.1 bar: **fifty approved moves with no reversal.** (2) Build does **not** need to graduate first. (3) v1 move classes: **pause and budget only.** (4) The Critic is a **different model from Bernard, named Norbert.** (5) Daily change ceiling: **3 per account**, config per client. (6) **On demand only.** (7) First clients: **Steffen, and Gopoxy conditionally**. The Gopoxy condition is a ruling collision the founder must resolve: 2026-08-13 ruled Gopoxy accounts untouched, freelancer-managed, agents watch-and-flag only. An optimiser writing to an account a freelancer also edits is a race. Steffen proceeds; Gopoxy waits for one word. Executor spec: `docs/BERNARD_OPTIMISE_SPEC.md`.
+
+**Nothing is built yet. The spec below the rulings is now the work order.**
 
 ---
 
