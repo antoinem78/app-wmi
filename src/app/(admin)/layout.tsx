@@ -20,6 +20,7 @@ const navItems = [
   { href: "/clients", label: "Clients" },
   { href: "/proposals", label: "Proposals" },
   { href: "/bernard", label: "Bernard" },
+  { href: "/dial", label: "Dial" },
 ];
 
 export default async function AdminLayout({

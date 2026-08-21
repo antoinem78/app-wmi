@@ -18,6 +18,8 @@ export const config = {
     // authenticate themselves (signature / CRON_SECRET) and must NOT pass
     // through Auth0 — a session-less POST can otherwise be redirected to the
     // login flow, which Stripe reports as a delivery failure ("other errors").
-    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/webhooks|api/cron).*)",
+    // api/twilio/voice is Twilio's TwiML callback: session-less by nature,
+    // guarded by its own shared secret.
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/webhooks|api/cron|api/twilio/voice).*)",
   ],
 };
