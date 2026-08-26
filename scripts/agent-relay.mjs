@@ -30,7 +30,7 @@ import { resolve, dirname, basename, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const AGENTS = {
-  bernard: { path: "/api/bernard/chat", keyEnv: "BERNARD_RELAY_KEY", header: "x-bernard-relay-key", scoped: false, name: "BERNARD" },
+  bernard: { path: "/api/bernard/chat", keyEnv: "BERNARD_RELAY_KEY", header: "x-bernard-relay-key", scoped: true, name: "BERNARD" },
   oscar: { path: "/api/agent/chat", keyEnv: "OSCAR_RELAY_KEY", header: "x-oscar-relay-key", scoped: true, name: "OSCAR" },
   norbert: { path: "/api/norbert/chat", keyEnv: "NORBERT_RELAY_KEY", header: "x-norbert-relay-key", scoped: false, name: "NORBERT" },
 };
@@ -161,6 +161,7 @@ async function send(text) {
   // (drop tool-turn preamble), artifact (download link), done, error.
   let answer = "";
   const artifacts = [];
+  let complete = false;
   let buffered = "";
   const decoder = new TextDecoder();
   for await (const chunk of res.body) {
@@ -180,10 +181,20 @@ async function send(text) {
       else if (ev.type === "reset") answer = "";
       else if (ev.type === "status") console.error(`[${agentId} is working: ${ev.text}]`);
       else if (ev.type === "artifact") artifacts.push({ href: ev.text, label: ev.label });
+      else if (ev.type === "complete") complete = true;
       else if (ev.type === "error") throw new Error(`${agent.name} error: ${ev.text}`);
     }
   }
-  return { answer: answer.trim(), artifacts };
+  // A reply without the completion marker was cut off server-side (function
+  // timeout, dropped stream). Say so loudly: a truncated reply reads exactly
+  // like a complete one, which is how two cut audits went unnoticed in August.
+  // Older deployments do not emit the marker at all, so warn rather than fail.
+  if (!complete) {
+    console.error(`[WARNING: the stream ended WITHOUT the completion marker. ` +
+      `Treat this reply as possibly truncated; the stored turn may be cut identically. ` +
+      `Re-ask, or verify with --history.]`);
+  }
+  return { answer: answer.trim(), artifacts, complete };
 }
 
 if (args[0] === "--history") {

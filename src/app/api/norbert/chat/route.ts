@@ -119,6 +119,13 @@ export async function POST(request: Request) {
   }
   const userTurn = messages[messages.length - 1];
 
+  // Persist the founder's turn BEFORE generating (process feedback 2026-08-26,
+  // item 2): the question must survive even if the answer dies mid-stream.
+  const stored = attachments.length
+    ? [...attachments.map(transcriptNote), userTurn.content].join("\n\n")
+    : userTurn.content;
+  await appendTurns(SCOPE, null, [{ role: "user", content: stored }], actor);
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -137,20 +144,15 @@ export async function POST(request: Request) {
       };
       try {
         await runNorbertChatStream(messages, actor, send, attachments);
+        // End-of-response marker: a stream ending without it was truncated.
+        send({ type: "complete" });
       } catch (e) {
         console.error("Norbert chat failed:", e);
         send({ type: "error", text: "Norbert hit an error. Try again." });
       } finally {
-        // Store the attachments alongside the founder's text: extracted text
-        // inline so later turns still have it, PDFs as a filename marker only.
-        const stored = attachments.length
-          ? [...attachments.map(transcriptNote), userTurn.content].join("\n\n")
-          : userTurn.content;
-        const toStore: { role: "user" | "assistant"; content: string }[] = [
-          { role: "user", content: stored },
-        ];
-        if (assistantText.trim()) toStore.push({ role: "assistant", content: assistantText });
-        await appendTurns(SCOPE, null, toStore, actor);
+        // The user turn is stored pre-stream; only the reply lands here.
+        if (assistantText.trim())
+          await appendTurns(SCOPE, null, [{ role: "assistant", content: assistantText }], actor);
         controller.close();
       }
     },

@@ -140,6 +140,15 @@ export async function POST(request: Request) {
   }
   const userTurn = messages[messages.length - 1];
 
+  // Persist the user's turn BEFORE generating (process feedback 2026-08-26,
+  // item 2): a turn once executed fully and then vanished because persistence
+  // lived after generation, inside the stream. The question survives even if
+  // the answer dies.
+  const storedUser = attachments.length
+    ? [...attachments.map(transcriptNote), userTurn.content].join("\n\n")
+    : userTurn.content;
+  await appendTurns(scope, clientId, [{ role: "user", content: storedUser }], actor);
+
   // Stream the answer as newline-delimited JSON events (status / delta / done / error).
   // Accumulate the assistant's final text so we can persist the turn pair after
   // the stream completes ('reset' clears any tool-use preamble, matching the UI).
@@ -161,21 +170,15 @@ export async function POST(request: Request) {
         // client id is also the analyst's FOCUS account — forward it so the agent
         // treats questions as about that account instead of asking "which?".
         await runAgentChatStream(messages, actor, send, clientId, attachments);
+        // End-of-response marker: a stream ending without it was truncated.
+        send({ type: "complete" });
       } catch (e) {
         console.error("Agent chat failed:", e);
         send({ type: "error", text: "The assistant hit an error. Try again." });
       } finally {
-        // Persist the new turn pair (best-effort; no-op if migration 0018 unrun).
-        // Store the attachments alongside the founder's text: extracted text
-        // inline so later turns still have it, PDFs as a filename marker only.
-        const stored = attachments.length
-          ? [...attachments.map(transcriptNote), userTurn.content].join("\n\n")
-          : userTurn.content;
-        const toStore: { role: "user" | "assistant"; content: string }[] = [
-          { role: "user", content: stored },
-        ];
-        if (assistantText.trim()) toStore.push({ role: "assistant", content: assistantText });
-        await appendTurns(scope, clientId, toStore, actor);
+        // The user turn is stored pre-stream; only the reply lands here.
+        if (assistantText.trim())
+          await appendTurns(scope, clientId, [{ role: "assistant", content: assistantText }], actor);
         controller.close();
       }
     },

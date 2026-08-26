@@ -20,6 +20,17 @@ export const maxDuration = 120;
 
 const SCOPE = "bernard";
 
+// Per-client Bernard threads (process feedback 2026-08-26, item 4): Oscar has
+// had --scope for weeks; Bernard's single thread bled every client together.
+// A valid client uuid scopes the conversation to bernard:<uuid>; no scope is
+// the original shared thread, so the portal page is unchanged.
+function resolveScope(request: Request, bodyScope?: unknown): string {
+  const url = new URL(request.url);
+  const q = url.searchParams.get("scope") ?? (typeof bodyScope === "string" ? bodyScope : null);
+  if (q && /^[0-9a-f-]{36}$/i.test(q)) return `bernard:${q.toLowerCase()}`;
+  return SCOPE;
+}
+
 // The relay lets the founder reach Bernard from outside the portal (Claude
 // Code sessions via scripts/bernard-relay.mjs). Same handler, same
 // conversation scope, so both surfaces are one thread. Header key only; the
@@ -52,7 +63,7 @@ async function requireAdmin(request?: Request) {
 export async function GET(request: Request) {
   const gate = await requireAdmin(request);
   if (gate.error) return gate.error;
-  const turns = await loadConversation(SCOPE);
+  const turns = await loadConversation(resolveScope(request));
   return NextResponse.json({ messages: turns });
 }
 
@@ -115,6 +126,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Expected a user message." }, { status: 400 });
   }
   const userTurn = messages[messages.length - 1];
+  const scope = resolveScope(request, (body as { scope?: unknown }).scope);
+
+  // Persist the founder's turn BEFORE generating (process feedback 2026-08-26,
+  // item 2): a run once executed a full audit and then lost both the brief and
+  // the reply because persistence lived after generation, inside the stream.
+  // The question must survive even if the answer dies.
+  const stored = attachments.length
+    ? [...attachments.map(transcriptNote), userTurn.content].join("\n\n")
+    : userTurn.content;
+  await appendTurns(scope, null, [{ role: "user", content: stored }], actor);
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -136,20 +157,16 @@ export async function POST(request: Request) {
       };
       try {
         await runBernardChatStream(messages, actor, send, attachments);
+        // Explicit completion marker (item 2): the relay treats a stream that
+        // ends without one as truncated instead of plausible-but-shorter.
+        send({ type: "complete" } as AgentEvent);
       } catch (e) {
         console.error("Bernard chat failed:", e);
         send({ type: "error", text: "Bernard hit an error. Try again." });
       } finally {
-        // Store the attachments alongside the founder's text: extracted text
-        // inline so later turns still have it, PDFs as a filename marker only.
-        const stored = attachments.length
-          ? [...attachments.map(transcriptNote), userTurn.content].join("\n\n")
-          : userTurn.content;
-        const toStore: { role: "user" | "assistant"; content: string }[] = [
-          { role: "user", content: stored },
-        ];
-        if (assistantText.trim()) toStore.push({ role: "assistant", content: assistantText });
-        await appendTurns(SCOPE, null, toStore, actor);
+        // The user turn is already stored (pre-stream); only the reply lands here.
+        if (assistantText.trim())
+          await appendTurns(scope, null, [{ role: "assistant", content: assistantText }], actor);
         controller.close();
       }
     },

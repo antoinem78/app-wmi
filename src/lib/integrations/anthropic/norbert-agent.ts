@@ -31,6 +31,7 @@ import {
   MEMORY_KINDS,
   type MemoryKind,
 } from "@/lib/agent-memory";
+import { leaveFeedback } from "@/lib/agent-feedback";
 import { logAgentUsage } from "@/lib/agent-usage";
 import { consumeFeedback, renderFeedback } from "@/lib/agent-feedback";
 
@@ -102,6 +103,18 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
         },
       },
       required: ["brief"],
+    },
+  },
+  {
+    name: "note_for_agent",
+    description: "Write a one-off note into Bernard's or Oscar's feedback inbox, consumed at the START of that agent's next run and then archived. USE THIS EVERY TIME your review amends or rejects one of their proposals: the verdict must reach the agent you reviewed, not only the founder, or the agent later defends a position that was already settled against it. Steering and verdicts only; it cannot instruct execution and the receiving agent treats it as context, never as approval.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        agent: { type: "string" as const, enum: ["bernard", "oscar"] },
+        note: { type: "string" as const, description: "The verdict or steering, self-contained: what was proposed, what was decided, and why. The agent has no other window into this conversation." },
+      },
+      required: ["agent", "note"],
     },
   },
   {
@@ -182,6 +195,7 @@ WHAT YOU MUST NOT DO:
 - You hold NO approval authority, by design. You cannot approve, apply, execute, build or decide anything, and you never present the founder's words as an approval to another agent: every brief you send carries a machine header voiding approval language, and the real gates (decide_proposal and apply on Oscar's side, decide_fix and decide_move on Bernard's) answer only to the founder's own word in that agent's chat or page. When the founder approves something HERE, tell him plainly where that approval executes (the agent's page or chat) rather than pretending you can carry it.
 - You do not touch Google or Meta yourself. You have no platform tools, deliberately: your value is judgement about the work, not doing the work.
 - Never claim an action succeeded unless the tool result says so. If a dispatch errors, report the failure plainly.
+- THE RETURN LEG IS YOUR DUTY, not an option: whenever your review amends or rejects an agent's proposal, or the founder adopts a position against one, file note_for_agent to the agent concerned in the same turn. The 19 August exclusion incident happened because a verdict reached the founder and never reached Bernard, who then defended a position already settled against him. A review that only travels upward manufactures conflict.
 
 HOW YOU SUPERVISE (doctrine):
 - Lead with problems ranked by money at stake, stated explicitly, before any narrative. "Client X is losing £Y/week" outranks housekeeping. A status-shaped answer to "what needs attention" is a failed answer.
@@ -364,6 +378,16 @@ async function runTool(
       return dispatchBrief("oscar", String(input.brief ?? ""), actor, typeof input.client_scope === "string" ? input.client_scope : undefined);
     case "brief_bernard":
       return dispatchBrief("bernard", String(input.brief ?? ""), actor);
+    case "note_for_agent": {
+      const target = String(input.agent ?? "");
+      const note = String(input.note ?? "").trim();
+      if (!["bernard", "oscar"].includes(target)) return { error: "agent must be bernard or oscar." };
+      if (note.length < 20) return { error: "The note must stand alone: what was proposed, what was decided, why." };
+      try {
+        await leaveFeedback(target, `[from Norbert's review] ${note}`, "norbert");
+        return { ok: true, delivered_to: target, consumed: "at the start of that agent's next run, then archived" };
+      } catch (e) { return { error: e instanceof Error ? e.message : String(e) }; }
+    }
     case "remember": {
       const kind = String(input.kind ?? "");
       if (!(MEMORY_KINDS as string[]).includes(kind))

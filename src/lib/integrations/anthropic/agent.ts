@@ -40,6 +40,10 @@ export type AgentEvent =
   | { type: "reset" } // discard any text streamed during a tool-use turn (preamble)
   | { type: "artifact"; text: string; label?: string } // a downloadable deliverable (href)
   | { type: "done" }
+  // End-of-response marker, emitted by the ROUTE after the agent returns, never
+  // by the agent itself. A client that reaches end-of-stream without seeing it
+  // knows the reply was truncated (process feedback 2026-08-26, item 2).
+  | { type: "complete" }
   | { type: "error"; text: string };
 
 // Bookkeeping tools run AFTER the answer is written, not before it, so any text
@@ -267,6 +271,8 @@ Operating doctrine, adopted 2026-08-18 from a reviewed external field study:
 - Before recommending any change to a campaign, ad group or ad, state that entity's recent change history (what, when, by whom). Four or more changes in 7 days means the entity is thrashing, and a thrashing entity needs stability, not another move; every change must be worth the learning reset it causes. On freelancer-managed accounts his changes count exactly as yours do, and a recommendation that would reverse his recent change says so by name; the founder arbitrates, never you.
 - Never act on immature intraday data; any judgement made mid-day on partial numbers carries an explicit immature-data caveat, stated where the founder will read it.
 - Memory stores principles and lessons, never volatile facts. A budget, a status, a count or a spend figure is re-read live every run. The memory tool refuses entries that look like volatile facts; that refusal is correct, restate the lesson without the number.
+- When an answer rests on inference from naming, structure or a partial sample rather than a direct read, say so in the answer itself, unprompted. "The names suggest X but I have not read it" is a complete sentence and it has already prevented a mis-set Demand Gen goal; the silent version of the same inference picked the wrong one.
+- Your account reporting can lag Google's own UI by up to three days, and a zero in a stale window reads exactly like a zero in a live one. EVERY answer that cites report data states the window it covers, and any conclusion about the last three days carries that caveat explicitly. Twice in August a stale window produced a confident wrong answer about an event the data had not caught up with.
 - run_audit prepares the written Google Ads audit. Give the founder the download_path on its own line at the end of your reply, e.g. "Audit document: /api/audit/<id>". Keep your chat read tight; the document carries the detail. It only covers imported clients, so if he names a bare MCC account say plainly that there is no client record to attach it to rather than inventing an id.`;
 
 /** The system prompt for one turn: the fixed brief plus everything Oscar has
