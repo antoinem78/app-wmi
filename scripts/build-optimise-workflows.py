@@ -712,7 +712,10 @@ values (NULL, '${m.client_id}'::uuid, NULL, NULL, 'adset', '${esc(m.entity_id)}'
     'targeting_before','${jstr(snap)}'::jsonb,'targeting_read_back','${jstr(rb)}'::jsonb,
     'evidence','${esc(m.evidence)}','norbert_q1',${m.norbert_q1 ? "'" + esc(m.norbert_q1) + "'" : 'NULL'}),
   '${m.created_at}'::timestamptz, ${okWrite ? 'now()' : 'NULL'});`;
-return [{ json: { sql, result: { ok: okWrite, move_id: m.id, status, problems, read_back_exclusions: got } } }];
+// `got` is local to verifyExclusionDiff; referencing it here crashed every
+// execute run on 26 August AFTER the Meta write and before any recording,
+// which is the worst half to lose. Compute the list from rb, which is in scope.
+return [{ json: { sql, result: { ok: okWrite, move_id: m.id, status, problems, read_back_exclusions: (rb.excluded_custom_audiences || []).map(x => String(x.id)) } } }];
 """, [1600, -320], note="The pre-write snapshot goes into move_snapshots VERBATIM; a partial-payload bug shows up here as verification_failed, never as silent success."),
 
   # reject leg
