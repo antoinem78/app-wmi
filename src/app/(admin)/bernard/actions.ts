@@ -41,7 +41,7 @@ export async function leaveFeedbackAction(formData: FormData): Promise<void> {
   const agent = String(formData.get("agent") ?? "bernard");
   const note = String(formData.get("note") ?? "").trim();
   if (!note) return;
-  if (!["bernard", "oscar", "all"].includes(agent)) throw new Error("Unknown agent.");
+  if (!["bernard", "oscar", "norbert", "all"].includes(agent)) throw new Error("Unknown agent.");
   await leaveFeedback(agent, note, email);
   revalidatePath("/bernard");
 }

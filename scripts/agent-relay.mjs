@@ -32,6 +32,7 @@ import { fileURLToPath } from "node:url";
 const AGENTS = {
   bernard: { path: "/api/bernard/chat", keyEnv: "BERNARD_RELAY_KEY", header: "x-bernard-relay-key", scoped: false, name: "BERNARD" },
   oscar: { path: "/api/agent/chat", keyEnv: "OSCAR_RELAY_KEY", header: "x-oscar-relay-key", scoped: true, name: "OSCAR" },
+  norbert: { path: "/api/norbert/chat", keyEnv: "NORBERT_RELAY_KEY", header: "x-norbert-relay-key", scoped: false, name: "NORBERT" },
 };
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");

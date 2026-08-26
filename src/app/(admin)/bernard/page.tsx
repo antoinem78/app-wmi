@@ -198,7 +198,8 @@ export default async function BernardPage() {
               <select name="agent" className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm">
                 <option value="bernard">Bernard</option>
                 <option value="oscar">Oscar</option>
-                <option value="all">Both</option>
+                <option value="norbert">Norbert</option>
+                <option value="all">All</option>
               </select>
               <button
                 type="submit"
