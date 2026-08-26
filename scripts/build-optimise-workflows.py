@@ -11,6 +11,44 @@ META = {"httpQueryAuth": {"id": "u1iFg2OArYUi98PF", "name": "Meta system-user to
 HOOK = {"httpHeaderAuth": {"id": "L6Pw2vZt2DM7Qa8k", "name": "Bernard dispatch auth (x-bernard-key)"}}
 ANTH = {"httpHeaderAuth": {"id": "ZuBQSKRVl62nQn2Y", "name": "Anthropic API key (header)"}}
 
+# -------------------------------------------------------- v1.1 verify logic
+# Pure function, embedded in the execute workflow AND extracted verbatim by
+# tests/verify-exclusion.test.js, same discipline as the gates. This diff IS
+# the acceptance test for the exclusion write: only excluded_custom_audiences
+# may differ from the pre-write snapshot, and only by the single added id.
+VERIFY_EXCLUSION_FN = r"""
+// ===== VERIFY EXCLUSION (pure; extracted verbatim by tests/verify-exclusion.test.js) =====
+// Section 3 step 6 of BERNARD_OPTIMISE_V1_1_EXCLUSIONS_SPEC.md. Returns the
+// list of problems; empty means the write verified. A 200 proves nothing.
+function verifyExclusionDiff(snapshot, readbackTargeting, audienceId) {
+  const sortDeep = (v) => Array.isArray(v) ? v.map(sortDeep)
+    : (v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => (o[k] = sortDeep(v[k]), o), {}) : v);
+  const canon = (v) => JSON.stringify(sortDeep(v));
+  const problems = [];
+  const rb = readbackTargeting || {};
+  if (!readbackTargeting) problems.push('read-back returned no targeting object');
+  const keys = new Set(Object.keys(snapshot).concat(Object.keys(rb)));
+  keys.delete('excluded_custom_audiences');
+  // JSON.stringify(undefined) is undefined, not a string: a DROPPED field must
+  // become a reported problem, never a crash that kills the verifier itself.
+  const show = (v) => v === undefined ? 'absent' : JSON.stringify(v).slice(0, 200);
+  for (const k of keys) {
+    if (canon(snapshot[k]) !== canon(rb[k]))
+      problems.push('field "' + k + '" changed: ' + show(snapshot[k]) + ' -> ' + show(rb[k]));
+  }
+  const ids = (a) => (a || []).map(x => String(x.id)).sort();
+  const expected = ids(snapshot.excluded_custom_audiences).concat([String(audienceId)]).sort();
+  const got = ids(rb.excluded_custom_audiences);
+  if (JSON.stringify(got) !== JSON.stringify(expected)) {
+    problems.push(JSON.stringify(got) === JSON.stringify(ids(snapshot.excluded_custom_audiences))
+      ? 'read-back exclusions identical to pre-write: the audience was not added'
+      : 'excluded_custom_audiences read back as [' + got.join(',') + '], expected [' + expected.join(',') + ']');
+  }
+  return problems;
+}
+// ===== END VERIFY EXCLUSION =====
+"""
+
 # ---------------------------------------------------------------- gate logic
 # Pure function, embedded in the workflow AND extracted verbatim by the test
 # suite (tests/optimise-gates.test.js), same discipline as parse-batch.
@@ -66,10 +104,20 @@ function runGates(input) {
   const seen = new Set();
   const staged = [];
   for (const m of moves) {
-    if (!['pause', 'budget', 'unpause'].includes(m.op))
+    if (!['pause', 'budget', 'unpause', 'audience_exclude'].includes(m.op))
       return fail('grammar', 'unknown op "' + m.op + '"; the whole set is refused');
     if (!m.entity_id || !['campaign', 'adset', 'ad'].includes(m.entity_type))
       return fail('grammar', 'move missing entity_id/entity_type');
+    // v1.1 (audience exclusions, founder-ruled 2026-08-26): adset-scoped only,
+    // and the audience id must be concrete here. The account-level checks
+    // (same account, not already excluded, not targeted, cap of 5) need Meta
+    // reads and run in Exclusion checks, downstream, before Norbert.
+    if (m.op === 'audience_exclude') {
+      if (m.entity_type !== 'adset')
+        return fail('grammar', 'audience_exclude applies to ad sets only; got entity_type "' + m.entity_type + '"');
+      if (!/^\d{6,}$/.test(String(m.audience_id || '')))
+        return fail('grammar', 'audience_exclude needs a numeric audience_id');
+    }
     if (!m.evidence || String(m.evidence).trim().length < 10)
       return fail('grammar', 'every move carries evidence; "' + (m.evidence || '') + '" is not evidence');
     if (seen.has(m.entity_id))
@@ -197,7 +245,13 @@ values (NULL, '{{ $json.client_id }}'::uuid, NULL, NULL, NULL,
      [1200, 200], note="A refusal is a counterfactual, not noise.", on_error="continueRegularOutput"),
 
   code("Respond blocked", r"""
-const j = $('Gates').first().json;
+// A refusal can come from Gates (pre-read) or from Exclusion checks (post-read,
+// v1.1). isExecuted disambiguates without breaking the Gates-only path.
+let j = $('Gates').first().json;
+if ($('Exclusion checks').isExecuted) {
+  const e = $('Exclusion checks').first().json;
+  if (e && e.ok === false) j = e;
+}
 return [{ json: { ok: false, gate: j.gate, error: j.error } }];
 """, [1400, 200]),
 
@@ -209,17 +263,118 @@ return [{ json: { ok: false, gate: j.gate, error: j.error } }];
    "onError": "continueRegularOutput",
    "notes": "Common fields only: ads have no daily_budget and Graph rejects mixed-type field lists. Budget truth comes from the execute leg's type-aware read-back."},
 
+  # ----- v1.1 exclusion context: two reads + the post-read gate. Both HTTP
+  # nodes degrade to a harmless account read when the run carries no
+  # audience_exclude moves, so the leg stays one straight line (no branch
+  # convergence, which is where n8n reference bugs live).
+  {"parameters": {"url": "=https://graph.facebook.com/v23.0/?ids={{ $('Gates').first().json.staged.filter(m => m.op === 'audience_exclude').map(m => m.entity_id).join(',') || $('Gates').first().json.account_id }}&fields={{ $('Gates').first().json.staged.some(m => m.op === 'audience_exclude') ? 'id,name,account_id,created_time,targeting,learning_stage_info,insights.date_preset(maximum){spend}' : 'id' }}",
+                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth", "options": {}},
+   "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1400, -320],
+   "id": "65dddd1111000000000000000000000000ac"[:36], "name": "Read adset context", "credentials": META,
+   "onError": "continueRegularOutput",
+   "notes": "v1.1: full targeting + learning state + lifetime spend for every ad set an exclusion targets. Falls back to a bare account read when no exclusion moves are staged."},
+
+  {"parameters": {"url": "=https://graph.facebook.com/v23.0/?ids={{ $('Gates').first().json.staged.filter(m => m.op === 'audience_exclude').map(m => m.audience_id).join(',') || $('Gates').first().json.account_id }}&fields={{ $('Gates').first().json.staged.some(m => m.op === 'audience_exclude') ? 'id,name,subtype,approximate_count_lower_bound,approximate_count_upper_bound,delivery_status,operation_status,account_id' : 'id' }}",
+                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth", "options": {}},
+   "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1600, -320],
+   "id": "65dddd2222000000000000000000000000ad"[:36], "name": "Read audiences", "credentials": META,
+   "onError": "continueRegularOutput",
+   "notes": "v1.1: the exclusion audience's identity and match quality. canServe (delivery_status.code 200) is the usable signal; approximate_count fields are Meta placeholders and ride as caveated context only."},
+
+  code("Exclusion checks", r"""
+// v1.1 post-read gate (BERNARD_OPTIMISE_V1_1_EXCLUSIONS_SPEC.md sections 2 and 4).
+// Runs on every set; a set with no audience_exclude moves passes straight
+// through with entity_now merged, which is all the old path did here.
+const g = $('Gates').first().json;
+const entitiesRaw = $('Read entities').first().json || {};
+const entities = entitiesRaw.error ? {} : entitiesRaw;
+const passThrough = { client_id: g.client_id, account_id: g.account_id, session_note: g.session_note,
+  revision_of: g.revision_of, immature_data: g.immature_data, moves_raw: g.moves_raw };
+const fail = (gate, msg, entityId) => [{ json: { ok: false, gate, error: msg, entity_id: entityId || null, ...passThrough } }];
+
+let staged = g.staged.map(m => ({ ...m, entity_now: entities[m.entity_id] || null }));
+const excl = staged.filter(m => m.op === 'audience_exclude');
+if (excl.length) {
+  const adsRaw = $('Read adset context').first().json || {};
+  const audRaw = $('Read audiences').first().json || {};
+  if (adsRaw.error) return fail('exclusion_read', 'ad set targeting read failed (' + JSON.stringify(adsRaw.error).slice(0, 200) + '); refusing rather than staging blind');
+  if (audRaw.error) return fail('exclusion_read', 'audience read failed (' + JSON.stringify(audRaw.error).slice(0, 200) + '); refusing rather than staging blind');
+  const accountDigits = String(g.account_id).replace(/^act_/, '');
+  const MAX_EXCLUSIONS = 5;
+  const MATCH_FLOOR = 100;
+  for (const m of excl) {
+    const adset = adsRaw[m.entity_id];
+    const aud = audRaw[m.audience_id];
+    if (!adset || !adset.targeting)
+      return fail('exclusion_read', 'ad set ' + m.entity_id + ' returned no targeting object; refusing rather than staging blind', m.entity_id);
+    if (!aud || !aud.id)
+      return fail('exclusion_read', 'audience ' + m.audience_id + ' unreadable; a cross-account or deleted audience fails the whole set', m.entity_id);
+    if (String(aud.account_id || '').replace(/^act_/, '') !== accountDigits)
+      return fail('exclusion_scope', 'audience ' + m.audience_id + ' belongs to account ' + (aud.account_id || 'unknown') + ', not ' + g.account_id + '; cross-account ids fail the set', m.entity_id);
+    if (adset.account_id && String(adset.account_id).replace(/^act_/, '') !== accountDigits)
+      return fail('exclusion_scope', 'ad set ' + m.entity_id + ' is not in the dispatch account', m.entity_id);
+    const t = adset.targeting;
+    const excluded = (t.excluded_custom_audiences || []).map(a => String(a.id));
+    const included = (t.custom_audiences || []).map(a => String(a.id));
+    if (excluded.includes(String(m.audience_id)))
+      return fail('exclusion_idempotent', 'audience ' + m.audience_id + ' is already excluded on ad set ' + m.entity_id + '; an idempotent no-op still burns a ceiling slot and resets learning, so it is refused', m.entity_id);
+    if (included.includes(String(m.audience_id)))
+      return fail('exclusion_incoherent', 'audience ' + m.audience_id + ' is in ad set ' + m.entity_id + '\'s INCLUSION list; excluding a targeted audience is a mis-specified move', m.entity_id);
+    if (excluded.length + 1 > MAX_EXCLUSIONS)
+      return fail('exclusion_cap', 'ad set ' + m.entity_id + ' would carry ' + (excluded.length + 1) + ' excluded audiences; the cap is ' + MAX_EXCLUSIONS + ' so individually reasonable exclusions cannot stack into strangled delivery', m.entity_id);
+
+    // Section 4 disclosures: attached, never blocking. The harm of a too-small
+    // exclusion is believing it worked, so the warning must reach the founder.
+    const canServe = ((aud.delivery_status || {}).code === 200);
+    const lower = Number(aud.approximate_count_lower_bound);
+    const mayNotMatch = !canServe || (Number.isFinite(lower) && lower < MATCH_FLOOR);
+    const ageDays = adset.created_time ? Math.round((Date.now() - new Date(adset.created_time).getTime()) / 86400000) : null;
+    const spendRaw = ((((adset.insights || {}).data || [])[0]) || {}).spend;
+    const learning = ((adset.learning_stage_info || {}).status) || 'UNKNOWN';
+    m.exclusion_context = {
+      audience: { id: String(aud.id), name: aud.name || null, subtype: aud.subtype || null,
+        canServe, approximate_count_lower_bound: aud.approximate_count_lower_bound ?? null,
+        approximate_count_upper_bound: aud.approximate_count_upper_bound ?? null },
+      exclusions_before: excluded,
+      learning_status: learning,
+      adset_age_days: ageDays,
+      adset_lifetime_spend: spendRaw != null ? Number(spendRaw) : null,
+      may_not_match: mayNotMatch,
+    };
+    const parts = [];
+    parts.push('LEARNING RESET: this exclusion resets the ad set\'s learning phase. The ad set is '
+      + (ageDays != null ? ageDays + ' days old' : 'of unknown age') + ' with '
+      + (spendRaw != null ? spendRaw + ' (account currency) lifetime spend' : 'unknown lifetime spend')
+      + ', currently ' + learning + (learning === 'LEARNING' ? ' (already learning, so the reset costs less than on a stabilised ad set)' : '') + '.');
+    if (mayNotMatch) {
+      parts.push('MATCH WARNING: Meta reports this audience '
+        + (!canServe ? 'canServe: false' : 'with an approximate lower bound of ' + lower + ', below the match floor')
+        + '. This exclusion may not match anyone and is therefore NOT evidence the underlying problem is solved.');
+    }
+    m.exclusion_disclosure = parts.join(' ');
+  }
+  staged = staged.map(m => m); // exclusion moves mutated in place above
+}
+return [{ json: { ok: true, staged, ...passThrough } }];
+""", [1800, -320], note="v1.1 gates that need Meta reads: same-account, not-already-excluded, not-targeted, cap of 5, plus the section-4 disclosures."),
+
+  {"parameters": {"conditions": {"options": {"caseSensitive": True, "typeValidation": "loose", "version": 3},
+    "conditions": [{"id": "ok2", "leftValue": "={{ $json.ok }}", "rightValue": "",
+                    "operator": {"type": "boolean", "operation": "true", "singleValue": True}}],
+    "combinator": "and"}, "looseTypeValidation": True, "options": {}},
+   "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [2000, -320],
+   "id": "64cccc1111000000000000000000000000f0"[:36], "name": "Exclusions passed?"},
+
   code("Norbert prompt", r"""
 // Norbert sees the account, not Bernard's reasoning. Deliberate: he reviews
 // what is there and what is missing, not the argument that produced it.
 const g = $('Gates').first().json;
-const ej = $input.first().json || {};
-const entities = ej.error ? {} : ej;
-const staged = g.staged.map(m => ({ ...m, entity_now: entities[m.entity_id] || null }));
+const staged = $('Exclusion checks').first().json.staged;
 const system = [
   'You are Norbert, the supervisor reviewing proposed Meta ad account changes before the founder sees them.',
   'Answer two questions, separately and plainly. Plain text, no em dashes.',
   'Q1: For each proposed move, is it wrong? Judge against the entity state and change history given. If wrong, say why in one sentence. If sound, say SOUND.',
+  'For audience_exclude moves, exclusion_context carries the audience\'s match quality and the learning-reset cost; an exclusion that may match nobody is not wrong to apply, but calling the underlying problem solved on its basis would be.',
   'Q2: What is the biggest problem in this account that this run did NOT touch? One paragraph, specific.',
   'Respond as JSON only: {"q1": [{"entity_id": "...", "verdict": "SOUND" | "<why it is wrong>"}], "q2": "..."}'
 ].join('\n');
@@ -287,9 +442,24 @@ return [{ json: { sessionSql, staged: j.staged, client_id: j.client_id } }];
 const sid = $input.first().json.id;
 const j = $('Stage SQL').first().json;
 const esc = (s) => String(s).replace(/'/g, "''");
+const jstr = (o) => JSON.stringify(o).replace(/'/g, "''");
 const rows = j.staged.map(m => {
-  const fromV = m.op === 'budget' ? `'{"daily_budget_minor": ${Number(m.from_minor)}}'::jsonb` : `'{"status":"ACTIVE"}'::jsonb`;
-  const toV = m.op === 'budget' ? `'{"daily_budget_minor": ${Number(m.to_minor)}}'::jsonb` : `'{"status":"${m.op === 'pause' ? 'PAUSED' : 'ACTIVE'}"}'::jsonb`;
+  let fromV, toV;
+  if (m.op === 'budget') {
+    fromV = `'{"daily_budget_minor": ${Number(m.from_minor)}}'::jsonb`;
+    toV = `'{"daily_budget_minor": ${Number(m.to_minor)}}'::jsonb`;
+  } else if (m.op === 'audience_exclude') {
+    // Decision-time exclusion list, and the whole section-4 disclosure, so the
+    // audit row explains itself and the execute leg knows the audience.
+    const ctx = m.exclusion_context || {};
+    fromV = `'${jstr({ excluded_custom_audiences: ctx.exclusions_before || [] })}'::jsonb`;
+    toV = `'${jstr({ audience_id: String(m.audience_id), audience_name: (ctx.audience || {}).name || null,
+      excluded_custom_audiences_after: (ctx.exclusions_before || []).concat([String(m.audience_id)]),
+      disclosure: m.exclusion_disclosure || null, context: ctx })}'::jsonb`;
+  } else {
+    fromV = `'{"status":"ACTIVE"}'::jsonb`;
+    toV = `'{"status":"${m.op === 'pause' ? 'PAUSED' : 'ACTIVE'}"}'::jsonb`;
+  }
   return `('${sid}'::uuid, '${j.client_id}'::uuid, '${m.op}', '${m.entity_type}', '${esc(m.entity_id)}', ${fromV}, ${toV}, '${esc(m.evidence)}', ${m.norbert_q1 ? "'" + esc(m.norbert_q1) + "'" : 'NULL'}, ${m.human_change_conflict ? "'" + esc(m.human_change_conflict) + "'" : 'NULL'})`;
 }).join(',\n  ');
 return [{ json: { session_id: sid, sql: `insert into optimise_moves (session_id, client_id, op, entity_type, entity_id, from_value, to_value, evidence, norbert_q1, human_change_conflict) values\n  ${rows}\nreturning id, op, entity_type, entity_id, evidence, norbert_q1, human_change_conflict;` } }];
@@ -300,17 +470,26 @@ return [{ json: { session_id: sid, sql: `insert into optimise_moves (session_id,
   code("Respond staged", r"""
 const moves = $input.all().map(i => i.json);
 const meta = $('Parse Norbert + meter').first().json;
+// v1.1: the section-4 disclosures ride on the approval item itself, so the
+// learning-reset cost and any may-not-match warning are visible at the point
+// of decision rather than discovered afterwards.
+const stagedCtx = meta.staged || [];
 return [{ json: {
   ok: true,
   session_id: $('Moves SQL').first().json.session_id,
   immature_data_caveat: 'Proposals rest on intraday reads; Meta backloads delivery, so treat today\'s numbers as immature.',
   norbert_q2: meta.q2,
-  approval_items: moves.map(m => ({
-    move_id: m.id, op: m.op, entity: m.entity_type + ' ' + m.entity_id,
-    evidence: m.evidence, norbert_q1: m.norbert_q1,
-    human_change_conflict: m.human_change_conflict,
-    approve_via: 'POST /webhook/bernard-optimise-execute {"move_id":"' + m.id + '","decision":"approve"}'
-  }))
+  approval_items: moves.map(m => {
+    const ctx = stagedCtx.find(s => String(s.entity_id) === String(m.entity_id) && s.op === m.op) || {};
+    return {
+      move_id: m.id, op: m.op, entity: m.entity_type + ' ' + m.entity_id,
+      evidence: m.evidence, norbert_q1: m.norbert_q1,
+      human_change_conflict: m.human_change_conflict,
+      ...(ctx.exclusion_disclosure ? { exclusion_disclosure: ctx.exclusion_disclosure } : {}),
+      ...(ctx.exclusion_context ? { exclusion_audience: ctx.exclusion_context.audience } : {}),
+      approve_via: 'POST /webhook/bernard-optimise-execute {"move_id":"' + m.id + '","decision":"approve"}'
+    };
+  })
 } }];
 """, [3000, -160]),
 
@@ -334,7 +513,13 @@ wf1_conn = {
       [{"node": "Log gate block", "type": "main", "index": 0}]]},
   "Log gate block": {"main": [[{"node": "Respond blocked", "type": "main", "index": 0}]]},
   "Respond blocked": {"main": [[{"node": "Respond block", "type": "main", "index": 0}]]},
-  "Read entities": {"main": [[{"node": "Norbert prompt", "type": "main", "index": 0}]]},
+  "Read entities": {"main": [[{"node": "Read adset context", "type": "main", "index": 0}]]},
+  "Read adset context": {"main": [[{"node": "Read audiences", "type": "main", "index": 0}]]},
+  "Read audiences": {"main": [[{"node": "Exclusion checks", "type": "main", "index": 0}]]},
+  "Exclusion checks": {"main": [[{"node": "Exclusions passed?", "type": "main", "index": 0}]]},
+  "Exclusions passed?": {"main": [
+      [{"node": "Norbert prompt", "type": "main", "index": 0}],
+      [{"node": "Log gate block", "type": "main", "index": 0}]]},
   "Norbert prompt": {"main": [[{"node": "Norbert", "type": "main", "index": 0}]]},
   "Norbert": {"main": [[{"node": "Parse Norbert + meter", "type": "main", "index": 0}]]},
   "Parse Norbert + meter": {"main": [[{"node": "Meter Norbert", "type": "main", "index": 0}]]},
@@ -387,6 +572,16 @@ if (body.decision !== 'approve') return [{ json: { route: 'error', error: 'decis
 if (Number(m.executed_today) >= Number(m.ceiling || 3))
   return [{ json: { route: 'error', error: 'daily ceiling reached between staging and approval; re-dispatch tomorrow' } }];
 
+// v1.1: an exclusion is not a field PATCH but a read-merge-write on the whole
+// targeting object (Meta's targeting spec is replace-not-merge), so it takes
+// its own leg with a fresh pre-write read and a full-object diff.
+if (m.op === 'audience_exclude') {
+  const audienceId = String((m.to_value || {}).audience_id || '');
+  if (!/^\d{6,}$/.test(audienceId))
+    return [{ json: { route: 'error', error: 'audience_exclude move ' + m.id + ' carries no audience_id in to_value; refusing' } }];
+  return [{ json: { route: 'approve_exclude', move: m, entity_id: m.entity_id, audience_id: audienceId } }];
+}
+
 // Build the ONE Meta write this approval authorises.
 const params = m.op === 'budget'
   ? { daily_budget: Number((m.to_value || {}).daily_budget_minor) }
@@ -403,7 +598,11 @@ return [{ json: { route: 'approve', move: m, entity_id: m.entity_id, write_param
       {"conditions": {"options": {"caseSensitive": True, "typeValidation": "loose", "version": 3},
         "conditions": [{"id": "r2", "leftValue": "={{ $json.route }}", "rightValue": "reject",
                         "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"},
-       "outputKey": "reject"}]},
+       "outputKey": "reject"},
+      {"conditions": {"options": {"caseSensitive": True, "typeValidation": "loose", "version": 3},
+        "conditions": [{"id": "r3", "leftValue": "={{ $json.route }}", "rightValue": "approve_exclude",
+                        "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"},
+       "outputKey": "approve_exclude"}]},
     "options": {"fallbackOutput": "extra"}},
    "type": "n8n-nodes-base.switch", "typeVersion": 3, "position": [600, 0],
    "id": "71bbbb0000000000000000000000000000cd"[:36], "name": "Route"},
@@ -446,7 +645,75 @@ return [{ json: { sql, result: { ok: okWrite, move_id: m.id, status, read_back: 
 
   pg("Write outcome", "={{ $json.sql }}", [1400, -120]),
 
-  code("Respond approve", "return [{ json: $('Verify + finalise').first().json.result }];", [1600, -120]),
+  code("Respond approve", r"""
+// The approve leg and the v1.1 exclusion leg converge here; isExecuted picks
+// whichever verifier actually ran.
+const v = $('Verify exclusion').isExecuted
+  ? $('Verify exclusion').first().json
+  : $('Verify + finalise').first().json;
+return [{ json: v.result }];
+""", [1600, -120]),
+
+  # ----- v1.1 exclusion leg: read, snapshot, merge, write, read back, diff.
+  {"parameters": {"url": "=https://graph.facebook.com/v23.0/{{ $('Decide').first().json.entity_id }}?fields=id,targeting",
+                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth", "options": {}},
+   "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [800, -320],
+   "id": "72cccc1111000000000000000000000000f1"[:36], "name": "Read targeting", "credentials": META,
+   "notes": "Fresh pre-write read: the snapshot the diff verifies against. A failure here aborts before any mutation and the move stays proposed."},
+
+  code("Merge exclusion", r"""
+// Section 3 steps 1-3: snapshot the complete targeting verbatim, merge the one
+// audience id into excluded_custom_audiences, change NOTHING else. Meta's
+// targeting spec is replace-not-merge, so the whole object goes back.
+const d = $('Decide').first().json;
+const cur = $input.first().json || {};
+if (!cur.targeting) throw new Error('pre-write targeting read failed for ad set ' + d.entity_id + '; nothing was written');
+const snapshot = cur.targeting;
+const before = (snapshot.excluded_custom_audiences || []).map(a => ({ id: String(a.id) }));
+if (before.some(a => a.id === d.audience_id))
+  throw new Error('audience ' + d.audience_id + ' is already excluded on ad set ' + d.entity_id + ' at execute time (added between staging and approval); nothing was written, move stays proposed');
+const newTargeting = JSON.parse(JSON.stringify(snapshot));
+newTargeting.excluded_custom_audiences = before.concat([{ id: d.audience_id }]);
+return [{ json: { entity_id: d.entity_id, snapshot, new_targeting: newTargeting } }];
+""", [1000, -320]),
+
+  {"parameters": {"method": "POST", "url": "=https://graph.facebook.com/v23.0/{{ $json.entity_id }}",
+                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth",
+                  "sendBody": True, "specifyBody": "json",
+                  "jsonBody": "={{ JSON.stringify({ targeting: $json.new_targeting }) }}", "options": {}},
+   "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1200, -320],
+   "id": "72cccc2222000000000000000000000000f2"[:36], "name": "Write targeting", "credentials": META},
+
+  {"parameters": {"url": "=https://graph.facebook.com/v23.0/{{ $('Decide').first().json.entity_id }}?fields=id,targeting",
+                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth", "options": {}},
+   "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1400, -320],
+   "id": "73dddd1111000000000000000000000000f3"[:36], "name": "Read back targeting", "credentials": META,
+   "notes": "Section 3 step 5. The diff in Verify exclusion is the acceptance test: a 200 proves nothing."},
+
+  code("Verify exclusion", VERIFY_EXCLUSION_FN + r"""
+const d = $('Decide').first().json;
+const m = d.move;
+const pre = $('Merge exclusion').first().json;
+const now = $input.first().json || {};
+const esc = (s) => String(s).replace(/'/g, "''");
+const jstr = (o) => JSON.stringify(o).replace(/'/g, "''");
+const snap = pre.snapshot;
+const rb = now.targeting || {};
+const problems = verifyExclusionDiff(snap, now.targeting, d.audience_id);
+const okWrite = problems.length === 0;
+const status = okWrite ? 'executed' : 'verification_failed';
+const snapClass = okWrite ? 'executed' : 'died';
+const reason = okWrite ? null : ('targeting diff vs snapshot failed: ' + problems.join(' | ').slice(0, 1500));
+const sql =
+`update optimise_moves set status='${status}', decided_at=now(), executed_at=${okWrite ? 'now()' : 'NULL'} where id='${m.id}'::uuid;
+insert into move_snapshots (task_id, client_id, build_ref, op_name, entity_type, entity_id, move_class, reason, snapshot, taken_at, executed_at)
+values (NULL, '${m.client_id}'::uuid, NULL, NULL, 'adset', '${esc(m.entity_id)}', '${snapClass}', ${reason ? "'" + esc(reason) + "'" : 'NULL'},
+  jsonb_build_object('op','audience_exclude','audience_id','${esc(d.audience_id)}',
+    'targeting_before','${jstr(snap)}'::jsonb,'targeting_read_back','${jstr(rb)}'::jsonb,
+    'evidence','${esc(m.evidence)}','norbert_q1',${m.norbert_q1 ? "'" + esc(m.norbert_q1) + "'" : 'NULL'}),
+  '${m.created_at}'::timestamptz, ${okWrite ? 'now()' : 'NULL'});`;
+return [{ json: { sql, result: { ok: okWrite, move_id: m.id, status, problems, read_back_exclusions: got } } }];
+""", [1600, -320], note="The pre-write snapshot goes into move_snapshots VERBATIM; a partial-payload bug shows up here as verification_failed, never as silent success."),
 
   # reject leg
   pg("Write rejection", "={{ $json.sql }}", [800, 120]),
@@ -467,10 +734,16 @@ wf2_conn = {
   "Route": {"main": [
       [{"node": "Meta write", "type": "main", "index": 0}],
       [{"node": "Write rejection", "type": "main", "index": 0}],
+      [{"node": "Read targeting", "type": "main", "index": 0}],
       [{"node": "Respond error", "type": "main", "index": 0}]]},
   "Meta write": {"main": [[{"node": "Read back", "type": "main", "index": 0}]]},
   "Read back": {"main": [[{"node": "Verify + finalise", "type": "main", "index": 0}]]},
   "Verify + finalise": {"main": [[{"node": "Write outcome", "type": "main", "index": 0}]]},
+  "Read targeting": {"main": [[{"node": "Merge exclusion", "type": "main", "index": 0}]]},
+  "Merge exclusion": {"main": [[{"node": "Write targeting", "type": "main", "index": 0}]]},
+  "Write targeting": {"main": [[{"node": "Read back targeting", "type": "main", "index": 0}]]},
+  "Read back targeting": {"main": [[{"node": "Verify exclusion", "type": "main", "index": 0}]]},
+  "Verify exclusion": {"main": [[{"node": "Write outcome", "type": "main", "index": 0}]]},
   "Write outcome": {"main": [[{"node": "Respond approve", "type": "main", "index": 0}]]},
   "Respond approve": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]},
   "Write rejection": {"main": [[{"node": "Respond reject", "type": "main", "index": 0}]]},
@@ -486,4 +759,7 @@ json.dump(wf2, open(os.path.join(OUT, "wf_execute.json"), "w"), indent=1)
 # The gates function alone, for the test suite.
 open(os.path.join(OUT, "gates.extracted.js"), "w").write(
     GATES_FN + "\nmodule.exports = runGates;\n")
-print("wrote wf_optimise.json, wf_execute.json, gates.extracted.js")
+# The v1.1 verify-diff function alone, for its test suite.
+open(os.path.join(OUT, "verify-exclusion.extracted.js"), "w").write(
+    VERIFY_EXCLUSION_FN + "\nmodule.exports = verifyExclusionDiff;\n")
+print("wrote wf_optimise.json, wf_execute.json, gates.extracted.js, verify-exclusion.extracted.js")

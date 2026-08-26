@@ -26,12 +26,15 @@ Three, mirroring the build family's shape:
 
 **`BERNARD_optimise_execute`** (webhook, per-move, founder approval token required): executes ONE approved move, reads it back, writes the `move_snapshots` row as `executed` with `executed_at`. A rejection writes the counterfactual row instead, which already works (Denis item 1.2).
 
-## 2. Move grammar, the only two shapes v1 accepts
+## 2. Move grammar
 
 ```json
 { "op": "pause",  "entity_type": "ad|adset|campaign", "entity_id": "...", "evidence": "..." }
 { "op": "budget", "adset_id": "...", "from_minor": 4000, "to_minor": 3000, "evidence": "..." }
+{ "op": "audience_exclude", "entity_type": "adset", "entity_id": "...", "audience_id": "...", "evidence": "..." }
 ```
+
+The third shape is v1.1 (`docs/BERNARD_OPTIMISE_V1_1_EXCLUSIONS_SPEC.md`, both rulings founder-given 2026-08-26, shipped the same day): adset-only, same-account audience, refused if already excluded or currently targeted, capped at 5 exclusions per ad set, one per ad set per run. ONE-WAY by design: removing an exclusion widens delivery and is not an op. Execution is read-merge-write on the full targeting object with a full-field diff against the pre-write snapshot; anything but the single added id differing is `verification_failed`. The approval item carries the learning-reset disclosure and, where the audience reads unusable, a may-not-match warning. Folded into the v1 graduation bar per the founder's ruling (an exclusion is lower risk than a budget move, which is already inside it).
 
 Machine limits, enforced in code before Norbert ever sees a proposal:
 
@@ -71,7 +74,9 @@ Different model family from Bernard's runtime, temperature default, no shared co
 
 ## 8. Explicitly out of v1
 
-Creative swaps, targeting, bid strategy (destroy learning history). Scheduling, and any write outside a founder-triggered session. Any grading of moves (snapshots accumulate; grading is a later, separately-reviewed decision). Meta writes outside the two-op grammar.
+Creative swaps, targeting, bid strategy (destroy learning history). Scheduling, and any write outside a founder-triggered session. Any grading of moves (snapshots accumulate; grading is a later, separately-reviewed decision). Meta writes outside the op grammar in §2.
+
+**Amended 2026-08-26: audience EXCLUSIONS moved in scope as v1.1** (§2 above). The carve-out rests on one property: an exclusion can only narrow delivery, never widen it, so its worst case is bounded (under-delivery plus a disclosed learning reset), unlike interest/geo/age edits whose worst case is unbounded wrong-audience spend. The rest of targeting stays out, exclusion REMOVAL stays out (it breaks the one-way property and needs its own ruling), and placements stay out for a named reason: on Advantage+ placements an exclusion is a mode change to manual that forfeits per-asset Customize Media, a trade that needs a founder ruling first (v1.1 spec §8).
 
 ## 9. Oscar's leg, scoped not built
 

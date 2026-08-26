@@ -109,6 +109,21 @@ const check = (name, cond, detail) => {
   check("allowlist still wins over unreadable history", bad.gate === "allowlist", bad);
 }
 
+// v1.1 audience_exclude grammar (account-level checks live in the workflow's
+// Exclusion checks node, post-read; only the pure grammar is testable here)
+{
+  const ex = (over) => ({ op: "audience_exclude", entity_type: "adset", entity_id: "777", audience_id: "120250694850660053", evidence: "clients who already booked are seeing the ads", ...over });
+  check("audience_exclude on adset passes gates", runGates(base({ body: { moves: [ex({})] } })).ok === true);
+  const camp = runGates(base({ body: { moves: [ex({ entity_type: "campaign" })] } }));
+  check("audience_exclude on campaign refuses", camp.gate === "grammar", camp);
+  const noAud = runGates(base({ body: { moves: [ex({ audience_id: undefined })] } }));
+  check("audience_exclude without audience_id refuses", noAud.gate === "grammar", noAud);
+  const badAud = runGates(base({ body: { moves: [ex({ audience_id: "not-an-id" })] } }));
+  check("audience_exclude with non-numeric audience_id refuses", badAud.gate === "grammar", badAud);
+  const dup = runGates(base({ body: { moves: [ex({}), { op: "budget", entity_type: "adset", entity_id: "777", from_minor: 4000, to_minor: 3000, evidence: "evidence long enough here" }] } }));
+  check("exclusion plus second move on same adset refuses", dup.gate === "grammar", dup);
+}
+
 // happy path carries the flags forward
 {
   const r = runGates(base({}));

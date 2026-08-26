@@ -105,11 +105,14 @@ export async function dispatchBuild(spec: BuildDispatch): Promise<unknown> {
 // substrate gates (allow-list, daily ceiling, thrash, budget bounds) decide,
 // Norbert reviews, and nothing executes until decide_move approves ONE move.
 export interface OptimiseMove {
-  op: "pause" | "budget" | "unpause";
+  op: "pause" | "budget" | "unpause" | "audience_exclude";
   entity_type: "campaign" | "adset" | "ad";
   entity_id: string;
   from_minor?: number;
   to_minor?: number;
+  /** audience_exclude only: the custom audience to exclude. One-way by design;
+   *  removing an exclusion widens delivery and stays a human action (v1.1 §1). */
+  audience_id?: string;
   evidence: string;
 }
 export interface OptimiseDispatch {

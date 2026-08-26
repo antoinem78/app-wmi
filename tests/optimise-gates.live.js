@@ -50,10 +50,20 @@ function runGates(input) {
   const seen = new Set();
   const staged = [];
   for (const m of moves) {
-    if (!['pause', 'budget', 'unpause'].includes(m.op))
+    if (!['pause', 'budget', 'unpause', 'audience_exclude'].includes(m.op))
       return fail('grammar', 'unknown op "' + m.op + '"; the whole set is refused');
     if (!m.entity_id || !['campaign', 'adset', 'ad'].includes(m.entity_type))
       return fail('grammar', 'move missing entity_id/entity_type');
+    // v1.1 (audience exclusions, founder-ruled 2026-08-26): adset-scoped only,
+    // and the audience id must be concrete here. The account-level checks
+    // (same account, not already excluded, not targeted, cap of 5) need Meta
+    // reads and run in Exclusion checks, downstream, before Norbert.
+    if (m.op === 'audience_exclude') {
+      if (m.entity_type !== 'adset')
+        return fail('grammar', 'audience_exclude applies to ad sets only; got entity_type "' + m.entity_type + '"');
+      if (!/^\d{6,}$/.test(String(m.audience_id || '')))
+        return fail('grammar', 'audience_exclude needs a numeric audience_id');
+    }
     if (!m.evidence || String(m.evidence).trim().length < 10)
       return fail('grammar', 'every move carries evidence; "' + (m.evidence || '') + '" is not evidence');
     if (seen.has(m.entity_id))

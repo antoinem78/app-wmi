@@ -204,7 +204,7 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
   },
   {
     name: "dispatch_optimise",
-    description: "Stage pause/budget optimisation moves for a client account. Machine gates (allow-list, ceiling, thrash, budget bounds) run first, then Norbert reviews. Returns approval items with move_ids; NOTHING executes until decide_move. Founder-triggered sessions only.",
+    description: "Stage pause/budget/audience-exclusion optimisation moves for a client account. Machine gates (allow-list, ceiling, thrash, budget bounds, exclusion checks) run first, then Norbert reviews. Returns approval items with move_ids; NOTHING executes until decide_move. Founder-triggered sessions only. audience_exclude is ONE-WAY: it adds a custom audience to an ad set's exclusion list (adset only, max 5 exclusions per ad set, resets learning, disclosed on the approval item). Removing an exclusion widens delivery and is NOT an op; never offer it.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -216,11 +216,12 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
           items: {
             type: "object" as const,
             properties: {
-              op: { type: "string" as const, enum: ["pause", "budget", "unpause"] },
+              op: { type: "string" as const, enum: ["pause", "budget", "unpause", "audience_exclude"] },
               entity_type: { type: "string" as const, enum: ["campaign", "adset", "ad"] },
               entity_id: { type: "string" as const },
               from_minor: { type: "number" as const, description: "budget op only: current daily budget, minor units" },
               to_minor: { type: "number" as const, description: "budget op only: proposed daily budget, minor units" },
+              audience_id: { type: "string" as const, description: "audience_exclude only: the custom audience id to exclude (resolve via list_audiences; it must belong to the same ad account)" },
               evidence: { type: "string" as const, description: "The specific numbers that justify this move" },
             },
             required: ["op", "entity_type", "entity_id", "evidence"],
@@ -318,7 +319,7 @@ WHAT YOU CAN DO HERE:
 - list_meta_accounts shows every ad account the system user can see, live. Any account there is yours to read and audit immediately — assignment in Business Manager is the onboarding for reads. (Executor dispatch for a client still requires lab registration in the substrate.)
 - run_audit reads one account's full ground truth (read-only) so you can audit it right here in chat. Lead with the verdict and the strongest evidence; keep the chat version tight. The tool result carries download_path — ALWAYS give the founder that link at the end of an audit, on its own line, e.g. "Word document: /api/bernard/audit/123456?days=30". The document is generated fresh from the same live data when they click it.
 - dispatch_build sends an agreed spec to the substrate executor, which creates everything PAUSED behind machine-enforced gates and reads back what it made. You CAN build from this chat: lay the spec out, get the founder's explicit go, dispatch, then report the verified result. The founder activates; you never do.
-- dispatch_optimise stages pause and budget moves (the only two ops that exist) behind the same machine gates, then Norbert, a separate supervising model, reviews the set before the founder sees it. Only a founder-triggered session may dispatch: the freelancer manages these accounts and you complement his work, never race it. Budget moves are bounded to 25% per move. If your move would reverse a recent human change, the approval item says so and the founder arbitrates, never you.
+- dispatch_optimise stages pause, budget and audience-exclusion moves (the only ops that exist) behind the same machine gates, then Norbert, a separate supervising model, reviews the set before the founder sees it. Only a founder-triggered session may dispatch: the freelancer manages these accounts and you complement his work, never race it. Budget moves are bounded to 25% per move. audience_exclude (v1.1, founder-ruled 2026-08-26) is ONE-WAY: an exclusion can only narrow delivery, which is exactly why it is the one targeting edit you have. Removing an exclusion widens delivery and is NOT in your grammar; never offer it, and never present an exclusion as proof a problem is solved when its approval item carries a may-not-match warning. An exclusion resets the ad set's learning phase; that cost rides on the approval item and the founder weighs it, not you. If your move would reverse a recent human change, the approval item says so and the founder arbitrates, never you.
 - decide_move executes or rejects ONE staged move on the founder's explicit word, one call per move. Approval is per move, never per batch.
 
 Operating doctrine, adopted 2026-08-18 from a reviewed external field study:
@@ -581,6 +582,14 @@ async function runTool(
     case "dispatch_optimise": {
       if (!input.client_slug || !input.account_id || !Array.isArray(input.moves) || !input.moves.length)
         return { error: "dispatch_optimise needs client_slug, account_id and a non-empty moves array." };
+      for (const mv of input.moves as Record<string, unknown>[]) {
+        if (mv?.op === "audience_exclude") {
+          if (mv.entity_type !== "adset")
+            return { error: "audience_exclude applies to ad sets only; the whole set would be refused downstream." };
+          if (!/^\d{6,}$/.test(String(mv.audience_id ?? "")))
+            return { error: "audience_exclude needs a numeric audience_id (resolve it via list_audiences first)." };
+        }
+      }
       try { return await dispatchOptimise(input as never); }
       catch (e) { return { error: e instanceof Error ? e.message : String(e) }; }
     }
