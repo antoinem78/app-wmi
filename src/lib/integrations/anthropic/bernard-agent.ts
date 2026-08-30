@@ -19,6 +19,7 @@ import {
   getCreativePerformance,
   getPixelStats,
 } from "@/lib/integrations/meta";
+import { getMetaBreakdowns } from "@/lib/integrations/meta/breakdowns";
 import type { AgentEvent, ChatMessage } from "@/lib/integrations/anthropic/agent";
 import type { Attachment } from "@/lib/attachments";
 import { makeEmDashScrubber } from "@/lib/emdash";
@@ -149,6 +150,24 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
         days: { type: "number", description: "Window in days, 1-90, default 30" },
       },
       required: ["pixel_id"],
+    },
+  },
+  {
+    name: "get_breakdowns",
+    description:
+      "READ the structured breakdown data for one account: placement performance, age and gender, per-ad performance with video engagement, and the two crosses that answer 'which creative works where': creative-by-placement and creative-by-demographic. Scope it to specific campaigns and a window whenever the question is about specific campaigns; account-wide totals on a mixed account answer a different question (one campaign can carry most of the spend and drown the rest). Carries BOTH purchase and lead columns; on a lead-gen account rank on cost per lead and never call the absence of purchase value a finding. The result includes download_path, a link to the same data as a formatted internal document; offer it when the founder or the freelancer wants the tables rather than the conversation.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account_id: { type: "string", description: "Ad account id (digits or act_ prefixed)" },
+        days: { type: "number", description: "Window in days ending yesterday (default 30, 7-90). Match it to the campaigns under discussion, e.g. since launch." },
+        campaign_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional campaign ids to scope every table to. Resolve ids via run_audit or the campaign list first; omit for account-wide.",
+        },
+      },
+      required: ["account_id"],
     },
   },
   {
@@ -317,6 +336,7 @@ Use it like a strategist keeping a running file on every account:
 WHAT YOU CAN DO HERE:
 - get_status gives you the live lab snapshot (clients, pending fixes, activity, executor credits). Fetch it rather than guessing; never invent a figure, task id, client or timestamp.
 - list_meta_accounts shows every ad account the system user can see, live. Any account there is yours to read and audit immediately — assignment in Business Manager is the onboarding for reads. (Executor dispatch for a client still requires lab registration in the substrate.)
+- get_breakdowns reads the structured breakdowns (placement, age and gender, per-ad performance with video engagement, creative-by-placement and creative-by-demographic), scoped to a campaign set and window. This is YOUR data surface for "which creative works where" and "who is responding to what": answer from it directly, never from memory of an audit document. On lead-gen accounts rank on cost per lead; the purchase columns will be zero and that is not a finding. Give the founder the download_path when the tables themselves are wanted (it is internal raw material, never a client deliverable).
 - run_audit reads one account's full ground truth (read-only) so you can audit it right here in chat. Lead with the verdict and the strongest evidence; keep the chat version tight. The tool result carries download_path — ALWAYS give the founder that link at the end of an audit, on its own line, e.g. "Word document: /api/bernard/audit/123456?days=30". The document is generated fresh from the same live data when they click it.
 - dispatch_build sends an agreed spec to the substrate executor, which creates everything PAUSED behind machine-enforced gates and reads back what it made. You CAN build from this chat: lay the spec out, get the founder's explicit go, dispatch, then report the verified result. The founder activates; you never do.
 - dispatch_optimise stages pause, budget and audience-exclusion moves (the only ops that exist) behind the same machine gates, then Norbert, a separate supervising model, reviews the set before the founder sees it. Only a founder-triggered session may dispatch: the freelancer manages these accounts and you complement his work, never race it. Budget moves are bounded to 25% per move. audience_exclude (v1.1, founder-ruled 2026-08-26) is ONE-WAY: an exclusion can only narrow delivery, which is exactly why it is the one targeting edit you have. Removing an exclusion widens delivery and is NOT in your grammar; never offer it, and never present an exclusion as proof a problem is solved when its approval item carries a may-not-match warning. An exclusion resets the ad set's learning phase; that cost rides on the approval item and the founder weighs it, not you. If your move would reverse a recent human change, the approval item says so and the founder arbitrates, never you.
@@ -427,6 +447,7 @@ function statusLabel(name: string): string {
     case "get_adset_detail": return "Reading the ad set config…";
     case "get_creative_performance": return "Ranking the creatives…";
     case "get_pixel_stats": return "Reading pixel event volume…";
+    case "get_breakdowns": return "Reading the breakdowns (placement, demographic, creative crosses)…";
     case "dispatch_copy_fix": return "Rebuilding the ad with corrected copy…";
     case "dispatch_build": return "Dispatching the build to the substrate…";
     case "dispatch_optimise": return "Staging moves through the gates and Norbert…";
@@ -518,6 +539,35 @@ async function runTool(
       if (!/^\d{6,}$/.test(id)) return { error: "get_pixel_stats needs a numeric pixel id." };
       const days = Math.min(90, Math.max(1, Math.round(Number(input.days) || 30)));
       return getPixelStats(id, { days });
+    }
+    case "get_breakdowns": {
+      const guard = requireMetaAccount(input.account_id, "get_breakdowns");
+      if ("error" in guard) return guard;
+      const days = Math.min(90, Math.max(7, Math.round(Number(input.days) || 30)));
+      const campaignIds = Array.isArray(input.campaign_ids)
+        ? (input.campaign_ids as unknown[]).map((c) => String(c).replace(/\D/g, "")).filter((c) => /^\d{6,}$/.test(c))
+        : [];
+      const b = await getMetaBreakdowns(guard.digits, { days, campaignIds });
+      // Trim for the chat context: the document behind download_path carries
+      // the full tables; this is enough to reason and answer from.
+      const cells = (v: unknown, n: number) => (Array.isArray(v) ? (v as unknown[]).slice(0, n) : v);
+      const q = campaignIds.length ? `&campaigns=${campaignIds.join(",")}` : "";
+      return {
+        account: { id: b.accountId, name: b.accountName, currency: b.currency },
+        window: b.window,
+        campaignsIncluded: b.campaignsIncluded,
+        notes: b.notes,
+        byPlacement: cells(b.byPlacement, 30),
+        byAgeGender: cells(b.byAgeGender, 42),
+        ads: Array.isArray(b.ads)
+          ? b.ads.slice(0, 15).map((a) => ({
+              ...a,
+              byPlacement: a.byPlacement.slice(0, 8),
+              byDemographic: a.byDemographic.slice(0, 10),
+            }))
+          : b.ads,
+        download_path: `/api/bernard/breakdowns/${b.accountId}?days=${days}${q}`,
+      };
     }
     case "dispatch_copy_fix": {
       if (!metaConfigured()) return META_NOT_CONFIGURED;
@@ -757,11 +807,15 @@ export async function runBernardChatStream(
         } catch (e) {
           out = { error: e instanceof Error ? e.message : String(e) };
         }
-        // A finished audit gets a first-class download chip in the panel.
+        // A finished audit or breakdown report gets a first-class download chip.
         const dl = (out as { download_path?: string; account?: { name?: unknown } } | null);
         if (tu.name === "run_audit" && dl?.download_path) {
           const who = typeof dl.account?.name === "string" ? dl.account.name : "account";
           emit({ type: "artifact", text: dl.download_path, label: `Download the ${who} audit (.docx)` });
+        }
+        if (tu.name === "get_breakdowns" && dl?.download_path) {
+          const who = typeof dl.account?.name === "string" ? dl.account.name : "account";
+          emit({ type: "artifact", text: dl.download_path, label: `Download the ${who} breakdown tables (.docx)` });
         }
         results.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(out).slice(0, 80000) });
       }

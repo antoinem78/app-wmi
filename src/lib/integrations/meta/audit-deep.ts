@@ -11,7 +11,7 @@ import { metaGraphGet, metaRows, metaGraphAll, normalizeActId } from "@/lib/inte
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
 const num = (v: unknown) => Number(v ?? 0) || 0;
 
-const INSIGHT_FIELDS = [
+export const INSIGHT_FIELDS = [
   "spend", "impressions", "reach", "frequency", "clicks", "inline_link_clicks",
   "ctr", "inline_link_click_ctr", "cpm", "actions", "action_values",
   "video_play_actions", "video_p100_watched_actions", "video_thruplay_watched_actions",
@@ -75,15 +75,19 @@ function totals(r: Row | undefined): FunnelTotals | null {
   };
 }
 
-export interface Segment { key: string; spend: number; impressions: number; linkClicks: number; purchases: number; revenue: number; roas: number }
+export interface Segment { key: string; spend: number; impressions: number; linkClicks: number; purchases: number; revenue: number; roas: number; leads: number }
 function segments(rs: Row[], keyOf: (r: Row) => string): Segment[] {
   const m = new Map<string, Segment>();
   for (const r of rs) {
     const key = keyOf(r);
-    const s = m.get(key) ?? { key, spend: 0, impressions: 0, linkClicks: 0, purchases: 0, revenue: 0, roas: 0 };
+    const s = m.get(key) ?? { key, spend: 0, impressions: 0, linkClicks: 0, purchases: 0, revenue: 0, roas: 0, leads: 0 };
     s.spend += num(r.spend); s.impressions += num(r.impressions); s.linkClicks += num(r.inline_link_clicks);
     s.purchases += action(r, "omni_purchase", "purchase");
     s.revenue += actionValue(r, "omni_purchase", "purchase");
+    // "lead" is Meta's aggregate lead action (website + instant form). Carried
+    // so the finding detectors have a result to rank on when no purchase value
+    // flows through the account (the lead-gen branch, build brief 2026-08-28).
+    s.leads += action(r, "lead");
     m.set(key, s);
   }
   return [...m.values()].map((s) => ({ ...s, roas: s.spend ? s.revenue / s.spend : 0 })).sort((a, b) => b.spend - a.spend);

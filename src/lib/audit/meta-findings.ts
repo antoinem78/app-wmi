@@ -48,6 +48,20 @@ const per30 = (v: number, days: number) => (days > 0 ? (v / days) * 30 : 0);
 const SALES_OBJECTIVES = new Set(["OUTCOME_SALES", "OUTCOME_LEADS", "CONVERSIONS"]);
 const CONVERSION_GOALS = new Set(["VALUE", "OFFSITE_CONVERSIONS", "OFFSITE_CONVERSION"]);
 
+/** Which result a breakdown ranks on. Lead-gen accounts carry no purchase
+ *  value through Meta at all, so every ROAS-gated detector used to evaluate to
+ *  nothing and the section silently disappeared (the Steffen Foerster case,
+ *  build brief 2026-08-28). When a breakdown holds zero purchases but does
+ *  hold leads, rank on cost per lead instead. */
+function segmentMode(segs: Segment[]): "purchase" | "lead" | null {
+  const purchases = segs.reduce((s, x) => s + x.purchases, 0);
+  const leads = segs.reduce((s, x) => s + x.leads, 0);
+  if (purchases > 0) return "purchase";
+  if (leads > 0) return "lead";
+  return null;
+}
+const cpl = (s: { spend: number; leads: number }) => (s.leads ? s.spend / s.leads : Infinity);
+
 export function detectFindings(d: DeepAudit): Finding[] {
   const out: Finding[] = [];
   const cur = d.current;
@@ -88,34 +102,69 @@ export function detectFindings(d: DeepAudit): Finding[] {
   if (!isErr(d.byPlacement) && d.byPlacement.length) {
     const total = d.byPlacement.reduce((s, p) => s + p.spend, 0);
     const floor = Math.max(total * 0.01, 500);
-    const bad = d.byPlacement.filter((p) => p.spend >= floor && p.roas < 1);
-    if (bad.length && total > 0) {
+    const mode = segmentMode(d.byPlacement);
+    if (mode === "purchase") {
+      const bad = d.byPlacement.filter((p) => p.spend >= floor && p.roas < 1);
+      if (bad.length && total > 0) {
+        const badSpend = bad.reduce((s, p) => s + p.spend, 0);
+        const badRev = bad.reduce((s, p) => s + p.revenue, 0);
+        if (badSpend / total > 0.05) {
+          out.push({
+            id: "placement_waste",
+            severity: badSpend / total > 0.15 ? "critical" : "high",
+            title: "A meaningful share of spend sits in placements that lose money",
+            headline: `${bad.length} placements took ${money(badSpend)} over ${LONG_DAYS} days, ${pct(badSpend / total)} of spend, and returned ${money(badRev)}.`,
+            evidence: bad.slice(0, 6).map((p) =>
+              `${p.key}: ${money(p.spend)} at ${n2(p.roas)} return, ${p.purchases} purchases, ${pct(p.impressions ? p.linkClicks / p.impressions : 0)} link click rate.`),
+            moneyAtStake: per30(badSpend - badRev, LONG_DAYS),
+            recommendation: `Exclude ${bad.slice(0, 3).map((p) => p.key).join(", ")} from the conversion campaigns and hold the budget in the placements already returning above 1.0.`,
+          });
+        }
+      }
+      const stars = d.byPlacement.filter((p) => p.roas >= 3 && p.purchases >= 3 && p.spend < total * 0.05);
+      if (stars.length) {
+        out.push({
+          id: "placement_starved",
+          severity: "medium",
+          title: "The best returning placements are being starved",
+          headline: `${stars.length} placements return 3.0 or better on under 5% of spend each.`,
+          evidence: stars.slice(0, 4).map((p) => `${p.key}: ${n2(p.roas)} return on ${money(p.spend)}, ${p.purchases} purchases.`),
+          moneyAtStake: null,
+          recommendation: "Give the proven placements a dedicated ad set rather than leaving them as a rounding error inside a broad placement selection.",
+        });
+      }
+    } else if (mode === "lead" && total > 0) {
+      // Lead-gen branch: no purchase value exists anywhere in the account, so
+      // rank on cost per lead against the blended figure instead of ROAS.
+      const totalLeads = d.byPlacement.reduce((s, p) => s + p.leads, 0);
+      const blendedCpl = total / totalLeads;
+      const bad = d.byPlacement.filter((p) => p.spend >= floor && (p.leads === 0 || cpl(p) > blendedCpl * 2));
       const badSpend = bad.reduce((s, p) => s + p.spend, 0);
-      const badRev = bad.reduce((s, p) => s + p.revenue, 0);
-      if (badSpend / total > 0.05) {
+      if (bad.length && badSpend / total > 0.05) {
+        const zeroSpend = bad.filter((p) => p.leads === 0).reduce((s, p) => s + p.spend, 0);
         out.push({
           id: "placement_waste",
           severity: badSpend / total > 0.15 ? "critical" : "high",
-          title: "A meaningful share of spend sits in placements that lose money",
-          headline: `${bad.length} placements took ${money(badSpend)} over ${LONG_DAYS} days, ${pct(badSpend / total)} of spend, and returned ${money(badRev)}.`,
+          title: "A meaningful share of spend sits in placements that produce few or no leads",
+          headline: `${bad.length} placements took ${money(badSpend)} over ${LONG_DAYS} days, ${pct(badSpend / total)} of spend, against a blended cost per lead of ${money(blendedCpl)}.`,
           evidence: bad.slice(0, 6).map((p) =>
-            `${p.key}: ${money(p.spend)} at ${n2(p.roas)} return, ${p.purchases} purchases, ${pct(p.impressions ? p.linkClicks / p.impressions : 0)} link click rate.`),
-          moneyAtStake: per30(badSpend - badRev, LONG_DAYS),
-          recommendation: `Exclude ${bad.slice(0, 3).map((p) => p.key).join(", ")} from the conversion campaigns and hold the budget in the placements already returning above 1.0.`,
+            `${p.key}: ${money(p.spend)}, ${p.leads} ${p.leads === 1 ? "lead" : "leads"}${p.leads ? ` at ${money(cpl(p))} each` : ""}, ${pct(p.impressions ? p.linkClicks / p.impressions : 0)} link click rate.`),
+          moneyAtStake: zeroSpend > 0 ? per30(zeroSpend, LONG_DAYS) : null,
+          recommendation: `Exclude ${bad.slice(0, 3).map((p) => p.key).join(", ")} from the lead campaigns and hold the budget in the placements already delivering at or under the blended cost per lead.`,
         });
       }
-    }
-    const stars = d.byPlacement.filter((p) => p.roas >= 3 && p.purchases >= 3 && p.spend < total * 0.05);
-    if (stars.length) {
-      out.push({
-        id: "placement_starved",
-        severity: "medium",
-        title: "The best returning placements are being starved",
-        headline: `${stars.length} placements return 3.0 or better on under 5% of spend each.`,
-        evidence: stars.slice(0, 4).map((p) => `${p.key}: ${n2(p.roas)} return on ${money(p.spend)}, ${p.purchases} purchases.`),
-        moneyAtStake: null,
-        recommendation: "Give the proven placements a dedicated ad set rather than leaving them as a rounding error inside a broad placement selection.",
-      });
+      const stars = d.byPlacement.filter((p) => p.leads >= 3 && cpl(p) <= blendedCpl * 0.5 && p.spend < total * 0.05);
+      if (stars.length) {
+        out.push({
+          id: "placement_starved",
+          severity: "medium",
+          title: "The cheapest lead placements are being starved",
+          headline: `${stars.length} placements deliver leads at half the blended cost or better on under 5% of spend each.`,
+          evidence: stars.slice(0, 4).map((p) => `${p.key}: ${p.leads} leads at ${money(cpl(p))} each on ${money(p.spend)} (blended ${money(blendedCpl)}).`),
+          moneyAtStake: null,
+          recommendation: "Give the proven placements a dedicated ad set rather than leaving them as a rounding error inside a broad placement selection.",
+        });
+      }
     }
   }
 
@@ -194,7 +243,32 @@ export function detectFindings(d: DeepAudit): Finding[] {
   }
 
   /* ---- 6. age bands that do not pay ---- */
-  if (!isErr(d.byAge) && d.byAge.length > 2) {
+  if (!isErr(d.byAge) && d.byAge.length > 2 && segmentMode(d.byAge) === "lead") {
+    // Lead-gen branch: rank bands on cost per lead against the blended figure.
+    const known = d.byAge.filter((a) => a.key !== "Unknown" && a.spend > 0);
+    const totalSpend = known.reduce((s, a) => s + a.spend, 0);
+    const totalLeads = known.reduce((s, a) => s + a.leads, 0);
+    const blendedCpl = totalLeads ? totalSpend / totalLeads : 0;
+    const weak = known.filter((a) => a.spend >= totalSpend * 0.04 && (a.leads === 0 || cpl(a) > blendedCpl * 1.5));
+    const weakSpend = weak.reduce((s, a) => s + a.spend, 0);
+    if (weak.length && blendedCpl > 0 && weakSpend / totalSpend > 0.08) {
+      const zeroSpend = weak.filter((a) => a.leads === 0).reduce((s, a) => s + a.spend, 0);
+      const breadth = !isErr(d.adSets)
+        ? d.adSets.filter((s) => (s.ageMin ?? 18) <= 25 && (s.ageMax ?? 65) >= 55).length : 0;
+      out.push({
+        id: "age_waste",
+        severity: "medium",
+        title: "Spend is going to age bands that produce few or no leads",
+        headline: `${weak.map((w) => w.key).join(", ")} took ${money(weakSpend)} over ${LONG_DAYS} days, ${pct(weakSpend / totalSpend)} of spend, against a blended cost per lead of ${money(blendedCpl)}.`,
+        evidence: [
+          ...known.map((a) => `${a.key}: ${money(a.spend)}, ${a.leads} ${a.leads === 1 ? "lead" : "leads"}${a.leads ? ` at ${money(cpl(a))} each` : ""}.`),
+          ...(breadth ? [`${breadth} live ad sets are set wide enough to include every one of these bands.`] : []),
+        ],
+        moneyAtStake: zeroSpend > 0 ? per30(zeroSpend, LONG_DAYS) : null,
+        recommendation: "Narrow the lead campaigns to the bands that carry the leads and keep one small holdout on the weaker bands so the decision stays evidence based.",
+      });
+    }
+  } else if (!isErr(d.byAge) && d.byAge.length > 2) {
     const known = d.byAge.filter((a) => a.key !== "Unknown" && a.spend > 0);
     const totalSpend = known.reduce((s, a) => s + a.spend, 0);
     const totalRev = known.reduce((s, a) => s + a.revenue, 0);
@@ -223,7 +297,30 @@ export function detectFindings(d: DeepAudit): Finding[] {
   }
 
   /* ---- 7. geography leakage ---- */
-  if (!isErr(d.byCountry) && d.byCountry.length > 1) {
+  if (!isErr(d.byCountry) && d.byCountry.length > 1 && segmentMode(d.byCountry) === "lead") {
+    // Lead-gen branch: leakage is spend abroad that produces few or no leads.
+    const total = d.byCountry.reduce((s, c) => s + c.spend, 0);
+    const home = d.byCountry[0];
+    const away = d.byCountry.slice(1);
+    const awaySpend = away.reduce((s, c) => s + c.spend, 0);
+    const awayLeads = away.reduce((s, c) => s + c.leads, 0);
+    const homeCpl = cpl(home);
+    const awayCpl = awayLeads ? awaySpend / awayLeads : Infinity;
+    if (total > 0 && awaySpend / total > 0.03 && awaySpend > 1000 && (awayLeads === 0 || (Number.isFinite(homeCpl) && awayCpl > homeCpl * 2))) {
+      out.push({
+        id: "geo_leak",
+        severity: "medium",
+        title: "Spend is leaking outside the market the offer is written for",
+        headline: `${money(awaySpend)} over ${LONG_DAYS} days, ${pct(awaySpend / total)} of spend, went to ${away.length} countries outside ${home.key} and produced ${awayLeads} ${awayLeads === 1 ? "lead" : "leads"}.`,
+        evidence: [
+          `${home.key}: ${money(home.spend)}, ${home.leads} leads${home.leads ? ` at ${money(homeCpl)} each` : ""}.`,
+          ...away.slice(0, 6).map((c) => `${c.key}: ${money(c.spend)}, ${c.leads} ${c.leads === 1 ? "lead" : "leads"}.`),
+        ],
+        moneyAtStake: awayLeads === 0 ? per30(awaySpend, LONG_DAYS) : null,
+        recommendation: "Lock the campaigns that are leaking to the home market. If a second market is wanted it needs its own campaign, its own language and its own budget line, not spillover.",
+      });
+    }
+  } else if (!isErr(d.byCountry) && d.byCountry.length > 1) {
     const total = d.byCountry.reduce((s, c) => s + c.spend, 0);
     const home = d.byCountry[0];
     const away = d.byCountry.slice(1);
