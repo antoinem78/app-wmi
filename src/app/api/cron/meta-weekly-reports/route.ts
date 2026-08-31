@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { listMetaAdAccounts, metaConfigured } from "@/lib/integrations/meta";
 import { getMetaWeekly, formatMetaWeeklyText, type MetaWeekly } from "@/lib/integrations/meta/weekly";
+import { getMetaBreakdowns, formatMetaBreakdownsText } from "@/lib/integrations/meta/breakdowns";
 import { stripEmDashes } from "@/lib/integrations/anthropic/narrative";
 
 export const maxDuration = 300;
@@ -31,6 +32,7 @@ Rules, all firm:
 - Never say "we", "us" or "our". Write impersonally or in the first person singular.
 - Anchor every claim to a figure you were given. Invent nothing. If the data does not support a conclusion, say what would be needed to reach one.
 - A week is a short window. Where an ad set is in learning or the sample is small, say so plainly rather than reading a trend into noise.
+- The figures include breakdowns (placement, age and gender, creative, video). Name the specific placement, demographic cell or creative where one genuinely stands out; that depth is the point of the report. But NEVER rank creatives or placements on single-digit result counts: report those as observations with the count stated, not as winners.
 - Three short paragraphs at most: what happened, what it means, what to watch. No headings, no bullet lists, no sign-off.`;
 
 async function narrate(w: MetaWeekly, figures: string): Promise<string | null> {
@@ -108,7 +110,20 @@ export async function GET(request: Request) {
         return;
       }
 
-      const figures = formatMetaWeeklyText(weekly);
+      // The breakdown depth (placement, demographic, creative, video) is what
+      // separates a report from "metrics you can see in Ads Manager", which a
+      // client said in as many words (docs/META_REPORTING_BUILD_BRIEF.md).
+      // Best-effort: a failed breakdown read degrades to the headline draft
+      // rather than failing the account.
+      let breakdownText = "";
+      try {
+        breakdownText = formatMetaBreakdownsText(await getMetaBreakdowns(acc.accountId, { days: 7 }));
+      } catch (e) {
+        console.error(`Meta weekly breakdowns skipped for ${acc.accountId}:`, e);
+      }
+
+      const headline = formatMetaWeeklyText(weekly);
+      const figures = breakdownText ? `${headline}\n\n${breakdownText}` : headline;
       const narrative = await narrate(weekly, figures);
       const body = stripEmDashes(narrative ?? figures);
 
@@ -125,6 +140,7 @@ export async function GET(request: Request) {
           "```",
           figures,
           "```",
+          `Full breakdown tables (placement, demographic, creative crosses): https://app.wmiltd.com/api/bernard/breakdowns/${weekly.accountId}?days=7`,
           "_Draft for review, not yet sent to the client._",
         ].join("\n");
         await postMessage(channel!, draft);

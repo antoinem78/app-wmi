@@ -212,4 +212,54 @@ export async function getMetaBreakdowns(
   };
 }
 
+/**
+ * Compact text rendering of the breakdowns for the weekly Slack draft: the
+ * depth the client-facing report is built from (placement, demographic,
+ * creative, video), in a dozen lines rather than the full tables. Adaptive:
+ * ranks on ROAS where purchases exist, cost per lead where only leads do.
+ * Counts ride next to everything, because single-digit results are
+ * observations, not rankings.
+ */
+export function formatMetaBreakdownsText(b: MetaBreakdowns): string {
+  const flat: BreakdownCell[] = [
+    ...(isErr(b.byPlacement) ? [] : b.byPlacement),
+    ...(isErr(b.byAgeGender) ? [] : b.byAgeGender),
+  ];
+  const hasPurchases = flat.some((c) => c.purchases > 0);
+  const money = (v: number) => `${b.currency} ${v.toFixed(2)}`;
+  const result = (c: BreakdownCell) =>
+    hasPurchases
+      ? `${c.purchases} purchases${c.purchases ? `, ROAS ${c.roas.toFixed(2)}` : ""}`
+      : `${c.leads} ${c.leads === 1 ? "lead" : "leads"}${c.costPerLead != null ? ` at ${money(c.costPerLead)}` : ""}`;
+  const lines: string[] = [];
+
+  if (!isErr(b.byPlacement) && b.byPlacement.length) {
+    lines.push("Placements (top by spend):");
+    for (const c of b.byPlacement.slice(0, 5)) {
+      lines.push(`  ${c.key}: ${money(c.spend)}, ${result(c)}, CTR ${c.linkCtr.toFixed(2)}%`);
+    }
+  }
+  if (!isErr(b.byAgeGender) && b.byAgeGender.length) {
+    const withResults = b.byAgeGender.filter((c) => (hasPurchases ? c.purchases : c.leads) > 0);
+    const top = (withResults.length ? withResults : b.byAgeGender).slice(0, 5);
+    lines.push("");
+    lines.push(withResults.length ? "Who is responding (age gender cells with results):" : "Age and gender (top spend, no results yet):");
+    for (const c of top) lines.push(`  ${c.key}: ${money(c.spend)}, ${result(c)}`);
+  }
+  if (!isErr(b.ads) && b.ads.length) {
+    lines.push("");
+    lines.push("Creatives (top by spend):");
+    for (const a of b.ads.slice(0, 5)) {
+      const best = a.byPlacement
+        .filter((c) => (hasPurchases ? c.purchases : c.leads) > 0)
+        .sort((x, y) => (hasPurchases ? y.roas - x.roas : (x.costPerLead ?? Infinity) - (y.costPerLead ?? Infinity)))[0];
+      const video = a.totals.videoPlays > 0
+        ? `, video ${Math.round(a.totals.videoPlays).toLocaleString()} plays${a.totals.videoPlays ? ` (${((a.totals.videoComplete / a.totals.videoPlays) * 100).toFixed(1)}% complete)` : ""}`
+        : "";
+      lines.push(`  ${a.adName}: ${money(a.totals.spend)}, ${result(a.totals)}${best ? `, best in ${best.key} (${result(best)})` : ""}${video}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 export { isErr };
