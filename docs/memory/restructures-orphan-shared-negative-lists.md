@@ -1,0 +1,13 @@
+---
+name: restructures-orphan-shared-negative-lists
+description: "A campaign restructure leaves shared negative keyword lists attached to the old paused campaigns, so the new campaigns run without the competitor and waste protection someone already built; check shared_set.reference_count before accepting any negatives complaint"
+metadata:
+  node_type: memory
+  type: project
+---
+
+Fly-Rides, 2026-08-28. The client asked why competitor queries ("fetii bus", "ninja buses") were still costing money when a `fetii` negative already existed. It did exist. A shared list `Roman - Competition` holds 75 competitor negatives including broad `fetii`, `feti`, `fetiis`, `ninjabuses`, and it was attached to **exactly one campaign, which was paused**: the old non-brand campaign the November 2025 restructure replaced. The rebuild carried the keywords and the structure but not the shared list attachments, so months of accumulated competitor protection went dormant with the campaign it hung off. The same account has a shared list named `Brand` with **zero members** attached to eight campaigns, protection that looks present in the UI and does nothing.
+
+**Why:** shared negative lists are attached per campaign, not per account, and nothing warns you when the campaigns referencing one are all paused. A restructure therefore silently drops them while the lists themselves still look healthy in the shared library. Anyone auditing negatives at campaign level, which is where the recent hand-added ones live, will not see the missing layer at all, and will conclude the client never blocked those terms. Same family as [[meta-guided-creation-rebuild-trap]]: a rebuild loses attached settings quietly, and the loss is only visible from the surface that shows attachment, never from the surface that shows the setting exists.
+
+**How to apply:** before accepting or forming any "these terms were never blocked" conclusion, read `shared_set` with `member_count` and `reference_count`, then `campaign_shared_set` joined to `campaign.status` to see whether the referencing campaigns are actually live. A list with `reference_count` of 1 pointing at a paused campaign, or `member_count` of 0 against many campaigns, is the finding. Do this on every account inherited after a restructure, ours or a contractor's, and check it as a matter of course whenever we rebuild campaigns ourselves. Then check whether the missing protection is actually costing money before raising it: at Fly-Rides the competitor terms were real waste, but the empty `Brand` list turned out to be a latent gap with no brand query reaching a non-brand campaign all month, which is worth saying plainly rather than dressing up.

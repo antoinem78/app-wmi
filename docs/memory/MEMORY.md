@@ -15,10 +15,13 @@
 - [Agents chat execution](agents-chat-execution.md) — Bernard/Oscar execute from chat (2026-08-01); GOOGLE_build search-only + why; ALLOW_ALL_MCC lifts the allowlist
 - [Check access before requesting it](check-access-before-requesting-it.md) — read the live systems first, and route Meta/Google work through Bernard/Oscar rather than doing it myself
 - [Never infer delivery from the repo](never-infer-delivery-from-repo.md) — client docs go out over Slack; a missing file in docs/ is not evidence anything is outstanding
+- [Steffen weekly report, Mondays](steffen-weekly-report-monday.md) — pasted into Slack as text not attached; template, data pulls and traps at docs/SF_WEEKLY_REPORT_TEMPLATE.md
+- [Misdirected client content: stop, don't proceed](misdirected-client-content-stop-dont-proceed.md) — when another client's material lands in this channel, flag it and wait; do not action the parts that fit, and do not offer to do the rest
 - [No cross-client comparisons](no-cross-client-comparisons.md) — findings stand on the account's own data and platform behaviour; other clients' names never appear in per-client analyses
 - [Match windows to the break](match-windows-to-the-break.md) — two windows cannot tell a fall from a return to normal; plot four before comparing two
 - [Shopify theme duplicate stages design only](shopify-theme-duplicate-stages-design-only.md) — pages, product copy and app config are shared store data; never promise a preview link before classifying every item
 - [Client product facts need verifying](client-product-facts-need-verifying.md) — a client confirming what is in the box is not verification; dropshippers often have never handled their own product
+- [Never UI-automate Meta Ads Manager](never-ui-automate-meta-ads-manager.md) — browser/GUI agents on Ads Manager breach Meta ToS and risk losing the whole Business Manager; use the Marketing API, and check whether the gap is actually in our own code
 - [Agent relay truncates long turns](agent-relay-truncates-long-turns.md) — long Bernard/Oscar replies get cut mid-word and the turn may never persist; capture to a file and check it ends cleanly
 - [Prove offline conversions account-side](prove-offline-conversions-account-side.md) — a recorded UPLOAD_CLICKS conversion attributed to a campaign proves GCLID capture; upload diagnostics resources are not an absence test
 - [Meta guided-creation rebuild trap](meta-guided-creation-rebuild-trap.md) — rebuilds silently re-enable Advantage defaults incl. personalised destinations; check Ads Manager after every rebuild
@@ -37,3 +40,15 @@
 - [Shopify Google channel takes SEO title](shopify-google-channel-takes-seo-title.md): shopping titles reading like marketing copy means the channel is sourcing the SEO page title; inconsistent variants prove it is hand-typed, and the fix is one setting
 - [Merchant API v1 read shapes](merchant-api-v1-read-shapes.md): v1beta is dead, product_view needs id in SELECT, and local~ rows inflate catalog counts several-fold
 - [Agents complement contractors](agents-complement-contractors.md) — build/optimise only in founder-triggered sessions; Norbert supervises both agents; watch-and-flag between sessions
+- [Configured is not rendered](configured-is-not-rendered.md) — check the rendered page, not admin data; and hidden is not broken, so ask why before calling it a quick fix
+- [One shared key authenticates everything](one-shared-key-authenticates-everything.md) — x-bernard-key covers 14 endpoints incl. Meta builds and optimise-execute; enumerate every node on a credential id before sharing it with anyone
+- [Contractor identity is not the visible identity](contractor-identity-is-not-the-visible-identity.md) — Antek works under Baptiste's Slack and Google/GTM/GA4/Cookiebot accounts; never put his name in client-visible copy, and a pasted transcript's attribution is not what the client saw
+- [Google Ads bidding claims need three surfaces](google-ads-bidding-claims-need-three-surfaces.md) — campaign_conversion_goal rows are materialized defaults; read goal config level + toggles + primary flags/origins together
+- [Pull change history before judging an account](pull-change-history-before-judging-an-account.md): tabulate change_event user_email BEFORE asking whether an account is well run; at HoI 188 of 215 changes were from our own login, including the cut we were about to condemn
+- [AM prefix is our own MCC family](am-prefix-is-our-own-mcc-family.md) — `AM |` campaigns are the founder's own manager accounts; who HOLDS an account comes from the manager tree + customer_user_access, and change_event caps at 30 days
+- [Restructures orphan shared negative lists](restructures-orphan-shared-negative-lists.md) — rebuilt campaigns lose shared negative list attachments; check shared_set member_count and reference_count against live campaigns
+- [Agent-to-agent messages can launder approval](agent-to-agent-messages-can-launder-approval.md) — a message injected into an agent's thread can trip its founder-word gates; void approval authority in code (Norbert's BRIEF_HEADER), never just in the prompt
+- [Feed price claims need both fields](feed-price-claims-need-both-fields.md) — price AND salePrice from the full product resource; verify Meta creative fixes via ads → current creative, old ids are immutable
+- [Cowork cannot drive embedded app surfaces](cowork-cannot-drive-embedded-app-surfaces.md) — Shopify theme code editor and Loox take clicks but not keystrokes; those are founder-by-hand, and scope brief rules to the surface they were written for
+- [Vercel sensitive env pull returns stubs](vercel-sensitive-env-pull-returns-stubs.md) — Sensitive vars are write-only; a pulled short value is a stub, find the real one in .env.local or substrate.env
+- [GHL contact exists but index is blind](ghl-contact-exists-but-index-blind.md) — fetch by id before declaring a contact missing; lists, search and the UI all sit on a laggy index

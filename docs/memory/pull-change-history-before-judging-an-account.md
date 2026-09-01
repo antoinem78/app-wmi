@@ -1,0 +1,19 @@
+---
+name: pull-change-history-before-judging-an-account
+description: "Read change_event and see who has been editing an account BEFORE forming or requesting a verdict on how well it is run; the answer is sometimes us (House of Isabella, 2026-08-18)"
+metadata: 
+  node_type: memory
+  type: feedback
+  originSessionId: 8cc72274-4b6a-4ba4-88a0-67fb40f0f19f
+  modified: 2026-08-27T20:35:19.433Z
+---
+
+Asked to find out whether House of Isabella's Google Ads account was managed properly, this session assembled structural evidence (bid strategies, ad strength, a 40% budget cut that made ROAS worse) and put it to Oscar, who returned a blunt verdict: "not being managed properly, and the failures are structural", including calling the budget cut "a genuine management failure, not market conditions". Only afterwards did the session pull `change_event`. Of 215 changes in 28 days, **188 came from our own MCC login**, 20 from the feed vendor, 7 from Google's auto-apply. The budget cut he condemned was made from our login: TOF Signals £850/day to £300/day in two steps on 10 and 12 August. The verdict was accurate about the work and wrong about whose work it was.
+
+**Why:** every account-quality question carries a hidden premise about who is responsible, and metrics alone never contain that premise. Reviewing settings and performance feels like the neutral, evidence-led approach, which is exactly what makes it dangerous: you can assemble a fully sourced case and still aim it at the wrong party. Getting this wrong in front of a client means criticising work they may know is ours, and it puts an agent on record condemning its own side.
+
+**Recurred ten days later on Steffen Foerster, in a form worth recognising because it did not look like an account-quality question at all.** Oscar's spend table showed Wildlife and Demand Gen taking $62 of $64 in a week while Galapagos, the campaign meant to carry the plan, spent $1.94. This session reported that to the founder as the account "running close to the opposite of your ruling", and drafted a freelancer message asking him to confirm Wildlife was paused and to explain the allocation. **The founder's reply: "I can answer the Google points as they were my decisions."** He had activated both deliberately, because the tight campaigns were spending so little that the client was paying a retainer for almost nothing, and he wanted top-of-funnel traffic. Change history was even quoted in the report (Wildlife "paused once and resumed twice") and still nobody asked whose hand did it.
+
+**The tell to watch for: any sentence of the form "X is happening despite the agreed plan".** That phrasing contains the same hidden premise as "is this managed properly", so it triggers the same check. A deviation from a plan is only a deviation if nobody with authority changed the plan, and the founder changes his own plans without announcing it, which is his prerogative.
+
+**How to apply:** for any "is this managed properly" question, or any finding framed as a departure from an agreed plan, pull `change_event` FIRST and tabulate `user_email` and `client_type` before forming a view or briefing another agent. Google retains only 30 days, so it cannot be reconstructed later. Watch for `Recommendations Auto-Apply` as an editor, which means Google is changing settings unattended, and read what it actually did: for a REMOVE the keyword text is in `old_resource`, not `new_resource`, which is returned empty. At Fly-Rides that read showed Google deleting the same `killeen` negative three times over four weeks while the client re-added it by hand, unaware. Auto-apply also recurs, so one removal is not one event. And a login is not a person: confirm who operates an address before attributing anything, per [[contractor-identity-is-not-the-visible-identity]]. Sibling of [[cross-surface-relevance-check]]; both are about joining a finding to the surface that gives it meaning.
