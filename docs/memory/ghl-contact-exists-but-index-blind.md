@@ -12,7 +12,7 @@ metadata:
 **How to apply:**
 1. When an alert names a contact_id, verify by direct fetch (`GET /contacts/{id}`) before concluding anything from lists or search.
 2. The direct contact URL (`.../contacts/detail/<id>`) bypasses the index and is the founder's fastest route to a hot lead.
-3. Index lag of minutes is normal; hours is a GHL support ticket. Check whether OLDER contacts are also missing from the list, which distinguishes a lagging index from one broken for weeks and masked by low volume.
+3. Measured on the incident itself: the index caught up after 24 minutes. So lag of roughly half an hour is normal; hours is a GHL support ticket. Check whether OLDER contacts are also missing from the list, which distinguishes a lagging index from one broken for weeks and masked by low volume.
 4. List-driven automation (smart-list enrolment) silently misses unindexed contacts; webhook-driven automation does not. Prefer webhook triggers for anything that must not miss a lead.
 
 Related: [[silence-is-not-a-signal-without-traffic]], [[configured-is-not-rendered]].
