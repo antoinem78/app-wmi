@@ -41,3 +41,26 @@ Zero opportunities have ever entered the pipeline in eight months, and offline c
 ### Not verified, flagged rather than assumed
 
 The PIT returns 401 on the funnels scope, so the funnel inventory was inferred from the served HTML rather than listed. Before the tags are called done, confirm from outside that they are on every page, rather than trusting a location-level setting to have applied everywhere.
+
+---
+
+## First live lead, 2026-09-01, and the incident around it
+
+**Written by the platform session at the founder's instruction** (this channel's session should fold it into its own working state).
+
+**The lead:** Azim Tirmizi, Ashar Dentistry, azim@ashardentistry.com, +1 972 838 7009. Solo general dentist, budget band $2k-$5k, timeframe "as soon as possible", growth challenge "new patient flow". Source form `dm_strategy_call_qualifier`, contact created 16:26 UTC. **Every click id field arrived empty** (Meta, msclkid, gbraid, wbraid), consistent with the audit's finding that the site carries no measurement, so the lead is unattributable to any channel.
+
+**The incident:** the Slack alert fired and the founder saw no contact in GHL. The contact existed the whole time: fetch by id returned it complete (`19YFXZ8UmEcndll85gYN`), while the contact LIST, the search and therefore the UI returned nothing, because they all sit on GHL's search index and the index had not picked the row up. Even `meta.total` still said 6 contacts. Verified n8n-side: `RCV_dm_ghl_events` ran green end to end (Slack post, Meta CAPI forward), so the pipeline is healthy and the fault is index-side only. Direct contact URL bypasses the index: `https://app.gohighlevel.com/v2/location/YT3zkRv2oyeo1PSUQqVR/contacts/detail/19YFXZ8UmEcndll85gYN`. Lesson generalised to shared memory (`ghl-contact-exists-but-index-blind`).
+
+**Index watch:** still unindexed 18 minutes after creation; a poller is running to roughly the 100-minute mark. If it never indexes, the support ticket text below is ready. Note the flip side checked and ruled out: the six older contacts ARE indexed, so this is not weeks of silent index failure, it is this row.
+
+**Nurture state, proven in production by this lead:** all six workflows were still drafts when Azim submitted, so nothing answered him; the founder responded personally. **Publishing cannot be done via API** (PUT and PATCH on `/workflows/{id}` both return 404, probed 2026-09-01), so it is a founder UI action:
+
+1. Open each workflow, **check before publishing**: the trigger (should be form submission or contact created, and must NOT be smart-list enrolment, which the index incident proves can silently miss a lead), the sender identity on every email or SMS step, and every link.
+2. Publish at minimum **1. New Lead Nurture (Fast 5)** (`770ae236-731f-40d4-8e97-39131a14bfe9`); the other five in the same pass if their content survives the check.
+3. Azim predates the publish, so if Fast 5 should cover him, add him to the workflow manually **from his direct contact URL**, not from a list.
+
+**Support ticket text, if the poller ends unindexed:**
+
+> Location YT3zkRv2oyeo1PSUQqVR. Contact 19YFXZ8UmEcndll85gYN (created 2026-09-01T16:26:02Z via form submission) is retrievable by id but absent from the contacts list, contact search and the contacts UI, and the location's contact total still reads 6 where it should read 7. Older contacts index fine. Please reindex the location or this contact.
+
