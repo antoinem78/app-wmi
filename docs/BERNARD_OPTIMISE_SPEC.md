@@ -78,6 +78,10 @@ Creative swaps, targeting, bid strategy (destroy learning history). Scheduling, 
 
 **Amended 2026-08-26: audience EXCLUSIONS moved in scope as v1.1** (§2 above). The carve-out rests on one property: an exclusion can only narrow delivery, never widen it, so its worst case is bounded (under-delivery plus a disclosed learning reset), unlike interest/geo/age edits whose worst case is unbounded wrong-audience spend. The rest of targeting stays out, exclusion REMOVAL stays out (it breaks the one-way property and needs its own ruling), and placements stay out for a named reason: on Advantage+ placements an exclusion is a mode change to manual that forfeits per-asset Customize Media, a trade that needs a founder ruling first (v1.1 spec §8).
 
+## 8a. Graduation counting, ruled 2026-09-03
+
+Only moves the verifier recorded unaided count toward the 50-move zero-reversal bar. The four exclusions executed on 2026-08-26 were reconciled by hand after the verifier crashed and are labelled hand-reconciled in `optimise_moves`; they do not count. Count as of the ruling: 0 of 50 for Bernard, 0 of 50 for Oscar.
+
 ## 9. Oscar's leg, built 2026-09-03
 
 Oscar already had the machinery this spec would otherwise invent: `list_proposals`, `decide_proposal`, `apply_proposal` with guardrail re-checks, and `write_audit`. What he gained is **Norbert inserted between proposal and founder**, the same two questions, the same one revision round. No new Google write surface.
