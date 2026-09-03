@@ -52,6 +52,26 @@ Consequences: roughly $40/day is buying on-platform browsing rather than store s
 
 **4. Zero purchases, and it is worth stating precisely.** No purchase action of any type appears in the ad account's insights for 6-15 Aug, and the pixel recorded **0 Purchase events site-wide on every day from 1 to 15 August**. The event is not simply uninstrumented: this pixel recorded 4 purchases in the 30 days read on 2026-08-06. Shopify remains the ground truth and we still do not have access to it (see Blocked on), so this is "no purchase reached Meta", not a statement about the client's bank.
 
+## Bernard's verdict 2026-08-15: not a lost cause, but do not bill another cycle before the store review
+
+Requested by the founder, who offered to refund everything since start if the zero-sales cause sits outside advertising. Bernard verified against fresh live reads rather than the summary he was given.
+
+**His 30-day pull:** $929.20 spend, 1 purchase, $250 revenue, ROAS 0.27. Site-wide pixel 3,511 ViewContent, 267 AddToCart, **48 InitiateCheckout, 1 Purchase**. 25 ads carrying spend, exactly one ever converted and it sits on a legacy pre-relaunch campaign; every relaunch-era ad shows real add-to-cart activity and zero purchases. (Window is labelled to 2026-08-17, two days ahead of the read date, so treat it as trailing rather than exact.)
+
+**On the media side he says there is nothing meaningful left.** CPM fell $91.52 to $45.40 period over period, CPC $1.74 to $0.90, CTR holds above 5%, add-to-carts rose 18 to 81 at a fraction of the prior cost. His line: 267 people adding a $250 item to cart in 30 days and producing one sale is not a gap that closes with better targeting or fresher creative.
+
+**His recommendation:** hold the account at its current mostly-paused state, do not restart or expand spend, run the store and checkout review, then decide. If a checkout-level defect is confirmed, a full refund is defensible rather than generous. Do not walk away from the account itself yet, because the traffic and engagement numbers are good enough that it could turn.
+
+**Where this session refines his diagnosis, and it changes what Monday tests.** Bernard's lead hypothesis is a device-specific checkout failure, Android in particular. That does not cover his own figures: **48 initiate-checkouts site-wide produced 1 purchase**, so iPhone users are failing at checkout too. Roughly 98% of everyone reaching checkout on any device fails to complete. The payment step must be tested for all traffic, not just Android. The device split is a real second signal but it rests on 24 Android add-to-carts against 69 iPhone ones, which is suggestive rather than proven.
+
+**SUPERSEDED IN PART, same day: the storefront walk below disproves the structural-checkout hypothesis.** Bernard's reasoning was sound on the evidence he could reach, but he cannot browse, and the store turns out to be correctly configured for US buyers. Keep his commercial recommendation (hold spend, do not bill another cycle, decide after the store review); drop "checkout is broken" as the working theory.
+
+**Open question worth putting to the client:** lifetime this account turned add-to-carts into 4 sales; the last 30 days turned 267 into 1. That looks like something changing rather than a permanent condition. Ask whether anything changed on the store in late July, around when the account went dark on the 27th.
+
+**Commercial note.** Refunding everything since start is one payment, AED 1,800, plus the $92.96 misdirected spend, so about $583. That is almost exactly the cost of the drafted offer to waive the 5 September payment. Refunding August instead of waiving September costs the same and reads better: he pays nothing for the broken month and resumes paying when there is something to pay for.
+
+Bernard's audit document: `https://app.wmiltd.com/api/bernard/audit/1801857321221826?days=30` (needs a signed-in portal session).
+
 ## Live structure (read 2026-08-15)
 
 **Prospecting: campaign 120249541099780607 "WMI | Sales | Purchase | Relaunch", ACTIVE.**
@@ -95,10 +115,165 @@ Audit delivered and corrected (`~/Documents/LUCA_SUMMER_META_AUDIT_JULY26.docx`)
 
 **Male-only targeting is a founder ruling, not a defect** (2026-08-06). `genders: [1]` is deliberate; the addressable pool is already several million at men only. Stop re-flagging it.
 
+## ✖ CORRECTED 2026-08-21: the hidden reviews were a deliberate ethical choice, not a defect
+
+**The client explained it himself: the 127 reviews are fake, AI-generated, added by his web developer, and he deliberately chose not to display them.** His brand is two months old with five real sales, so 127 reviews was never plausible. The suppression was his conscience, and the `jdgmSettings is not defined` error is consistent with the widget having been disabled rather than having failed.
+
+**So the recommendation this session made was wrong and would have been harmful.** Advising him to "restore" the display meant advising a US-facing store to publish fake reviews, which the FTC's 2024 rule penalises per violation, with a UK equivalent under the DMCC Act. He was protected by his own judgement, not by ours.
+
+**What survives, and it is the more useful half.** The trust gap is real: a two-month-old brand with five lifetime sales, selling $250 shoes to cold US traffic, with no social proof on the page. The diagnosis stands and the remedy inverts completely. Real reviews from real buyers, a prominent returns and warranty position, the Florence workshop made verifiable, founder story, and buyer photographs. Earn the proof rather than display what was on hand.
+
+**Durable lesson, now in shared memory as [[configured-is-not-rendered]]:** a technical read tells you the state of a thing and never the intent behind it. Absent has three explanations, and "somebody removed it on purpose" is invisible from outside. Ask before calling it a quick win.
+
+The original finding is kept below because the rendering evidence itself was sound and correctly gathered. Only the conclusion drawn from it was wrong.
+
+## Original finding as written 2026-08-15, conclusion since retracted
+
+**The strongest conversion finding on this account, found from the public storefront with no admin access and no test order.**
+
+The Judge.me review widget throws `Uncaught ReferenceError: jdgmSettings is not defined` on page load. The review markup **is** in the DOM and contains `4.9 out of 5 · 127 reviews` with five filled stars, but every container returns `offsetHeight: 0` and `visible: false`, so nothing reaches the shopper. Visible review text on the page: **zero occurrences**.
+
+Verified on **two products** (Penny Yacht Loafer, Lord Yacht Loafer), on **desktop and on an Android mobile user agent** (Pixel 8, Chrome 148). It is universal, not a device or template edge case.
+
+**Why this is likely material to the add-to-cart collapse.** A $250 shoe from a brand nobody has heard of, advertised to US men over 40, with no visible social proof at the moment of decision. The reassurance exists and has been paid for; it just never renders. This sits exactly upstream of the 267 add-to-carts that produced 1 sale.
+
+**It is cheap to fix**, which is the other reason it matters: a broken app script, not a rebuild.
+
+Note the July audit recorded "the product page is good (127 five-star reviews...)". That was read from the store's data, not from the rendered page. **The reviews were counted, not seen.** Worth carrying: a feature being installed and populated is not evidence it displays.
+
+## Storefront walk 2026-08-15: the store is correctly configured for US buyers
+
+Walked from the public storefront, no admin access used, nothing submitted and no order placed. **This rules out the expensive hypotheses and narrows the search considerably.**
+
+| Checked | Result |
+|---|---|
+| US product page | **$250.00 USD**, in stock, free US shipping, delivery estimate shown |
+| Price positioning | Comparison table reads $250 against Morjas $400, Allen Edmonds $425, Loro Piana $895, so they are the cheapest on the page |
+| Shopify Markets | 28 countries; **US enabled at USD**; geo-detection working (this browser resolves to AE and correctly showed AED 1,050 at rate 3.67255) |
+| Checkout page | Loads; US present with full state list; **credit card plus five more methods, Shop Pay, PayPal, express checkout** |
+| US shipping rates | `cart/shipping_rates.json` returns **UPS Ground, $0.00, three days** for NY 10001 and CA 90001. Canada returns UPS Standard $0.00 |
+| Store identity | `2cd3d6-2.myshopify.com`, live theme named **"Copy of [dev] Brunos"** |
+
+**Method warning worth carrying:** the first shipping-rates probe returned `{"country":["Country/region not supported"]}` and looked like a decisive finding. It was a bug in the query string, which sent the country as `US]`. Rebuilt with `URLSearchParams` it returns free UPS Ground. **A 422 from a hand-built query string is a claim about your own URL until you have proven otherwise.**
+
+**Live theme is called "Copy of [dev] Brunos".** A duplicated development theme is published as the live storefront. Not a fault in itself, and the pages render correctly, but it is worth confirming on Monday that the published theme is the intended one and not a half-finished copy, because that is exactly the pattern the theme-duplication lesson warns about.
+
+**What this does not clear**, and why the diagnosis is not finished:
+
+- **The mobile in-app browser, where almost all the traffic actually is.** Delivery is Facebook Reels, Stories and Instagram Reels, so buyers arrive inside the Meta in-app browser on a phone. This walk was a desktop browser. In-app browsers behave differently on storage, cookies and payment sheets, and that is now the leading candidate.
+- **The final payment authorisation.** Cannot be tested without a real transaction.
+- **Android specifically.**
+- **Everything admin-side**: abandoned checkouts, per-device conversion, failed or cancelled orders.
+
+## Monday 2026-08-17 diagnostic checklist
+
+Ordered so the tests that could end the investigation come first. Each item says what the result would mean.
+
+**Founder ruling 2026-08-15: no test orders and no test refunds.** The checklist below is built to reach a diagnosis without any transaction. What that costs us is named honestly at the end.
+
+**A. Fix what is already proven broken. No diagnosis needed.**
+
+1. **Restore the Judge.me review display.** The error is `jdgmSettings is not defined`; 127 reviews at 4.9 are in the page and rendering at zero height on every product, every device. → Highest ratio of impact to effort on the whole account, and it needs no further investigation.
+2. **Correct the ad destination** (personalised destinations, Shop toggle off) so traffic returns to the site.
+
+**B. Admin data, which the new collaborator access unlocks. This replaces the test order.**
+
+5. **Abandoned checkouts, last 30 days.** 48 checkout starts against 1 sale means roughly 47 records naming the step where people die. **Highest-value single item after the test orders.**
+6. **Failed, cancelled and fraud-flagged orders.** → If orders are being placed and auto-cancelled, the picture inverts entirely and the problem is a risk filter, not the funnel.
+7. **Conversion rate by device** in Shopify's own analytics. → Independent of Meta, so it either corroborates the iPhone-only pattern or kills it.
+8. **Shopify's cart figures against the pixel's 267 add-to-carts.** → If they disagree materially, the add-to-cart event is over-firing and Meta has been optimising toward a phantom action. That would explain the 267-to-48 collapse without any store defect at all.
+
+**C. Catalog and stock, which sit under everything.**
+
+9. **Stock on the exact products and sizes the ads promote.** 112 of 220 variants are out of stock and three styles are entirely dead. → If US 9 to 11 are gone on the advertised shoes, people arrive, find their size missing, and leave. Cheap to check, cheap to fix.
+10. **Confirm the published theme is intended** (see "Copy of [dev] Brunos" above).
+
+**D. Only after A to C.**
+
+11. Restart the assessment window once traffic lands on the site and reviews display.
+12. Decide keep or continue, per Bernard's recommendation to hold that until the store review is done.
+
+**Not on this list on purpose: the captcha Gibran raised.** His problem is completion, not traffic quality. A captcha adds friction to the failing step. Say so plainly rather than letting it get installed.
+
+**What no-test-order costs us, stated plainly.** Without one completed transaction we cannot prove the payment authorisation succeeds, and we cannot prove the purchase event fires on the thank-you page. Both stay assumptions. Two things reduce the risk: this pixel has recorded purchases before, so the event is wired; and the checkout renders with card, Shop Pay and PayPal on both desktop and an Android user agent, so nothing is visibly broken. **If items B5 to B8 come back clean, the payment step becomes the only remaining candidate and the question returns.** The zero-cost way to settle it then is Shopify Payments test mode, toggled by the client for ten minutes, not a real purchase.
+
+## WIND-DOWN, founder-ruled 2026-08-21
+
+**Ads paused and the fee refunded. The engagement is being closed.** Founder's reasoning: the ads are not the issue, something downstream is, and the price may simply be too high for an unknown brand.
+
+**The destination fault was fixed on 2026-08-15** (not recorded at the time; this session assumed the account was still broken until re-reading on the 21st). Landing page views resumed the same day. **Misdirected spend is therefore the two days 13-14 August only: $92.29**, correcting the $92.96 quoted earlier in this session.
+
+**The six clean days after the fix are what settle it. 15-20 August: $193.52 spend, 245 clicks, 192 site visits, 22 add-to-carts, 6 initiate-checkouts, 0 purchases.** Real traffic, correctly delivered, converting to carts and checkouts, and no sales. Across the whole relaunch (5-20 August) roughly $554.48 and zero purchases. This is the evidence that the failure is not in the media, and it is stronger than anything available on the 15th.
+
+**The reviews were never fixed.** Re-checked 2026-08-21: `jdgmSettings is not defined` still throws, the badge still reads `4.9 out of 5 · 127 reviews` at `offsetHeight: 0`, still invisible on every product page. So a named, cheap, six-day-old defect sat unfixed through the clean window. Whatever else is true, the store was never given its best chance.
+
+**Refund terms:** the AED 1,800 August fee less the Stripe processing charge, which Stripe does not return, so a partial refund of roughly AED 1,730-1,750 (read the exact fee off the charge; Adaptive Pricing is on, so a foreign card costs more). Customer `cus_V1201VnCH5xak7`, subscription `sub_1U0zx5DnjEQZvcK8fwtC5vRw`, **which must also be cancelled or 5 September charges anyway**. The fee refund supersedes the earlier $92.29 ad-spend gesture rather than adding to it.
+
+**Framing caution carried into the close-out message:** "the price is too high" is rebuttable, because the client's own product page compares him at $250 against Morjas $400, Allen Edmonds $425 and Loro Piana $895, making him the cheapest on his own table. The defensible version is that $250 is a lot to ask of a buyer who has never heard of the brand **with nothing on the page vouching for it**. Price as a trust problem, not a number problem.
+
+## NEW OPPORTUNITY: baby products store, UAE, Google-led (raised by the client 2026-08-21)
+
+Gibran asked, in the same message as the traffic query, whether we offer market research and marketing for a new venture: an online baby products store targeting the **UAE**, starting small with two or three product types, and he wants **Google rather than Meta** this time. Notable that he is asking for more work while unhappy about this engagement.
+
+**Shape, founder-ruled 2026-08-21: the research report is FREE, no charge.** Do not quote a fee for it. Same play as the Super Henry free pre-commitment review (PROJECT_STATE §5): the report is the deliverable and the commercial conversation attaches to what follows it, not to the research.
+
+**Research before media is the lesson from this account applied.** A brand-new store with no traffic and no proven offer is exactly the setup that just failed here, and spending on ads before the store can convert would repeat it.
+
+**Scope boundary, and it is load-bearing because the work is unpaid.** Five questions only: (1) real UAE search demand and volume, English and Arabic, and whether it is enough to build on; (2) whether the category is search-led or discovery-led, which decides whether Google is even the right first channel; (3) who already serves UAE buyers including Amazon.ae, Noon and Etsy sellers shipping in, and at what price; (4) what UAE buyers actually pay against the European comparables; (5) unit economics, landed cost, shipping and the maximum affordable cost per sale. Deliverable is one written report ending in a go or no-go, within a week. **Supplier sourcing, store build, keyword build-out and anything operational is the paid phase that follows.** Unpaid work for a just-refunded client is the classic shape that drifts into months of free consulting; the single document ending in a decision is what stops it.
+
+**Unit economics supplied by the client 2026-08-21, and worked here.** Products are handmade in China (so "handmade" is honest, but the European craft premium is not available to him).
+
+*Baby mobiles.* Landed AED 65, stocking 25-30 styles, retail AED 300-350 on non-Amazon sites; Amazon sits at AED 80-99 on two or three designs and is undercutting to the point of being uncontestable. At AED 325: landed 65, processing ~10, local delivery ~20, packaging ~8, returns/breakage at 4% ~13, so **contribution before marketing is roughly AED 209**, i.e. break-even CPA ~209 and a healthy-margin target CPA ~125. Comfortable, and it validates against Little Loua at AED 240-390. Delivery, packaging and returns rate are assumptions and need confirming, but not enough to move the conclusion. **The condition is the 5x markup on landed cost sitting next to Amazon at AED 80-99: sustainable in aesthetic and gift categories, but only away from comparison shopping.**
+
+*Boucle wall decor light.* Landed AED 80, 3-4 styles, Amazon AED 90-140 shipped from the USA, few other sellers. At AED 140 contribution after costs is roughly **AED 21, which cannot fund any paid acquisition**. At AED 280 it clears ~AED 152 and works. **Conclusion: this is an attachment product, not an acquisition product.** Sell the mobile and offer the matching light alongside; it lifts order value on already-paid-for traffic and 3-4 styles is fine for an add-on while being far too thin for a hero.
+
+**⚑ Channel hypothesis, and it now leads the research brief: Google Search is the worst place to defend a 3.5x premium.** A "baby mobile" searcher is in comparison mode with Amazon.ae at AED 90 alongside. An aesthetic, gift-driven product at that premium wants discovery (Instagram, Pinterest, TikTok) where the buyer never runs the comparison. That is Meta, the channel the client wants to move away from after the shoes. **Do not tell him this yet; it is what question 2 of the brief exists to test.** Note the irony to avoid stating it clumsily: the shoes did not fail because of the channel.
+
+**Positioning available to him, honestly:** 25-30 designs, stocked in the UAE, delivered fast, against Amazon's two or three designs or a light shipped from the USA. Choice and speed in-country is defensible, explains the price, and needs no craft story he has not earned. Capital to test is low: 25-30 styles at AED 65 is under AED 2,000 for one of each, the opposite of the shoes.
+
+### Research delivered 2026-08-21: `~/Documents/Baby Mobiles UAE - Pre-Launch Assessment.docx`
+
+**Verdict, stated plainly in the document: go ahead with the business, but do not build it on Google.** The product, supply position and price band all check out; demand is the constraint.
+
+**Verified UAE pricing** (read off the client's own four links, tracking parameters stripped): Little Giggles own-brand Sealife Mobile **AED 345 on a two-week pre-order**; Strawberry Fields Pehr Elephant Parade AED 350 list, **262** now; Smallable Liewood Meli **227**; Mamas & Papas Seedling Musical **129** in stock. **Two segments, not one range:** mass market AED 80-130, design/handmade AED 227-345. Little Giggles is the key comparable, holding AED 345 with no designer label and a two-week wait, which is exactly what local stock plus next-day beats.
+
+**Verified demand** (Google Ads KeywordPlanIdeaService, UAE geo 2784, English 1000 and Arabic 1019, via our own agency account 4151727946). **Product-category terms total roughly 500-600 searches/month across both languages**: crib mobile 210, baby mobile 110, cot mobile 90, infant/newborn crib mobile 70, nursery decor 70, musical cot mobile 40, موبايل اطفال 20, ديكور غرفة اطفال 20. **Gifting is five to eight times larger, roughly 3,000-4,000/month**: gifts for infants 1,000, baby girl gifts 720, بوكس هديه 720, baby gift set 590, newborn baby gifts 320, هدايا اطفال 260. **Clicks are cheap throughout, median high top-of-page AED 1.07, most terms AED 0.20-1.30.**
+
+**Conclusion: a Google-led launch tops out at roughly 10-20 sales/month (AED 2,750-5,500 revenue).** The limit is the number of searchers, not budget or skill. **Supporting detail that makes the argument: the four retailers advertising in this category (Strawberry Fields, Little Giggles, Mamas & Papas, Smallable) are all broad baby retailers, not mobile specialists.** A thin keyword is economic as one strand of a wide net and cannot carry a specialist.
+
+**Method notes worth keeping.** (1) **Oscar cannot do keyword research.** He has no Keyword Planner tool and `get_search_terms` only reads accounts we already run; no `generateKeywordIdeas` exists anywhere in the codebase. The read was built directly in the scratchpad against the REST API reusing the `GOOGLE_ADS_*` credentials. **Worth building as an Oscar tool if market research becomes a repeated service.** (2) `generateKeywordIdeas` returns `DEADLINE_EXCEEDED` against the MCC; call it on a non-manager customer id with `login-customer-id` still set to the MCC. (3) `googleAds:search` rejects `pageSize`. (4) **Keyword Planner reports near-identical variants as separate rows** ("crib mobile", "crib and mobile", "mobile for the crib", "mobile on a crib" all at 210). Summing raw rows gave 8,000 for mobiles against a true distinct figure near 450, an order of magnitude out. Always collapse variant clusters before quoting a total.
+
+**Open questions the report ends on:** whether he positions as gifting as much as nursery; whether he will pair the wall light with a mobile as one higher-value order (it fails as an acquisition product and works as an attachment); and what he will put behind a launch once samples are approved.
+
+**Open questions put to the client 2026-08-21** (he offered further information). In priority order, with what each decides:
+
+1. **Stock in the UAE, or shipped from China to the customer?** Decides everything. Local stock plus fast delivery is the only honest justification for AED 325 against Amazon's AED 90. Shipping from China on a two to four week wait turns this back into Atelier Brunos: a premium price with nothing underneath it.
+2. **Links to the sites selling at AED 300-350.** The entire model rests on that number being transacted rather than merely listed.
+3. **Supplier exclusivity, MOQs and restock speed.** If Amazon sellers can order identical designs, the only advantages are range and delivery speed.
+4. **Has he physically handled samples?** Merchants sourcing remotely often have never held their own product ([[client-product-facts-need-verifying]]), and for something suspended over a baby this is a safety question as well as a quality one.
+5. **Own photography or supplier images?** Decides whether a discovery channel is possible at all. Supplier shots shared with every competitor means nothing to advertise and the Instagram/Pinterest route closes before it opens.
+6. **UAE delivery cost, absorbed or charged.** Moves the CPA target, not the verdict.
+7. **Marketplace (Amazon.ae, Noon) alongside DTC?** and **launch budget and timing.**
+
+**Comparable analysed 2026-08-21, littleloua.com** (client-supplied reference, EU-based, handmade). Mobiles €60-100, mostly €79.95, so roughly AED 240-390: a far easier sale than $250 shoes and needing much less trust. Over thirty designs in the mobiles category alone with many sold out or limited edition, so breadth is the offer because parents theme-match a nursery, and the client's planned "two or three product types" is probably too narrow to get chosen. **Their low ad spend is earned, not clever: they handmake the product, which buys word of mouth, gifting and repeat custom that advertising cannot.** If the client sources rather than makes, he competes on price and delivery and that advantage does not transfer. **This is the same shape as the shoes: a category whose winners hold something he would not have, with ads expected to close the gap.** Same client, so the comparison is legitimate to make to him, and it is the most useful thing to say before he spends.
+
+**Capability questions to resolve before quoting.** Google Ads credentials are wmiltd-only per PROJECT_STATE §3, and Oscar only becomes real for FZCO once that deployment has Google Ads credentials and accounts. A UAE client billed through the FZCO portal wanting Google Ads therefore has an access gap that needs closing first. Decide which entity carries it and whether Google credentials get provisioned on the FZCO deployment.
+
+**Keep the two conversations in separate messages** so the refund does not read as the opening of a pitch.
+
+## Commercial position as at 2026-08-15 (superseded by the wind-down above)
+
+Client escalated on Slack after finding the traffic drop himself. **Redress, founder-ruled 2026-08-15: refund the $92.96 of misdirected ad spend only, and waive September if the client wishes to continue. The August payment is NOT refunded.** An earlier draft in this session proposed refunding August as well; that was not the ruling and the figures it implied (~$1,073) are void.
+
+**Operational note:** the Stripe subscription `sub_1U0zx5DnjEQZvcK8fwtC5vRw` renews **5 September** and charges automatically, so the September waiver needs the subscription paused or cancelled once the client says whether he is continuing. It is conditional on him continuing, so it is not actioned yet.
+
+Client's own points from 2026-08-15, and the answers given: session replays show 25 of his paid sessions (15%) as bots, which does not explain the drought because ~149 real sessions still did not buy and 15% non-human traffic is unremarkable; and "maybe just not enough traffic", which is the expensive misreading, because 267 add-to-carts in 30 days would be 25 to 50 orders at a normal rate, so the failure is the rate and spending more would multiply it.
+
 ## Blocked on
 
 1. **Founder decision on items 1 and 2 above.** Both are writes, so both are his hand or Bernard's fix path; Meta is read-only for this session.
-2. **Shopify and GA4 access from the client.** The access ask doubles as the commerce store connection; the recipe is proven and takes about ten minutes once a custom app exists. This is what turns the add-to-cart leak from an inference into a measurement, and it is the only way to see real orders.
+2. **Shopify admin reads.** Collaborator access was granted to the founder on 2026-08-15 (store code 6317), but that does not reach this session. Checklist items B5 to B8 need either the founder's logged-in browser or the store connected to the reporting pipeline properly. The connection is the durable version and is the standing item for this client.
+3. **Two physical phones**, one iPhone and one Android, for checklist items A2 and A3. Nothing else substitutes.
 3. Client-side Shopify fixes if engaged: populate `item_group_id`, restock or prune the catalog, add second product images.
 4. Migration back to Purchase optimisation, trigger roughly 15-20 purchases/week. Not close.
 5. `SLACK_META_REVIEW_CHANNEL` is still unset in Vercel, so the Monday 08:20 Meta weekly report generates for this account and is discarded.

@@ -101,6 +101,10 @@ Sub-account live with rewired workflows; substrate tenant provisioned and OCT le
 
 **Booking link:** `calendly.com/kylerandall/30min`. No access needed, no seat bought, no migration. The nurture sequence is unblocked and VIP can ship the sequence KST never could.
 
+> **SUPERSEDED 2026-08-17. That URL is now dead, HTTP 404 verified.** Kyle renamed himself on Calendly, which silently changed the slug, and he flagged it himself. The live link is **`https://calendly.com/kyletheaccountant/30min`** (HTTP 200 verified 2026-08-17). It appears in five of the six nurture emails, so building from the pre-correction copy would have shipped five dead booking links. **Lesson worth keeping: a client-supplied booking URL is a live dependency, not a static fact, and Calendly changes the slug when the account name changes.** Re-check it immediately before the workflow is built.
+
+> **ALSO SUPERSEDED: the £80 floor below.** Kyle moved the public starting price to £100 on 2026-08-16 ("I'm happy to go with starting from £100"). See `docs/VIP_NURTURE_BUILD_SHEET.md`.
+
 **Pricing, and he has ruled on what may be public.** Limited-company packages **from £80/month**, most clients **£100-200+/month**, depending on size, transaction volume and scope. One fixed fee covers everything rather than charging per request. Setup or catch-up work **£100-500+**, driven by how far behind the bookkeeping is, transaction count, corrections and outstanding filings; anything materially beyond that is quoted before work starts. **He is happy for starting package pricing to be public and wants the tidy-up fee kept private.**
 
 **Reviews:** his Google Business Profile (VIP Accounting LTD), plus additional reviews that exist only on `vipaccounting.co.uk/reviews`. Those site-only ones cannot be used in Google ad extensions, which take reviews from approved sources, so **moving them onto Google is a free growth action worth asking for**.

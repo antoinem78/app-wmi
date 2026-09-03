@@ -4,7 +4,7 @@
 
 **Where it lives.** Three places, kept identical: this Claude project's knowledge panel (the founder uploads), the platform repo alongside `PROJECT_STATE.md` (Code mirrors), and seeded into sibling projects (DentalMastery, skincare) as the parent context. If copies diverge, the most recent changelog entry wins and the others are refreshed.
 
-**Sync horizon (read this first).** Last reconciled against Code's PROJECT_STATE: **2026-09-03** (Code verification pass; see §12). Last Chat-side event recorded: **2026-08-28** (DentalMastery handover v2). Items marked UNVERIFIED in §8 were filled from live reads on 2026-09-03. Corrections carry the marker **[Code 2026-09-03]** and their evidence is in §12.
+**Sync horizon (read this first).** Last reconciled against Code's PROJECT_STATE: **2026-09-03, repo commit `243fb55`** (Code verification pass; see §12). Last Chat-side event recorded: **2026-08-28** (DentalMastery handover v2). Items marked UNVERIFIED in §8 were filled from live reads on 2026-09-03. Corrections carry the marker **[Code 2026-09-03]** and their evidence is in §12.
 
 ---
 
@@ -190,4 +190,4 @@ The failure point is "three places kept identical" with the founder as the trans
 
 One more thing the protocol should say: this file records rulings and state, and the channel files record client detail. When they disagree, the channel file wins on the client and this file wins on the ruling, and whoever notices files the correction in both.
 
-**Sync horizon: 2026-09-03, repo commit recorded in the §0 changelog of the commit that adds this section.**
+**Sync horizon: 2026-09-03, repo commit `243fb55`, verification content; the hash line itself lands one commit later.**

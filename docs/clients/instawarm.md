@@ -32,6 +32,100 @@ Consequence for this store: the gate could lose days without anyone noticing, an
 - Store ledger: **5 lifetime orders, 2 products** (first-look doc said 0 purchases; the 5 are presumably tests, on record either way).
 - Vincent's tracking since 11 July: 836 product-page views, 7 add-to-carts (<1% vs 5-8% healthy), 2 checkouts, 0 purchases.
 
+## Supplier documents received 2026-08-27, and a third wrong-product finding
+
+Vincent sent his supplier's own product images. They close three long-running questions and open one.
+
+**CONFIRMED, stop chasing these:**
+- **Temperatures.** The control panel graphic reads Red = Warm 45°, White = Comfort 35°, Blue = Energy Saving 25°. Exactly the 113/95/77°F published, and it confirms the Red/White/Blue mapping. Vindicates the decision not to change the colour names off a machine-translated page.
+- **No power bank.** "Packing list: Jacket*1 (No power bank included)" in the supplier's own English.
+- **What the size numbers mean.** "Bust 50" for a small is a half measurement, pit to pit, so these are **garment measurements laid flat**. Vincent's earlier relayed supplier answer ("chest is the wearer's body") was wrong. The UGC creator measurement is no longer a blocker.
+
+**NEW PROBLEM: the size chart on the site is for a different jacket.** Supplier's chart versus what is published, for a small: chest 50cm flat (100cm round) vs 70-78cm; shoulder 42.8 vs 40; length 64 vs 61; sleeve 62.5 vs 60. Every figure differs and the published chart runs smaller throughout, so a buyer receives a larger jacket than the numbers promise. **Third item on this store to describe a different product**, after the 21-zone graphics and the review photos.
+
+**Unblocks 5XL and 6XL**, which Vincent asked for on 2026-08-16. The supplier chart covers S through 6XL. Replacement chart with inch conversions is in the working notes below.
+
+**Also from the supplier's own note, matching the runs-small line already published:** "Asian sizes are 1 to 2 sizes smaller than European and American people." Amend the site's "two sizes up" to "one to two sizes up" to match the source rather than my inference.
+
+**To check with Vincent:** the washable graphic says "wash with warm water / hand wash" while the Product Care panel now says machine wash cold in a mesh bag. Someone will ruin a jacket and ask for a refund.
+
+**Image verdicts given:** USE the Red/White/Blue control panel graphic (accurate, corroborates the temperatures). POSSIBLY the two flat lays, especially the open one showing the lining and battery pocket. DO NOT USE the six-panel use-case grid (shows orange, silver, blue and khaki jackets he does not sell, plus blurred faces) or the polyester fabric graphic ("bright colors" is meaningless on a one-colour store).
+
+## Stripe descriptor fixed 2026-08-27
+
+The FZCO statement descriptor read **`WMI-FZCO`**, an initialism plus a legal-form suffix that means nothing to a US cardholder scanning a statement. Changed to **`WEB MARKETING INTL`**, matching the UK entity's descriptor, which was already readable and was left alone. Done at Settings → Business → Public details on `acct_1NK3a9DnjEQZvcK8`.
+
+**Timing was deliberate: both FZCO clients were churned, so no active subscription saw a mid-stream descriptor change.** Once clients are billing, changing it becomes something you have to warn people about. Applies to future charges only.
+
+Probable but unproven cause of Vincent's fraud dispute. Changed regardless, because the fix is free and a fraud-coded dispute costs $35.65 plus a mark on the fraud ratio. **Vincent is being told in advance what the September charge will show**, which is what actually removes the risk for him specifically.
+
+## Store state 2026-08-26: every false claim is off the site
+
+**Verified by reading the live storefront, not from reports.** Homepage, features page, FAQ page and product page are all clean of the old temperatures (150/130/110°F), the "fully tested to meet international safety standards" claim, and the unsupported battery-hours claim. Delivered across four Cowork waves plus founder theme edits.
+
+**Live and verified:** honest shipping figures on three surfaces plus a line on the product page; returns consistent across product page, FAQ and refund policy (30 days, any reason, buyer pays postage unless faulty); power bank stated as NOT included at the top of the product description and as the first FAQ question; heat settings corrected to 113/95/77°F everywhere; size guide rebuilt from a screenshot into a real table with inches and a runs-small warning; About page in Vincent's first person with his name; support@instawarm.shop everywhere including store settings, domain authenticated; gallery leading with two outdoor shots; sticky mobile buy bar; product URL shortened to `/products/heated-jacket` with a working 301; footer in his voice; all typos cleared.
+
+**Still outstanding, FOUNDER ONLY (see the Cowork limits below):** disable the AS SEEN ON section in `templates/index.json` (`image_banner_e8VNbp`) and `templates/product.json` (`image_banner_MPRFNF`) by adding `"disabled": true` to the SECTION object, since neither has a `blocks` key. Swap `Screenshot_2026-02-13_at_17.59.48.webp` (the "21 HEATING ZONES" callout, wrong for a 9-zone jacket) for `Screenshot_2026-02-13_at_18.08.09.webp` on block `ai_gen_block_f7b7c54_aHkDLq` in both templates: **swap, do not disable**, because that block also carries five feature title/text pairs. And hide two Loox review photos ("N d" 21 Dec 2025, blue jacket; "Er" 6 Oct 2025, olive jacket).
+
+**Deliberately held:** `Screenshot_2026-02-13_at_14.04.00.webp`, the front-and-back panel diagram. It states no number, so it is misleading rather than false, and pulling it leaves a visible hole. Swap it when Vincent's corrected artwork arrives.
+
+### Cowork limits, now proven rather than suspected
+
+**Cowork cannot type into the Shopify theme code editor.** Cross-origin iframe on `online-store-web.shopifyapps.com`: clicks land and produce selections, keystrokes never arrive. Diagnosed thoroughly in wave 4 (cursor position in the status bar never moved under keyboard navigation, fresh tab identical, zero changes confirmed via Timeline rather than assumed). **Same class of failure as the Loox Reviews embed in wave 3.** Both are embedded app surfaces. The founder has driven the code editor successfully by hand, so this is an automation limit, not a store problem. **Do not brief Cowork for theme code or Loox again.** It handles Content → Pages, Products, Files and Settings well.
+
+**Two briefing lessons, both my fault not Cowork's.** Wave 3 lost three steps to rules I scoped badly: a "note the file version before saving" rule written for theme files made a Shopify Page edit impossible, and a "disable the block" removal mechanism assumed a structure that none of the three target images actually had. Cowork correctly declined all three under "if a rule conflicts with a step, the rule wins" and reported the real structure, which is what made the wave 4 instructions possible. **Give removal mechanisms only where the structure is known, and scope safety rules to the surface they were written for.** Also: its filename transcription is unreliable (it reported wrong date prefixes on two images), so verify identifiers independently while trusting its structural findings.
+
+## ⏸ PARKED ACTION, due 2026-09-09: restart the retainer subscription
+
+**Do not do this before 9 September.** The checkout starts the subscription the moment it is paid, so paying earlier moves the monthly anniversary and doubles up with the August invoice already sent. 9 September keeps the cycle on the original 9 August billing date.
+
+**Do NOT delete the client and do NOT use the upsell flow.** Deleting loses the signed agreement reference, the questionnaire the ad build depends on, the activity log and the Stripe customer holding his payment and dispute history. The upsell flow is deliberately built as an isolated add-on subscription requiring its own signable quote, so using it for the core retainer would record the main service as an add-on and leave the client with no core subscription. It has also never run on a live client.
+
+**What to do instead**, verified against the code and the live records on 2026-08-20. `submitCheckout` in `src/app/onboarding/[id]/actions.ts` has no status guard, and the onboarding page has no churned-client guard, so the original path still works. The only blocker is that the wizard reads him as finished. On the **FZCO** database (`FZCO_DB_URL`, project ref vpagppjjdonxqluzglia, a third database, mind the two-DB warning):
+
+```sql
+update onboarding_state
+   set payment_status = 'unpaid',
+       current_step   = 'payment'
+ where client_id = 'bce02581-5023-474b-8ea5-2e8a8ceba9a7';
+```
+
+Both columns are enums (`payment_status` default `unpaid`, `onboarding_step` default `questionnaire`; steps in use are `contract`, `payment`, `complete`). Then send his existing link `https://app.webmarketinginternational.com/onboarding/bce02581-5023-474b-8ea5-2e8a8ceba9a7`. He lands on the payment step with agreement and questionnaire behind him, pays on the new card, and the same webhook that activated him on 9 August records the new subscription. **Verify `clients.status` actually returns to `active` afterwards rather than assuming it.**
+
+Live state as read 2026-08-20: client `bce02581-5023-474b-8ea5-2e8a8ceba9a7`, status `churned`, `stripe_customer_id` `cus_V2Mbwpnh2fM8Bq`, custom_monthly_price 350 USD; onboarding row `current_step: complete`, `payment_status: paid`, details confirmed, questionnaire and contract id both present.
+
+## Billing settled 2026-08-20, and the dispute
+
+**The dispute is closed and LOST** (`du_1U6025DnjEQZvcK8CCT9m41x`, Stripe events show "You lost a dispute" 20 Aug 17:11). Nothing left to accept or counter. Vincent filed it in error against a Visa debit ending 1079 (Wells Fargo, CVC passed, billing address North Mankato MN, so a legitimate cardholder who did not recognise the descriptor), apologised unprompted and asked for an invoice so he could repay.
+
+**Exact cost, from the Stripe payment breakdown:** the $350 in and $350 out cancel. Unrecoverable fees total **$35.65** (processing $13.95 + $0.70 tax, taken 9 Aug and never returned by Stripe on a disputed payment; dispute fee $20.00 + $1.00 tax). The $371 withdrawal was $350 plus the $21 dispute fee. A second processing fee of roughly $14.65 applies when he pays again.
+
+**Founder rulings 2026-08-20:**
+- **The $225 fix invoice is VOIDED.** The store work folds into the retainer.
+- **August's $350 IS still collected** (Stripe invoice link sent 20 Aug). Reasoning: Vincent initiated the repayment himself and August was not idle, it was spent on the store rather than on ads.
+- **The $35.65 in fees is absorbed, not recharged.** Writing off $225 and then itemising $36 of fees sends two opposite messages in one invoice.
+- **Retainer scope stated to the client from September:** advertising (campaign build, management, creative, reporting) plus store work where it serves the campaigns. Anything substantial and separate is quoted before starting. This sentence exists specifically so "website work included in the retainer" does not become unlimited store work on a $350/month ads retainer.
+- Old subscription cancelled outright so nothing can touch the reported card.
+
+**Open with Vincent on this:** what the original charge looked like on his statement. If the descriptor is opaque it will recur on the next client, and it is the likely cause here.
+
+**Also noticed, not this channel's:** Atelier Brunos also shows `churned` on the FZCO portal at AED 1,800/month. May be deliberate; worth a look in the Brunos channel since it is the same field.
+
+## Status 2026-08-17: doc complete, second wave absorbed
+
+**The first-look doc (10 findings + 3 observations) is done and verified live**, except the product page line that waits on Vincent's zone answer. Verified by reading the storefront, not from claims: shipping figures aligned across three surfaces, false "hundreds of customers" line removed, returns consistent across product page / FAQ / refund policy, About page rewritten in Vincent's first person with his name, size guide rebuilt as a real table with inches, support@ everywhere, sticky mobile buy bar live, typos cleared including a second `VERSITILE` and `ERANDS` found on a later proofread.
+
+**Vincent's answers 2026-08-16:** he orders the **9 zone** version (his site sells 21, so the site is currently untrue), and he **wants the power bank included** with every order.
+
+**FOUNDER RULING 2026-08-17: the second wave of work is absorbed into the $225, not scoped and priced separately.** A scope paragraph was drafted for the client message and the founder removed it deliberately, to strengthen the relationship on a first engagement. So the zone correction, the temperature rewrite, the battery bundling advice, the trust strip replacing "AS SEEN ON" and the safety-claim softening are all delivered at no extra charge. Do not reopen this; it is decided.
+
+**Still genuinely open, and none of it is ours to decide:**
+- **Which jacket Vincent buys.** Switching his order to the 21 zone SKU makes the whole site true for a few dollars a unit; staying on 9 needs new graphics because the zone count is baked into images, not text. The product page should not be touched until he answers.
+- **Whether his supplier will bundle a battery.** "Included" and "arrives separately" are different promises and need different copy.
+- **Measurements** from his UGC creator, which gate any "how to measure yourself" guidance and the 5XL/6XL sizes he asked about.
+
+**Applied without waiting on any of the above:** safety claim softened in all three places it appears (FAQ page, homepage accordion, product page accordion); temperatures corrected to the supplier's 113/95/77°F from the published 150/130/110°F, colour names left alone because the only contradiction came from a machine-translated page and that is not evidence; the runtime claim stops quoting hours it cannot support; the AS SEEN ON strip removed from homepage and product page and replaced with a four-line promise strip that is true on every word.
+
 ## The $225 fix package
 
 - Source findings: `~/Downloads/InstaWarm-First-Look-Visual (1).pdf` (10 findings + observations).
