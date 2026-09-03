@@ -14,7 +14,16 @@ function verifyExclusionDiff(snapshot, readbackTargeting, audienceId) {
   // JSON.stringify(undefined) is undefined, not a string: a DROPPED field must
   // become a reported problem, never a crash that kills the verifier itself.
   const show = (v) => v === undefined ? 'absent' : JSON.stringify(v).slice(0, 200);
+  // Meta appends targeting_relaxation_types {lookalike: 0, custom_audience: 0}
+  // to any targeting object written without it. All zeros means "no relaxation",
+  // which is what absent meant, so that one appearance is not a change. Found by
+  // the glue smoke replaying the 26 August read-back: the strict diff would have
+  // marked every real exclusion verification_failed after the write had landed.
+  const isMetaNoopDefault = (k, before, after) =>
+    k === 'targeting_relaxation_types' && before === undefined && after && typeof after === 'object'
+    && Object.values(after).every(v => v === 0);
   for (const k of keys) {
+    if (isMetaNoopDefault(k, snapshot[k], rb[k])) continue;
     if (canon(snapshot[k]) !== canon(rb[k]))
       problems.push('field "' + k + '" changed: ' + show(snapshot[k]) + ' -> ' + show(rb[k]));
   }

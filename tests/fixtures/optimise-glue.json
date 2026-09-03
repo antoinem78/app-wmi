@@ -1,0 +1,5083 @@
+{
+ "_provenance": "External-node outputs captured from real n8n executions on 2026-08-26/30 (ids 25021, 25009, 25011, 25036, 25250, 25038). Webhook items reduced to body only (headers carried the dispatch key). Meta and Anthropic responses verbatim. Every `paging` object is stripped: Graph echoes the access token inside paging.next, so a verbatim Graph response is a credential.",
+ "executions": {
+  "optimise_staged_exclusion": {
+   "Webhook": [
+    {
+     "body": {
+      "client_slug": "steffen-foerster",
+      "account_id": "act_1766396370547849",
+      "moves": [
+       {
+        "op": "audience_exclude",
+        "entity_type": "adset",
+        "entity_id": "120250809746610053",
+        "audience_id": "120250694850660053",
+        "evidence": "Founder-approved additive booker-protection plan 2026-08-26: RM, INT3, INT4 already staged (17be3a41, cfd07964, d457e2dc) with same exclusion; founder has now ordered INT5 moved up from tomorrow to today as the fourth move in this run."
+       }
+      ],
+      "session_note": "Founder re-sequenced INT5 exclusion to today, per this chat. Reporting whether the three-per-day ceiling blocks this as the 4th move."
+     }
+    }
+   ],
+   "Load client": [
+    {
+     "id": "7f0d9a8c-75a8-4837-8f79-b5431183b108",
+     "slug": "steffen-foerster",
+     "cfg": {
+      "mode": "directive",
+      "notes": "Freelancer-managed. Writes only in founder-triggered sessions, per the 2026-08-18 operating model. USD account, ,900 ticket.",
+      "doorway": "wmi_meta_lab",
+      "enabled": true,
+      "optimise": {
+       "thrash_n": 4,
+       "daily_ceiling": 3,
+       "budget_max_delta_pct": 25
+      },
+      "account_ids": [
+       "act_1766396370547849"
+      ],
+      "write_budget": {
+       "max_mutations": 25,
+       "max_daily_budget_minor": 20000
+      }
+     }
+    }
+   ],
+   "Load counts": [
+    {
+     "executed_today": "0",
+     "our_changes_7d": {
+      "120250706975270053": 1,
+      "120250709836350053": 1,
+      "120250809746330053": 1
+     }
+    }
+   ],
+   "Meta change history": [
+    {
+     "data": [
+      {
+       "event_type": "update_ad_set_run_status",
+       "event_time": "2026-08-26T15:13:21+0000",
+       "object_id": "120250809746320053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_run_status",
+       "event_time": "2026-08-26T15:13:18+0000",
+       "object_id": "120250809746330053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_target_spec",
+       "event_time": "2026-08-26T15:13:02+0000",
+       "object_id": "120250809746320053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_target_spec",
+       "event_time": "2026-08-26T15:13:02+0000",
+       "object_id": "120250809746330053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_run_status",
+       "event_time": "2026-08-26T15:13:02+0000",
+       "object_id": "120250809746320053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_run_status",
+       "event_time": "2026-08-26T15:13:02+0000",
+       "object_id": "120250809746330053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_campaign_run_status",
+       "event_time": "2026-08-26T09:17:46+0000",
+       "object_id": "120246862165110053",
+       "actor_name": "Steffen Foerster",
+       "application_id": "438142079694454"
+      },
+      {
+       "event_type": "update_campaign_budget",
+       "event_time": "2026-08-26T09:17:29+0000",
+       "object_id": "120246862165110053",
+       "actor_name": "Steffen Foerster",
+       "application_id": "438142079694454"
+      },
+      {
+       "event_type": "update_campaign_run_status",
+       "event_time": "2026-08-26T09:17:29+0000",
+       "object_id": "120246862165110053",
+       "actor_name": "Steffen Foerster",
+       "application_id": "438142079694454"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-25T05:34:27+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-25T05:31:50+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_targets_spec",
+       "event_time": "2026-08-25T05:31:04+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-25T05:31:04+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-25T05:31:04+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-24T00:35:36+0000",
+       "object_id": "120250809780810053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-23T22:32:00+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "ad_account_billing_charge",
+       "event_time": "2026-08-22T19:21:11+0000",
+       "object_id": "1766396370547849",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-21T06:58:05+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T20:14:41+0000",
+       "object_id": "120250809779090053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T16:11:13+0000",
+       "object_id": "120250809779270053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T15:51:02+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T15:41:26+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T11:58:55+0000",
+       "object_id": "120250809817430053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:19:55+0000",
+       "object_id": "120250843274290053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:19:33+0000",
+       "object_id": "120250843274280053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:19:21+0000",
+       "object_id": "120250843274260053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:19:20+0000",
+       "object_id": "120250843274230053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:17:34+0000",
+       "object_id": "120250843274290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:17:05+0000",
+       "object_id": "120250843274280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:59+0000",
+       "object_id": "120250843274230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:57+0000",
+       "object_id": "120250843274260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T06:13:45+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T06:10:56+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_targets_spec",
+       "event_time": "2026-08-20T06:09:30+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T06:09:30+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T06:09:30+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T23:32:03+0000",
+       "object_id": "120250809776640053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T13:08:01+0000",
+       "object_id": "120250809812240053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T08:03:51+0000",
+       "object_id": "120250809813390053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T07:52:40+0000",
+       "object_id": "120250809814200053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T07:35:21+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T07:34:34+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:36+0000",
+       "object_id": "120250809746090053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:29+0000",
+       "object_id": "120250809746120053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:29+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:25+0000",
+       "object_id": "120250809746560053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:20+0000",
+       "object_id": "120250809746230053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:19+0000",
+       "object_id": "120250809746130053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:16+0000",
+       "object_id": "120250809746300053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:12+0000",
+       "object_id": "120250809746200053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:10+0000",
+       "object_id": "120250809746550053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:08+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:08+0000",
+       "object_id": "120250809746100053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:07+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:06+0000",
+       "object_id": "120250809746080053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:06+0000",
+       "object_id": "120250809746540053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:06+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:03+0000",
+       "object_id": "120250843274270053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:02+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:01+0000",
+       "object_id": "120250809746150053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:01+0000",
+       "object_id": "120250809746240053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:01+0000",
+       "object_id": "120250843274250053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:00+0000",
+       "object_id": "120250809746170053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:58+0000",
+       "object_id": "120250809746210053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:58+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:58+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:57+0000",
+       "object_id": "120250809746600053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:56+0000",
+       "object_id": "120250843274310053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:55+0000",
+       "object_id": "120250809746110053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:54+0000",
+       "object_id": "120250809746220053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:54+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:53+0000",
+       "object_id": "120250843274300053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:50+0000",
+       "object_id": "120250809746250053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:50+0000",
+       "object_id": "120250809746260053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:49+0000",
+       "object_id": "120250809746290053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:48+0000",
+       "object_id": "120250809746310053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:47+0000",
+       "object_id": "120250843274240053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:34+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:57+0000",
+       "object_id": "120250809746230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:54+0000",
+       "object_id": "120250809746090053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:54+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:53+0000",
+       "object_id": "120250809746120053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:53+0000",
+       "object_id": "120250809746200053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:53+0000",
+       "object_id": "120250809746250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:52+0000",
+       "object_id": "120250843274270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:51+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:51+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:49+0000",
+       "object_id": "120250809746540053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:49+0000",
+       "object_id": "120250809746110053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746210053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746130053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250843274240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746100053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746150053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746080053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:47+0000",
+       "object_id": "120250843274250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:47+0000",
+       "object_id": "120250843274300053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:47+0000",
+       "object_id": "120250809746300053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:46+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:46+0000",
+       "object_id": "120250843274310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:45+0000",
+       "object_id": "120250809746600053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:44+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:44+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:44+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:44+0000",
+       "object_id": "120250809746560053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:43+0000",
+       "object_id": "120250809746170053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:43+0000",
+       "object_id": "120250809746310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:43+0000",
+       "object_id": "120250809746550053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:42+0000",
+       "object_id": "120250809746240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274300053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746170053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746600053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746090053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746130053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746100053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746540053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746560053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746110053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746150053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746200053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746210053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746120053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746550053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746080053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746110053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746600053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746550053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746090053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746210053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746150053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746200053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274300053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746080053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746120053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746130053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746560053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746100053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746540053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746170053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:56:14+0000",
+       "object_id": "120250809775340053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:43:19+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:34:37+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:25:20+0000",
+       "object_id": "120250809852970053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:23:52+0000",
+       "object_id": "120250809778950053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:21:07+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:17:28+0000",
+       "object_id": "120250809779180053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:15:48+0000",
+       "object_id": "120250809776040053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      }
+     ]
+    }
+   ],
+   "Read entities": [
+    {
+     "120250809746610053": {
+      "id": "120250809746610053",
+      "name": "INT 5 (Broad Photography Audience)",
+      "status": "ACTIVE",
+      "effective_status": "ACTIVE",
+      "updated_time": "2026-08-18T13:08:30-0700"
+     }
+    }
+   ],
+   "Read adset context": [
+    {
+     "120250809746610053": {
+      "id": "120250809746610053",
+      "name": "INT 5 (Broad Photography Audience)",
+      "account_id": "1766396370547849",
+      "created_time": "2026-08-17T02:01:07-0700",
+      "targeting": {
+       "age_max": 65,
+       "age_min": 45,
+       "excluded_custom_audiences": [
+        {
+         "id": "120250432329390053",
+         "name": "Applicants and Bookers"
+        }
+       ],
+       "flexible_spec": [
+        {
+         "interests": [
+          {
+           "id": "6003157840484",
+           "name": "Nature photography"
+          },
+          {
+           "id": "6003203011072",
+           "name": "Wildlife photography"
+          },
+          {
+           "id": "6003899195666",
+           "name": "Photography"
+          }
+         ]
+        }
+       ],
+       "geo_locations": {
+        "countries": [
+         "US",
+         "CA"
+        ],
+        "location_types": [
+         "home",
+         "recent"
+        ]
+       },
+       "locales": [
+        6,
+        24
+       ],
+       "brand_safety_content_filter_levels": [
+        "FACEBOOK_RELAXED",
+        "AN_RELAXED"
+       ],
+       "targeting_automation": {
+        "advantage_audience": 0,
+        "individual_setting": {
+         "age": 0,
+         "gender": 1
+        }
+       },
+       "user_age_unknown": false
+      },
+      "learning_stage_info": {
+       "attribution_windows": [
+        "7d_click",
+        "1d_view"
+       ],
+       "conversions": 0,
+       "status": "LEARNING"
+      },
+      "insights": {
+       "data": [
+        {
+         "spend": "98.41",
+         "date_start": "2026-08-17",
+         "date_stop": "2026-08-26"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "Read audiences": [
+    {
+     "120250694850660053": {
+      "id": "120250694850660053",
+      "name": "Galapagos workshop applicants",
+      "subtype": "WEBSITE",
+      "approximate_count_lower_bound": 20,
+      "approximate_count_upper_bound": 20,
+      "delivery_status": {
+       "code": 200,
+       "description": "This audience is ready for use."
+      },
+      "operation_status": {
+       "code": 200,
+       "description": "Normal"
+      },
+      "account_id": "1766396370547849"
+     }
+    }
+   ],
+   "Norbert": [
+    {
+     "model": "claude-opus-4-8",
+     "id": "msg_011CeRosSHWhW5BepPWX8HBv",
+     "type": "message",
+     "role": "assistant",
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"q1\": [{\"entity_id\": \"120250809746610053\", \"verdict\": \"SOUND\"}], \"q2\": \"The Galapagos workshop applicants audience being used across all these booker-protection exclusions has an approximate count of only 20, below Meta's match floor, meaning every exclusion in this staged plan (RM, INT3, INT4, and now INT5) may match nobody at all. The account is spending real money and repeatedly resetting learning phases across five ad sets to apply an exclusion audience that likely does not function, yet no move in this run addresses whether the source audience is actually large or well-formed enough to protect existing bookers. The underlying booker-protection goal is very possibly not being achieved by any of these exclusions, and nothing in this run verifies or fixes that root problem.\"}"
+      }
+     ],
+     "stop_reason": "end_turn",
+     "stop_sequence": null,
+     "stop_details": null,
+     "usage": {
+      "input_tokens": 5162,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 258,
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      },
+      "service_tier": "standard",
+      "inference_geo": "global"
+     }
+    }
+   ],
+   "Meter Norbert": [
+    {
+     "success": true
+    }
+   ],
+   "Insert session": [
+    {
+     "id": "7aa76e14-36c1-4b38-9b84-ff2cac1a53e1"
+    }
+   ],
+   "Insert moves": [
+    {
+     "id": "a154a730-d85c-449b-9670-e1ec079f22c6",
+     "op": "audience_exclude",
+     "entity_type": "adset",
+     "entity_id": "120250809746610053",
+     "evidence": "Founder-approved additive booker-protection plan 2026-08-26: RM, INT3, INT4 already staged (17be3a41, cfd07964, d457e2dc) with same exclusion; founder has now ordered INT5 moved up from tomorrow to today as the fourth move in this run.",
+     "norbert_q1": "SOUND",
+     "human_change_conflict": null
+    }
+   ]
+  },
+  "optimise_blocked_gates": {
+   "Webhook": [
+    {
+     "body": {
+      "client_slug": "steffen-foerster",
+      "account_id": "act_1766396370547849",
+      "session_note": "v1.1 acceptance test A",
+      "moves": [
+       {
+        "op": "audience_exclude",
+        "entity_type": "campaign",
+        "entity_id": "120250809746000000",
+        "audience_id": "120250432329390053",
+        "evidence": "v1.1 acceptance: grammar refusal expected"
+       }
+      ]
+     }
+    }
+   ],
+   "Load client": [
+    {
+     "id": "7f0d9a8c-75a8-4837-8f79-b5431183b108",
+     "slug": "steffen-foerster",
+     "cfg": {
+      "mode": "directive",
+      "notes": "Freelancer-managed. Writes only in founder-triggered sessions, per the 2026-08-18 operating model. USD account, ,900 ticket.",
+      "doorway": "wmi_meta_lab",
+      "enabled": true,
+      "optimise": {
+       "thrash_n": 4,
+       "daily_ceiling": 3,
+       "budget_max_delta_pct": 25
+      },
+      "account_ids": [
+       "act_1766396370547849"
+      ],
+      "write_budget": {
+       "max_mutations": 25,
+       "max_daily_budget_minor": 20000
+      }
+     }
+    }
+   ],
+   "Load counts": [
+    {
+     "executed_today": "0",
+     "our_changes_7d": {}
+    }
+   ],
+   "Meta change history": [
+    {
+     "data": [
+      {
+       "event_type": "update_ad_set_run_status",
+       "event_time": "2026-08-26T15:13:21+0000",
+       "object_id": "120250809746320053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_run_status",
+       "event_time": "2026-08-26T15:13:18+0000",
+       "object_id": "120250809746330053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_target_spec",
+       "event_time": "2026-08-26T15:13:02+0000",
+       "object_id": "120250809746320053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_target_spec",
+       "event_time": "2026-08-26T15:13:02+0000",
+       "object_id": "120250809746330053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_run_status",
+       "event_time": "2026-08-26T15:13:02+0000",
+       "object_id": "120250809746320053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_run_status",
+       "event_time": "2026-08-26T15:13:02+0000",
+       "object_id": "120250809746330053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_campaign_run_status",
+       "event_time": "2026-08-26T09:17:46+0000",
+       "object_id": "120246862165110053",
+       "actor_name": "Steffen Foerster",
+       "application_id": "438142079694454"
+      },
+      {
+       "event_type": "update_campaign_budget",
+       "event_time": "2026-08-26T09:17:29+0000",
+       "object_id": "120246862165110053",
+       "actor_name": "Steffen Foerster",
+       "application_id": "438142079694454"
+      },
+      {
+       "event_type": "update_campaign_run_status",
+       "event_time": "2026-08-26T09:17:29+0000",
+       "object_id": "120246862165110053",
+       "actor_name": "Steffen Foerster",
+       "application_id": "438142079694454"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-25T05:34:27+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-25T05:31:50+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_targets_spec",
+       "event_time": "2026-08-25T05:31:04+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-25T05:31:04+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-25T05:31:04+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-24T00:35:36+0000",
+       "object_id": "120250809780810053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-23T22:32:00+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "ad_account_billing_charge",
+       "event_time": "2026-08-22T19:21:11+0000",
+       "object_id": "1766396370547849",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-21T06:58:05+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T20:14:41+0000",
+       "object_id": "120250809779090053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T16:11:13+0000",
+       "object_id": "120250809779270053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T15:51:02+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T15:41:26+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T11:58:55+0000",
+       "object_id": "120250809817430053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:19:55+0000",
+       "object_id": "120250843274290053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:19:33+0000",
+       "object_id": "120250843274280053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:19:21+0000",
+       "object_id": "120250843274260053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:19:20+0000",
+       "object_id": "120250843274230053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:17:34+0000",
+       "object_id": "120250843274290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:17:05+0000",
+       "object_id": "120250843274280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:59+0000",
+       "object_id": "120250843274230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:57+0000",
+       "object_id": "120250843274260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T06:13:45+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T06:10:56+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_targets_spec",
+       "event_time": "2026-08-20T06:09:30+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T06:09:30+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T06:09:30+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T23:32:03+0000",
+       "object_id": "120250809776640053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T13:08:01+0000",
+       "object_id": "120250809812240053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T08:03:51+0000",
+       "object_id": "120250809813390053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T07:52:40+0000",
+       "object_id": "120250809814200053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T07:35:21+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T07:34:34+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:36+0000",
+       "object_id": "120250809746090053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:29+0000",
+       "object_id": "120250809746120053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:29+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:25+0000",
+       "object_id": "120250809746560053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:20+0000",
+       "object_id": "120250809746230053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:19+0000",
+       "object_id": "120250809746130053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:16+0000",
+       "object_id": "120250809746300053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:12+0000",
+       "object_id": "120250809746200053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:10+0000",
+       "object_id": "120250809746550053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:08+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:08+0000",
+       "object_id": "120250809746100053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:07+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:06+0000",
+       "object_id": "120250809746080053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:06+0000",
+       "object_id": "120250809746540053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:06+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:03+0000",
+       "object_id": "120250843274270053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:02+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:01+0000",
+       "object_id": "120250809746150053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:01+0000",
+       "object_id": "120250809746240053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:01+0000",
+       "object_id": "120250843274250053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:00+0000",
+       "object_id": "120250809746170053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:58+0000",
+       "object_id": "120250809746210053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:58+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:58+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:57+0000",
+       "object_id": "120250809746600053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:56+0000",
+       "object_id": "120250843274310053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:55+0000",
+       "object_id": "120250809746110053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:54+0000",
+       "object_id": "120250809746220053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:54+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:53+0000",
+       "object_id": "120250843274300053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:50+0000",
+       "object_id": "120250809746250053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:50+0000",
+       "object_id": "120250809746260053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:49+0000",
+       "object_id": "120250809746290053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:48+0000",
+       "object_id": "120250809746310053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:47+0000",
+       "object_id": "120250843274240053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:34+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:57+0000",
+       "object_id": "120250809746230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:54+0000",
+       "object_id": "120250809746090053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:54+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:53+0000",
+       "object_id": "120250809746120053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:53+0000",
+       "object_id": "120250809746200053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:53+0000",
+       "object_id": "120250809746250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:52+0000",
+       "object_id": "120250843274270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:51+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:51+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:49+0000",
+       "object_id": "120250809746540053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:49+0000",
+       "object_id": "120250809746110053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746210053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746130053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250843274240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746100053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746150053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746080053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:47+0000",
+       "object_id": "120250843274250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:47+0000",
+       "object_id": "120250843274300053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:47+0000",
+       "object_id": "120250809746300053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:46+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:46+0000",
+       "object_id": "120250843274310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:45+0000",
+       "object_id": "120250809746600053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:44+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:44+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:44+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:44+0000",
+       "object_id": "120250809746560053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:43+0000",
+       "object_id": "120250809746170053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:43+0000",
+       "object_id": "120250809746310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:43+0000",
+       "object_id": "120250809746550053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:42+0000",
+       "object_id": "120250809746240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274300053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746170053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746600053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746090053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746130053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746100053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746540053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746560053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746110053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746150053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746200053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746210053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746120053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746550053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746080053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746110053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746600053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746550053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746090053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746210053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746150053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746200053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274300053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746080053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746120053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746130053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746560053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746100053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746540053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746170053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:56:14+0000",
+       "object_id": "120250809775340053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:43:19+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:34:37+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:25:20+0000",
+       "object_id": "120250809852970053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:23:52+0000",
+       "object_id": "120250809778950053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:21:07+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:17:28+0000",
+       "object_id": "120250809779180053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:15:48+0000",
+       "object_id": "120250809776040053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      }
+     ]
+    }
+   ],
+   "Log gate block": [
+    {
+     "success": true
+    }
+   ]
+  },
+  "optimise_blocked_exclusion_checks": {
+   "Webhook": [
+    {
+     "body": {
+      "client_slug": "steffen-foerster",
+      "account_id": "act_1766396370547849",
+      "session_note": "v1.1 acceptance test C",
+      "moves": [
+       {
+        "op": "audience_exclude",
+        "entity_type": "adset",
+        "entity_id": "120250709836350053",
+        "audience_id": "120249257298320420",
+        "evidence": "v1.1 acceptance: audience belongs to another account, refusal expected"
+       }
+      ]
+     }
+    }
+   ],
+   "Load client": [
+    {
+     "id": "7f0d9a8c-75a8-4837-8f79-b5431183b108",
+     "slug": "steffen-foerster",
+     "cfg": {
+      "mode": "directive",
+      "notes": "Freelancer-managed. Writes only in founder-triggered sessions, per the 2026-08-18 operating model. USD account, ,900 ticket.",
+      "doorway": "wmi_meta_lab",
+      "enabled": true,
+      "optimise": {
+       "thrash_n": 4,
+       "daily_ceiling": 3,
+       "budget_max_delta_pct": 25
+      },
+      "account_ids": [
+       "act_1766396370547849"
+      ],
+      "write_budget": {
+       "max_mutations": 25,
+       "max_daily_budget_minor": 20000
+      }
+     }
+    }
+   ],
+   "Load counts": [
+    {
+     "executed_today": "0",
+     "our_changes_7d": {
+      "120250809746330053": 1
+     }
+    }
+   ],
+   "Meta change history": [
+    {
+     "data": [
+      {
+       "event_type": "update_ad_set_run_status",
+       "event_time": "2026-08-26T15:13:21+0000",
+       "object_id": "120250809746320053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_run_status",
+       "event_time": "2026-08-26T15:13:18+0000",
+       "object_id": "120250809746330053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_target_spec",
+       "event_time": "2026-08-26T15:13:02+0000",
+       "object_id": "120250809746320053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_target_spec",
+       "event_time": "2026-08-26T15:13:02+0000",
+       "object_id": "120250809746330053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_run_status",
+       "event_time": "2026-08-26T15:13:02+0000",
+       "object_id": "120250809746320053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_set_run_status",
+       "event_time": "2026-08-26T15:13:02+0000",
+       "object_id": "120250809746330053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_campaign_run_status",
+       "event_time": "2026-08-26T09:17:46+0000",
+       "object_id": "120246862165110053",
+       "actor_name": "Steffen Foerster",
+       "application_id": "438142079694454"
+      },
+      {
+       "event_type": "update_campaign_budget",
+       "event_time": "2026-08-26T09:17:29+0000",
+       "object_id": "120246862165110053",
+       "actor_name": "Steffen Foerster",
+       "application_id": "438142079694454"
+      },
+      {
+       "event_type": "update_campaign_run_status",
+       "event_time": "2026-08-26T09:17:29+0000",
+       "object_id": "120246862165110053",
+       "actor_name": "Steffen Foerster",
+       "application_id": "438142079694454"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-25T05:34:27+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-25T05:31:50+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_targets_spec",
+       "event_time": "2026-08-25T05:31:04+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-25T05:31:04+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-25T05:31:04+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-24T00:35:36+0000",
+       "object_id": "120250809780810053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-23T22:32:00+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "ad_account_billing_charge",
+       "event_time": "2026-08-22T19:21:11+0000",
+       "object_id": "1766396370547849",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-21T06:58:05+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T20:14:41+0000",
+       "object_id": "120250809779090053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T16:11:13+0000",
+       "object_id": "120250809779270053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T15:51:02+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T15:41:26+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-20T11:58:55+0000",
+       "object_id": "120250809817430053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:19:55+0000",
+       "object_id": "120250843274290053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:19:33+0000",
+       "object_id": "120250843274280053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:19:21+0000",
+       "object_id": "120250843274260053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:19:20+0000",
+       "object_id": "120250843274230053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:17:34+0000",
+       "object_id": "120250843274290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:17:05+0000",
+       "object_id": "120250843274280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:59+0000",
+       "object_id": "120250843274230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:57+0000",
+       "object_id": "120250843274260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T07:16:25+0000",
+       "object_id": "120250843274280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T06:13:45+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T06:10:56+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_targets_spec",
+       "event_time": "2026-08-20T06:09:30+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-20T06:09:30+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-20T06:09:30+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Antoine Martin",
+       "application_id": "119211728144504"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T23:32:03+0000",
+       "object_id": "120250809776640053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T13:08:01+0000",
+       "object_id": "120250809812240053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T08:03:51+0000",
+       "object_id": "120250809813390053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T07:52:40+0000",
+       "object_id": "120250809814200053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T07:35:21+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-19T07:34:34+0000",
+       "object_id": "120250843274210053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:36+0000",
+       "object_id": "120250809746090053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:29+0000",
+       "object_id": "120250809746120053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:29+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:25+0000",
+       "object_id": "120250809746560053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:20+0000",
+       "object_id": "120250809746230053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:19+0000",
+       "object_id": "120250809746130053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:16+0000",
+       "object_id": "120250809746300053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:12+0000",
+       "object_id": "120250809746200053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:10+0000",
+       "object_id": "120250809746550053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:08+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:08+0000",
+       "object_id": "120250809746100053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:07+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:06+0000",
+       "object_id": "120250809746080053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:06+0000",
+       "object_id": "120250809746540053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:06+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:03+0000",
+       "object_id": "120250843274270053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:02+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:01+0000",
+       "object_id": "120250809746150053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:01+0000",
+       "object_id": "120250809746240053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:01+0000",
+       "object_id": "120250843274250053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:20:00+0000",
+       "object_id": "120250809746170053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:58+0000",
+       "object_id": "120250809746210053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:58+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:58+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:57+0000",
+       "object_id": "120250809746600053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:56+0000",
+       "object_id": "120250843274310053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:55+0000",
+       "object_id": "120250809746110053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:54+0000",
+       "object_id": "120250809746220053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:54+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:53+0000",
+       "object_id": "120250843274300053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:50+0000",
+       "object_id": "120250809746250053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:50+0000",
+       "object_id": "120250809746260053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:49+0000",
+       "object_id": "120250809746290053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:48+0000",
+       "object_id": "120250809746310053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:47+0000",
+       "object_id": "120250843274240053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:19:34+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:57+0000",
+       "object_id": "120250809746230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:54+0000",
+       "object_id": "120250809746090053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:54+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:53+0000",
+       "object_id": "120250809746120053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:53+0000",
+       "object_id": "120250809746200053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:53+0000",
+       "object_id": "120250809746250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:52+0000",
+       "object_id": "120250843274270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:51+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:51+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:49+0000",
+       "object_id": "120250809746540053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:49+0000",
+       "object_id": "120250809746110053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746210053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746130053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250843274240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746100053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746150053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:48+0000",
+       "object_id": "120250809746080053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:47+0000",
+       "object_id": "120250843274250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:47+0000",
+       "object_id": "120250843274300053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:47+0000",
+       "object_id": "120250809746300053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:46+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:46+0000",
+       "object_id": "120250843274310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:45+0000",
+       "object_id": "120250809746600053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:44+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:44+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:44+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:44+0000",
+       "object_id": "120250809746560053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:43+0000",
+       "object_id": "120250809746170053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:43+0000",
+       "object_id": "120250809746310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:43+0000",
+       "object_id": "120250809746550053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:42+0000",
+       "object_id": "120250809746240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274300053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746170053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746600053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746090053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746130053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746100053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746540053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746560053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746110053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746150053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746200053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746210053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746120053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746550053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746080053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_run_status",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746110053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746290053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274240053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746230053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746160053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746600053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746140053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746550053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746090053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746210053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746150053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746590053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746190053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746310053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746200053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746180053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274300053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746080053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746120053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274250053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746130053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746560053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746100053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746540053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746280053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746170053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "update_ad_creative",
+       "event_time": "2026-08-19T07:17:14+0000",
+       "object_id": "120250809746260053",
+       "actor_name": "Meta",
+       "application_id": "1051435468209173"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:56:14+0000",
+       "object_id": "120250809775340053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:43:19+0000",
+       "object_id": "120250843274220053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:34:37+0000",
+       "object_id": "120250809746270053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:25:20+0000",
+       "object_id": "120250809852970053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:23:52+0000",
+       "object_id": "120250809778950053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:21:07+0000",
+       "object_id": "120250809746580053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:17:28+0000",
+       "object_id": "120250809779180053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      },
+      {
+       "event_type": "first_delivery_event",
+       "event_time": "2026-08-18T23:15:48+0000",
+       "object_id": "120250809776040053",
+       "actor_name": "Meta",
+       "application_id": "0"
+      }
+     ]
+    }
+   ],
+   "Read entities": [
+    {
+     "120250709836350053": {
+      "id": "120250709836350053",
+      "name": "INT 3 (Nature & Photography Audience)",
+      "status": "PAUSED",
+      "effective_status": "PAUSED",
+      "updated_time": "2026-08-18T08:58:56-0700"
+     }
+    }
+   ],
+   "Read adset context": [
+    {
+     "120250709836350053": {
+      "id": "120250709836350053",
+      "name": "INT 3 (Nature & Photography Audience)",
+      "account_id": "1766396370547849",
+      "created_time": "2026-08-12T07:25:01-0700",
+      "targeting": {
+       "age_max": 65,
+       "age_min": 45,
+       "flexible_spec": [
+        {
+         "interests": [
+          {
+           "id": "6003157840484",
+           "name": "Nature photography"
+          },
+          {
+           "id": "6003203011072",
+           "name": "Wildlife photography"
+          },
+          {
+           "id": "6003899195666",
+           "name": "Photography"
+          }
+         ]
+        },
+        {
+         "interests": [
+          {
+           "id": "6003011087019",
+           "name": "Luxury Travel"
+          },
+          {
+           "id": "6007695620311",
+           "name": "High-net-worth individual"
+          }
+         ]
+        }
+       ],
+       "geo_locations": {
+        "countries": [
+         "US",
+         "CA"
+        ],
+        "location_types": [
+         "home",
+         "recent"
+        ]
+       },
+       "locales": [
+        6,
+        24
+       ],
+       "brand_safety_content_filter_levels": [
+        "FACEBOOK_RELAXED",
+        "AN_RELAXED"
+       ],
+       "targeting_automation": {
+        "advantage_audience": 0,
+        "individual_setting": {
+         "age": 0,
+         "gender": 1
+        }
+       },
+       "user_age_unknown": false
+      },
+      "learning_stage_info": {
+       "attribution_windows": [
+        "7d_click",
+        "1d_view"
+       ],
+       "last_sig_edit_ts": 1787068715
+      }
+     }
+    }
+   ],
+   "Read audiences": [
+    {
+     "120249257298320420": {
+      "id": "120249257298320420",
+      "name": "Lookalike (2% to 3%) - P - 60 Days",
+      "subtype": "LOOKALIKE",
+      "approximate_count_lower_bound": 1000,
+      "approximate_count_upper_bound": 1000,
+      "delivery_status": {
+       "code": 200,
+       "description": "This audience is ready for use."
+      },
+      "operation_status": {
+       "code": 200,
+       "description": "Normal"
+      },
+      "account_id": "282111861642935"
+     }
+    }
+   ],
+   "Log gate block": [
+    {
+     "success": true
+    }
+   ]
+  },
+  "execute_exclusion_crash": {
+   "Webhook": [
+    {
+     "body": {
+      "move_id": "a154a730-d85c-449b-9670-e1ec079f22c6",
+      "decision": "approve",
+      "reason": ""
+     }
+    }
+   ],
+   "Load move": [
+    {
+     "id": "a154a730-d85c-449b-9670-e1ec079f22c6",
+     "session_id": "7aa76e14-36c1-4b38-9b84-ff2cac1a53e1",
+     "client_id": "7f0d9a8c-75a8-4837-8f79-b5431183b108",
+     "op": "audience_exclude",
+     "entity_type": "adset",
+     "entity_id": "120250809746610053",
+     "from_value": {
+      "excluded_custom_audiences": [
+       "120250432329390053"
+      ]
+     },
+     "to_value": {
+      "context": {
+       "audience": {
+        "id": "120250694850660053",
+        "name": "Galapagos workshop applicants",
+        "subtype": "WEBSITE",
+        "canServe": true,
+        "approximate_count_lower_bound": 20,
+        "approximate_count_upper_bound": 20
+       },
+       "may_not_match": true,
+       "adset_age_days": 9,
+       "learning_status": "LEARNING",
+       "exclusions_before": [
+        "120250432329390053"
+       ],
+       "adset_lifetime_spend": 98.41
+      },
+      "disclosure": "LEARNING RESET: this exclusion resets the ad set's learning phase. The ad set is 9 days old with 98.41 (account currency) lifetime spend, currently LEARNING (already learning, so the reset costs less than on a stabilised ad set). MATCH WARNING: Meta reports this audience with an approximate lower bound of 20, below the match floor. This exclusion may not match anyone and is therefore NOT evidence the underlying problem is solved.",
+      "audience_id": "120250694850660053",
+      "audience_name": "Galapagos workshop applicants",
+      "excluded_custom_audiences_after": [
+       "120250432329390053",
+       "120250694850660053"
+      ]
+     },
+     "evidence": "Founder-approved additive booker-protection plan 2026-08-26: RM, INT3, INT4 already staged (17be3a41, cfd07964, d457e2dc) with same exclusion; founder has now ordered INT5 moved up from tomorrow to today as the fourth move in this run.",
+     "status": "proposed",
+     "norbert_q1": "SOUND",
+     "human_change_conflict": null,
+     "snapshot_id": null,
+     "decided_at": null,
+     "decided_reason": null,
+     "executed_at": null,
+     "created_at": "2026-08-26T18:09:57.163Z",
+     "account_id": "act_1766396370547849",
+     "client_slug": "steffen-foerster",
+     "ceiling": 3,
+     "executed_today": "0"
+    }
+   ],
+   "Read targeting": [
+    {
+     "id": "120250809746610053",
+     "targeting": {
+      "age_max": 65,
+      "age_min": 45,
+      "excluded_custom_audiences": [
+       {
+        "id": "120250432329390053",
+        "name": "Applicants and Bookers"
+       }
+      ],
+      "flexible_spec": [
+       {
+        "interests": [
+         {
+          "id": "6003157840484",
+          "name": "Nature photography"
+         },
+         {
+          "id": "6003203011072",
+          "name": "Wildlife photography"
+         },
+         {
+          "id": "6003899195666",
+          "name": "Photography"
+         }
+        ]
+       }
+      ],
+      "geo_locations": {
+       "countries": [
+        "US",
+        "CA"
+       ],
+       "location_types": [
+        "home",
+        "recent"
+       ]
+      },
+      "locales": [
+       6,
+       24
+      ],
+      "brand_safety_content_filter_levels": [
+       "FACEBOOK_RELAXED",
+       "AN_RELAXED"
+      ],
+      "targeting_automation": {
+       "advantage_audience": 0,
+       "individual_setting": {
+        "age": 0,
+        "gender": 1
+       }
+      },
+      "user_age_unknown": false
+     }
+    }
+   ],
+   "Write targeting": [
+    {
+     "success": true
+    }
+   ],
+   "Read back targeting": [
+    {
+     "id": "120250809746610053",
+     "targeting": {
+      "age_max": 65,
+      "age_min": 45,
+      "excluded_custom_audiences": [
+       {
+        "id": "120250432329390053",
+        "name": "Applicants and Bookers"
+       },
+       {
+        "id": "120250694850660053",
+        "name": "Galapagos workshop applicants"
+       }
+      ],
+      "flexible_spec": [
+       {
+        "interests": [
+         {
+          "id": "6003157840484",
+          "name": "Nature photography"
+         },
+         {
+          "id": "6003203011072",
+          "name": "Wildlife photography"
+         },
+         {
+          "id": "6003899195666",
+          "name": "Photography"
+         }
+        ]
+       }
+      ],
+      "geo_locations": {
+       "countries": [
+        "US",
+        "CA"
+       ],
+       "location_types": [
+        "home",
+        "recent"
+       ]
+      },
+      "locales": [
+       6,
+       24
+      ],
+      "brand_safety_content_filter_levels": [
+       "FACEBOOK_RELAXED",
+       "AN_RELAXED"
+      ],
+      "targeting_relaxation_types": {
+       "lookalike": 0,
+       "custom_audience": 0
+      },
+      "targeting_automation": {
+       "advantage_audience": 0,
+       "individual_setting": {
+        "age": 0,
+        "gender": 1
+       }
+      },
+      "user_age_unknown": false
+     }
+    }
+   ]
+  },
+  "execute_latest": {
+   "Webhook": [
+    {
+     "body": {
+      "move_id": "ab39dbe4-a414-4cbb-8c94-3eb30f4ba1ae",
+      "decision": "reject",
+      "reason": "Founder rejection 2026-08-30: superseded by the executed production moves of 2026-08-26. The active generation (RM, INT 3, INT 4, INT 5) carries both exclusions; this paused old-generation shell needs no move, and the v1.1 execute leg is proven by the four production executions."
+     }
+    }
+   ],
+   "Load move": [
+    {
+     "id": "ab39dbe4-a414-4cbb-8c94-3eb30f4ba1ae",
+     "session_id": "a4ed5063-93fb-4be1-b412-382eb2bc41fa",
+     "client_id": "7f0d9a8c-75a8-4837-8f79-b5431183b108",
+     "op": "audience_exclude",
+     "entity_type": "adset",
+     "entity_id": "120250709836350053",
+     "from_value": {
+      "excluded_custom_audiences": []
+     },
+     "to_value": {
+      "context": {
+       "audience": {
+        "id": "120250432329390053",
+        "name": "Applicants and Bookers",
+        "subtype": "CUSTOM",
+        "canServe": false,
+        "approximate_count_lower_bound": 20,
+        "approximate_count_upper_bound": 20
+       },
+       "may_not_match": true,
+       "adset_age_days": 14,
+       "learning_status": "UNKNOWN",
+       "exclusions_before": [],
+       "adset_lifetime_spend": null
+      },
+      "disclosure": "LEARNING RESET: this exclusion resets the ad set's learning phase. The ad set is 14 days old with unknown lifetime spend, currently UNKNOWN. MATCH WARNING: Meta reports this audience canServe: false. This exclusion may not match anyone and is therefore NOT evidence the underlying problem is solved.",
+      "audience_id": "120250432329390053",
+      "audience_name": "Applicants and Bookers",
+      "excluded_custom_audiences_after": [
+       "120250432329390053"
+      ]
+     },
+     "evidence": "Paused ad set INT 3 (older generation) carries no Applicants and Bookers exclusion; the active generation was hand-fixed on 2026-08-19 but this one was missed, so reactivation would target booked clients.",
+     "status": "proposed",
+     "norbert_q1": "SOUND",
+     "human_change_conflict": null,
+     "snapshot_id": null,
+     "decided_at": null,
+     "decided_reason": null,
+     "executed_at": null,
+     "created_at": "2026-08-26T16:35:58.719Z",
+     "account_id": "act_1766396370547849",
+     "client_slug": "steffen-foerster",
+     "ceiling": 3,
+     "executed_today": "0"
+    }
+   ],
+   "Write rejection": [
+    {
+     "success": true
+    }
+   ]
+  },
+  "execute_already_excluded": {
+   "Webhook": [
+    {
+     "body": {
+      "move_id": "17be3a41-e410-4ff6-8b94-ea43ef281750",
+      "decision": "approve",
+      "reason": ""
+     }
+    }
+   ],
+   "Load move": [
+    {
+     "id": "17be3a41-e410-4ff6-8b94-ea43ef281750",
+     "session_id": "bf3c159e-f957-4af5-97d0-50f566bb1cc1",
+     "client_id": "7f0d9a8c-75a8-4837-8f79-b5431183b108",
+     "op": "audience_exclude",
+     "entity_type": "adset",
+     "entity_id": "120250761283860053",
+     "from_value": {
+      "excluded_custom_audiences": [
+       "120250432329390053"
+      ]
+     },
+     "to_value": {
+      "context": {
+       "audience": {
+        "id": "120250694850660053",
+        "name": "Galapagos workshop applicants",
+        "subtype": "WEBSITE",
+        "canServe": true,
+        "approximate_count_lower_bound": 20,
+        "approximate_count_upper_bound": 20
+       },
+       "may_not_match": true,
+       "adset_age_days": 12,
+       "learning_status": "LEARNING",
+       "exclusions_before": [
+        "120250432329390053"
+       ],
+       "adset_lifetime_spend": 131.43
+      },
+      "disclosure": "LEARNING RESET: this exclusion resets the ad set's learning phase. The ad set is 12 days old with 131.43 (account currency) lifetime spend, currently LEARNING (already learning, so the reset costs less than on a stabilised ad set). MATCH WARNING: Meta reports this audience with an approximate lower bound of 20, below the match floor. This exclusion may not match anyone and is therefore NOT evidence the underlying problem is solved.",
+      "audience_id": "120250694850660053",
+      "audience_name": "Galapagos workshop applicants",
+      "excluded_custom_audiences_after": [
+       "120250432329390053",
+       "120250694850660053"
+      ]
+     },
+     "evidence": "RM ad set targets warm workshop-page visitors; bookers certainly viewed that page, making RM the likeliest live leak for already-paid clients seeing ads. Adding 'Galapagos workshop applicants' as exclusion alongside existing exclusion, nothing removed.",
+     "status": "proposed",
+     "norbert_q1": "SOUND",
+     "human_change_conflict": null,
+     "snapshot_id": null,
+     "decided_at": null,
+     "decided_reason": null,
+     "executed_at": null,
+     "created_at": "2026-08-26T18:02:45.804Z",
+     "account_id": "act_1766396370547849",
+     "client_slug": "steffen-foerster",
+     "ceiling": 3,
+     "executed_today": "0"
+    }
+   ],
+   "Read targeting": [
+    {
+     "id": "120250761283860053",
+     "targeting": {
+      "age_max": 65,
+      "age_min": 45,
+      "excluded_custom_audiences": [
+       {
+        "id": "120250432329390053",
+        "name": "Applicants and Bookers"
+       },
+       {
+        "id": "120250694850660053",
+        "name": "Galapagos workshop applicants"
+       }
+      ],
+      "custom_audiences": [
+       {
+        "id": "120250708656480053",
+        "name": "Galapagos Island 2027 - Page - 180D"
+       }
+      ],
+      "geo_locations": {
+       "countries": [
+        "US",
+        "CA"
+       ],
+       "location_types": [
+        "home",
+        "recent"
+       ]
+      },
+      "locales": [
+       6,
+       24
+      ],
+      "brand_safety_content_filter_levels": [
+       "FACEBOOK_RELAXED"
+      ],
+      "targeting_relaxation_types": {
+       "lookalike": 0,
+       "custom_audience": 0
+      },
+      "targeting_automation": {
+       "advantage_audience": 0,
+       "individual_setting": {
+        "age": 0,
+        "gender": 1
+       }
+      },
+      "user_age_unknown": false,
+      "publisher_platforms": [
+       "facebook",
+       "instagram",
+       "messenger",
+       "whatsapp",
+       "threads"
+      ],
+      "facebook_positions": [
+       "feed",
+       "right_hand_column",
+       "instream_video",
+       "marketplace",
+       "story",
+       "search",
+       "biz_disco_feed",
+       "facebook_reels",
+       "facebook_reels_overlay",
+       "profile_feed",
+       "notification"
+      ],
+      "instagram_positions": [
+       "stream",
+       "story",
+       "reels",
+       "explore_home",
+       "profile_feed",
+       "ig_search"
+      ],
+      "device_platforms": [
+       "mobile",
+       "desktop"
+      ],
+      "messenger_positions": [
+       "story"
+      ],
+      "whatsapp_positions": [
+       "status"
+      ],
+      "threads_positions": [
+       "threads_stream"
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

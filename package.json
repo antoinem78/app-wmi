@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node tests/parse-batch.test.js && node tests/optimise-gates.test.js && node tests/verify-exclusion.test.js && node tests/norbert-review-rules.test.js && node tests/wa-widget-attribution.test.js && node tests/optimise-glue.smoke.js",
+    "test:glue-db": "node tests/optimise-glue.smoke.js --db --deployed"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

@@ -32,7 +32,16 @@ function verifyExclusionDiff(snapshot, readbackTargeting, audienceId) {
   // JSON.stringify(undefined) is undefined, not a string: a DROPPED field must
   // become a reported problem, never a crash that kills the verifier itself.
   const show = (v) => v === undefined ? 'absent' : JSON.stringify(v).slice(0, 200);
+  // Meta appends targeting_relaxation_types {lookalike: 0, custom_audience: 0}
+  // to any targeting object written without it. All zeros means "no relaxation",
+  // which is what absent meant, so that one appearance is not a change. Found by
+  // the glue smoke replaying the 26 August read-back: the strict diff would have
+  // marked every real exclusion verification_failed after the write had landed.
+  const isMetaNoopDefault = (k, before, after) =>
+    k === 'targeting_relaxation_types' && before === undefined && after && typeof after === 'object'
+    && Object.values(after).every(v => v === 0);
   for (const k of keys) {
+    if (isMetaNoopDefault(k, snapshot[k], rb[k])) continue;
     if (canon(snapshot[k]) !== canon(rb[k]))
       problems.push('field "' + k + '" changed: ' + show(snapshot[k]) + ' -> ' + show(rb[k]));
   }
@@ -633,13 +642,17 @@ else okWrite = now.status === 'ACTIVE';
 const status = okWrite ? 'executed' : 'verification_failed';
 const snapClass = okWrite ? 'executed' : 'died';
 const reason = okWrite ? null : ('read-back mismatch: wanted ' + JSON.stringify(d.write_params) + ', account shows ' + JSON.stringify(now));
+// The Postgres node hands timestamptz columns over as JS Dates; interpolating
+// one directly yields "Wed Sep 03 2026 ... GMT+0000 (Coordinated Universal
+// Time)", which Postgres rejects. Found by the glue smoke in --db mode.
+const stagedAt = new Date(m.created_at).toISOString();
 const sql =
 `update optimise_moves set status='${status}', decided_at=now(), executed_at=${okWrite ? 'now()' : 'NULL'} where id='${m.id}'::uuid;
 insert into move_snapshots (task_id, client_id, build_ref, op_name, entity_type, entity_id, move_class, reason, snapshot, taken_at, executed_at)
 values (NULL, '${m.client_id}'::uuid, NULL, NULL, '${m.entity_type}', '${esc(m.entity_id)}', '${snapClass}', ${reason ? "'" + esc(reason) + "'" : 'NULL'},
   jsonb_build_object('op','${m.op}','from','${JSON.stringify(m.from_value).replace(/'/g, "''")}'::jsonb,'to','${JSON.stringify(m.to_value).replace(/'/g, "''")}'::jsonb,
     'evidence','${esc(m.evidence)}','read_back','${JSON.stringify(now).replace(/'/g, "''")}'::jsonb,'norbert_q1',${m.norbert_q1 ? "'" + esc(m.norbert_q1) + "'" : 'NULL'}),
-  '${m.created_at}'::timestamptz, ${okWrite ? 'now()' : 'NULL'});`;
+  '${stagedAt}'::timestamptz, ${okWrite ? 'now()' : 'NULL'});`;
 return [{ json: { sql, result: { ok: okWrite, move_id: m.id, status, read_back: now } } }];
 """, [1200, -120], note="taken_at carries the STAGING time so the 12h staleness rule is computable."),
 
@@ -704,6 +717,8 @@ const okWrite = problems.length === 0;
 const status = okWrite ? 'executed' : 'verification_failed';
 const snapClass = okWrite ? 'executed' : 'died';
 const reason = okWrite ? null : ('targeting diff vs snapshot failed: ' + problems.join(' | ').slice(0, 1500));
+// created_at arrives as a JS Date from the Postgres node; see Verify + finalise.
+const stagedAt = new Date(m.created_at).toISOString();
 const sql =
 `update optimise_moves set status='${status}', decided_at=now(), executed_at=${okWrite ? 'now()' : 'NULL'} where id='${m.id}'::uuid;
 insert into move_snapshots (task_id, client_id, build_ref, op_name, entity_type, entity_id, move_class, reason, snapshot, taken_at, executed_at)
@@ -711,7 +726,7 @@ values (NULL, '${m.client_id}'::uuid, NULL, NULL, 'adset', '${esc(m.entity_id)}'
   jsonb_build_object('op','audience_exclude','audience_id','${esc(d.audience_id)}',
     'targeting_before','${jstr(snap)}'::jsonb,'targeting_read_back','${jstr(rb)}'::jsonb,
     'evidence','${esc(m.evidence)}','norbert_q1',${m.norbert_q1 ? "'" + esc(m.norbert_q1) + "'" : 'NULL'}),
-  '${m.created_at}'::timestamptz, ${okWrite ? 'now()' : 'NULL'});`;
+  '${stagedAt}'::timestamptz, ${okWrite ? 'now()' : 'NULL'});`;
 // `got` is local to verifyExclusionDiff; referencing it here crashed every
 // execute run on 26 August AFTER the Meta write and before any recording,
 // which is the worst half to lose. Compute the list from rb, which is in scope.

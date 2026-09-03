@@ -106,5 +106,21 @@ const check = (name, cond, detail) => {
   check("first exclusion on a clean ad set verifies", p.length === 0, p);
 }
 
+// Meta appends targeting_relaxation_types {lookalike:0, custom_audience:0} to a
+// targeting object written without it (real read-back, 26 August). All zeros is
+// what absent meant, so it verifies; any non-zero relaxation appearing is a
+// real change and is caught.
+{
+  const noFlagSnap = JSON.parse(JSON.stringify(SNAP));
+  delete noFlagSnap.targeting_relaxation_types;
+  const rbNoop = { ...JSON.parse(JSON.stringify(goodReadback)), targeting_relaxation_types: { lookalike: 0, custom_audience: 0 } };
+  const p1 = verify(noFlagSnap, rbNoop, AUD);
+  check("Meta's all-zero relaxation default appearing is not a change", p1.length === 0, p1);
+
+  const rbRelaxed = { ...JSON.parse(JSON.stringify(goodReadback)), targeting_relaxation_types: { lookalike: 0, custom_audience: 1 } };
+  const p2 = verify(noFlagSnap, rbRelaxed, AUD);
+  check("a non-zero relaxation appearing is caught", p2.some((x) => x.includes('"targeting_relaxation_types"')), p2);
+}
+
 console.log(`\n  ${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
