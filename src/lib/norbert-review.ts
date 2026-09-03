@@ -37,6 +37,12 @@ const num = (v: unknown) => (typeof v === "number" ? v : Number(v ?? 0)) || 0;
 function ownLogins(): string[] {
   return (process.env.GOOGLE_ADS_OWN_LOGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 }
+/** Logins the founder shares with the freelancer: changes under them stay
+ *  flagged as human (either person may have made them) but are labelled as
+ *  shared so verdicts do not misattribute the author. */
+function sharedLogins(): string[] {
+  return (process.env.GOOGLE_ADS_SHARED_LOGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 async function customerFor(clientId: string): Promise<string | null> {
   const { data } = await createSupabaseAdminClient()
@@ -189,7 +195,7 @@ export async function reviewProposal(id: string, trigger: ReviewTrigger, actor =
 
   try {
     const ev = await gatherEvidence(customerId, action);
-    const history = assessHistory(ev.history, ownLogins());
+    const history = assessHistory(ev.history, ownLogins(), sharedLogins());
     const user = JSON.stringify({
       proposal: { type: row.type, title: row.title, rationale: row.rationale, action: action ?? row.details?.action ?? null, advisory_only: !action, filed_by: row.created_by },
       revision: revisionOf ? { revision_of: revisionOf, round, parent_objection: parent?.verdict?.q1 ?? null, final_round: final } : null,
@@ -200,6 +206,7 @@ export async function reviewProposal(id: string, trigger: ReviewTrigger, actor =
         human_users: history.humanUsers, rows: (ev.history ?? []).slice(0, 40),
       },
       agency_logins: ownLogins(),
+      shared_founder_freelancer_logins: sharedLogins(),
     });
 
     const client = new Anthropic({ apiKey });

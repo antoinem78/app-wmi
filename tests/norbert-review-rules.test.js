@@ -31,6 +31,19 @@ t("our own login is not a human change; the freelancer is named", () => {
   assert.deepEqual(h.humanUsers, ["freelancer@ppc.com"]);
 });
 
+t("a shared founder/freelancer login stays flagged but is labelled ambiguous", () => {
+  const h = assessHistory([row("AntoineMcc6@gmail.com"), row("freelancer@ppc.com")], [], ["antoinemcc6@gmail.com"]);
+  assert.deepEqual(h.humanUsers, [
+    "antoinemcc6@gmail.com (shared founder/freelancer login; author ambiguous)",
+    "freelancer@ppc.com",
+  ]);
+});
+
+t("a login in BOTH lists is treated as own (suppression wins only when explicitly owned)", () => {
+  const h = assessHistory([row("us@agency.com")], ["us@agency.com"], ["us@agency.com"]);
+  assert.deepEqual(h.humanUsers, []);
+});
+
 t("latest change timestamp is the max", () => {
   const h = assessHistory([row("a@x.com", "2026-08-30 09:00:00"), row("a@x.com", "2026-09-02 09:00:00")], []);
   assert.equal(h.latestAt, "2026-09-02 09:00:00");

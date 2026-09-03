@@ -27,15 +27,25 @@ export interface HistoryAssessment {
  *  and the assessment says so rather than pretending the entity is quiet: an
  *  unreadable history fails closed (Bernard's leg, 2026-08-18), it never reads
  *  as zero changes. `ownLogins` are the agency's own Google logins; a change by
- *  anyone else is a human (usually the freelancer) and gets named. */
-export function assessHistory(rows: ChangeRow[] | null, ownLogins: string[]): HistoryAssessment {
+ *  anyone else is a human (usually the freelancer) and gets named.
+ *
+ *  `sharedLogins` (2026-09-03, founder-clarified): logins the founder SHARES
+ *  with the freelancer. A change under one cannot be attributed to either
+ *  person, so it stays flagged as a human change (suppressing it would hide
+ *  freelancer edits, the exact thing this check exists for) but is labelled as
+ *  the shared login so Norbert's verdict does not misname the author. */
+export function assessHistory(rows: ChangeRow[] | null, ownLogins: string[], sharedLogins: string[] = []): HistoryAssessment {
   if (!rows) return { readable: false, changes7d: 0, thrashing: false, humanUsers: [], latestAt: null };
-  const own = new Set(ownLogins.map((s) => s.trim().toLowerCase()).filter(Boolean));
+  const norm = (list: string[]) => new Set(list.map((s) => s.trim().toLowerCase()).filter(Boolean));
+  const own = norm(ownLogins);
+  const shared = norm(sharedLogins);
   const humans = new Set<string>();
   let latest: string | null = null;
   for (const r of rows) {
     const u = (r.user ?? "").trim().toLowerCase();
-    if (u && !own.has(u)) humans.add(u);
+    if (u && !own.has(u)) {
+      humans.add(shared.has(u) ? `${u} (shared founder/freelancer login; author ambiguous)` : u);
+    }
     if (r.at && (!latest || r.at > latest)) latest = r.at;
   }
   return {
