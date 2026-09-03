@@ -7,7 +7,10 @@ import json, sys, os
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 
 PG   = {"postgres": {"id": "GnLou79kcbiN5252", "name": "Supabase — singularweb-prod"}}
-META = {"httpQueryAuth": {"id": "u1iFg2OArYUi98PF", "name": "Meta system-user token (query access_token)"}}
+# Header auth since 2026-09-03: with query auth Graph echoed the token back in
+# paging.next, which n8n stored in every execution. Bearer header leaks nothing.
+META = {"httpHeaderAuth": {"id": "5cOSHv4rFTASt7iF", "name": "Meta system-user token (header)"}}
+META_AUTH_TYPE = "httpHeaderAuth"
 HOOK = {"httpHeaderAuth": {"id": "L6Pw2vZt2DM7Qa8k", "name": "Bernard dispatch auth (x-bernard-key)"}}
 ANTH = {"httpHeaderAuth": {"id": "ZuBQSKRVl62nQn2Y", "name": "Anthropic API key (header)"}}
 
@@ -207,7 +210,7 @@ wf1_nodes = [
      [400, 0], note="Ceiling and thrash inputs. Reads move_snapshots, never tasks (1,177 OpenDental rows there are not moves)."),
 
   {"parameters": {"url": "=https://graph.facebook.com/v23.0/{{ $('Webhook').first().json.body.account_id }}/activities",
-                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth",
+                  "authentication": "genericCredentialType", "genericAuthType": META_AUTH_TYPE,
                   "sendQuery": True,
                   "queryParameters": {"parameters": [
                     {"name": "fields", "value": "event_type,event_time,object_id,actor_name,application_id"},
@@ -266,7 +269,7 @@ return [{ json: { ok: false, gate: j.gate, error: j.error } }];
 
   # ----- passed leg: snapshot entities, Norbert, store, respond
   {"parameters": {"url": "=https://graph.facebook.com/v23.0/?ids={{ $json.staged.map(m => m.entity_id).join(',') }}&fields=id,name,status,effective_status,updated_time",
-                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth", "options": {}},
+                  "authentication": "genericCredentialType", "genericAuthType": META_AUTH_TYPE, "options": {}},
    "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1200, -160],
    "id": "65dddd0000000000000000000000000000ab"[:36], "name": "Read entities", "credentials": META,
    "onError": "continueRegularOutput",
@@ -277,14 +280,14 @@ return [{ json: { ok: false, gate: j.gate, error: j.error } }];
   # audience_exclude moves, so the leg stays one straight line (no branch
   # convergence, which is where n8n reference bugs live).
   {"parameters": {"url": "=https://graph.facebook.com/v23.0/?ids={{ $('Gates').first().json.staged.filter(m => m.op === 'audience_exclude').map(m => m.entity_id).join(',') || $('Gates').first().json.account_id }}&fields={{ $('Gates').first().json.staged.some(m => m.op === 'audience_exclude') ? 'id,name,account_id,created_time,targeting,learning_stage_info,insights.date_preset(maximum){spend}' : 'id' }}",
-                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth", "options": {}},
+                  "authentication": "genericCredentialType", "genericAuthType": META_AUTH_TYPE, "options": {}},
    "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1400, -320],
    "id": "65dddd1111000000000000000000000000ac"[:36], "name": "Read adset context", "credentials": META,
    "onError": "continueRegularOutput",
    "notes": "v1.1: full targeting + learning state + lifetime spend for every ad set an exclusion targets. Falls back to a bare account read when no exclusion moves are staged."},
 
   {"parameters": {"url": "=https://graph.facebook.com/v23.0/?ids={{ $('Gates').first().json.staged.filter(m => m.op === 'audience_exclude').map(m => m.audience_id).join(',') || $('Gates').first().json.account_id }}&fields={{ $('Gates').first().json.staged.some(m => m.op === 'audience_exclude') ? 'id,name,subtype,approximate_count_lower_bound,approximate_count_upper_bound,delivery_status,operation_status,account_id' : 'id' }}",
-                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth", "options": {}},
+                  "authentication": "genericCredentialType", "genericAuthType": META_AUTH_TYPE, "options": {}},
    "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1600, -320],
    "id": "65dddd2222000000000000000000000000ad"[:36], "name": "Read audiences", "credentials": META,
    "onError": "continueRegularOutput",
@@ -541,7 +544,7 @@ wf1_conn = {
 }
 
 wf1 = {"name": "BERNARD_optimise", "nodes": wf1_nodes, "connections": wf1_conn,
-       "settings": {"executionOrder": "v1"}}
+       "settings": {"executionOrder": "v1", "errorWorkflow": "neKxYlJYR6c6HC2e"}}
 
 # ========================= WORKFLOW 2: BERNARD_optimise_execute =============
 wf2_nodes = [
@@ -618,14 +621,14 @@ return [{ json: { route: 'approve', move: m, entity_id: m.entity_id, write_param
 
   # approve leg
   {"parameters": {"method": "POST", "url": "=https://graph.facebook.com/v23.0/{{ $json.entity_id }}",
-                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth",
+                  "authentication": "genericCredentialType", "genericAuthType": META_AUTH_TYPE,
                   "sendBody": True, "specifyBody": "json",
                   "jsonBody": "={{ JSON.stringify($json.write_params) }}", "options": {}},
    "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [800, -120],
    "id": "72cccc0000000000000000000000000000ef"[:36], "name": "Meta write", "credentials": META},
 
   {"parameters": {"url": "=https://graph.facebook.com/v23.0/{{ $('Decide').first().json.entity_id }}?fields={{ $('Decide').first().json.readback_field === 'daily_budget' ? 'id,daily_budget' : 'id,status,effective_status' }}",
-                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth", "options": {}},
+                  "authentication": "genericCredentialType", "genericAuthType": META_AUTH_TYPE, "options": {}},
    "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1000, -120],
    "id": "73dddd0000000000000000000000000000ab"[:36], "name": "Read back", "credentials": META,
    "notes": "Claimed is not true until read. A 200 that reads back unchanged is verification_failed."},
@@ -669,7 +672,7 @@ return [{ json: v.result }];
 
   # ----- v1.1 exclusion leg: read, snapshot, merge, write, read back, diff.
   {"parameters": {"url": "=https://graph.facebook.com/v23.0/{{ $('Decide').first().json.entity_id }}?fields=id,targeting",
-                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth", "options": {}},
+                  "authentication": "genericCredentialType", "genericAuthType": META_AUTH_TYPE, "options": {}},
    "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [800, -320],
    "id": "72cccc1111000000000000000000000000f1"[:36], "name": "Read targeting", "credentials": META,
    "notes": "Fresh pre-write read: the snapshot the diff verifies against. A failure here aborts before any mutation and the move stays proposed."},
@@ -691,14 +694,14 @@ return [{ json: { entity_id: d.entity_id, snapshot, new_targeting: newTargeting 
 """, [1000, -320]),
 
   {"parameters": {"method": "POST", "url": "=https://graph.facebook.com/v23.0/{{ $json.entity_id }}",
-                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth",
+                  "authentication": "genericCredentialType", "genericAuthType": META_AUTH_TYPE,
                   "sendBody": True, "specifyBody": "json",
                   "jsonBody": "={{ JSON.stringify({ targeting: $json.new_targeting }) }}", "options": {}},
    "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1200, -320],
    "id": "72cccc2222000000000000000000000000f2"[:36], "name": "Write targeting", "credentials": META},
 
   {"parameters": {"url": "=https://graph.facebook.com/v23.0/{{ $('Decide').first().json.entity_id }}?fields=id,targeting",
-                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth", "options": {}},
+                  "authentication": "genericCredentialType", "genericAuthType": META_AUTH_TYPE, "options": {}},
    "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1400, -320],
    "id": "73dddd1111000000000000000000000000f3"[:36], "name": "Read back targeting", "credentials": META,
    "notes": "Section 3 step 5. The diff in Verify exclusion is the acceptance test: a 200 proves nothing."},
@@ -770,7 +773,7 @@ wf2_conn = {
 }
 
 wf2 = {"name": "BERNARD_optimise_execute", "nodes": wf2_nodes, "connections": wf2_conn,
-       "settings": {"executionOrder": "v1"}}
+       "settings": {"executionOrder": "v1", "errorWorkflow": "neKxYlJYR6c6HC2e"}}
 
 json.dump(wf1, open(os.path.join(OUT, "wf_optimise.json"), "w"), indent=1)
 json.dump(wf2, open(os.path.join(OUT, "wf_execute.json"), "w"), indent=1)
