@@ -162,6 +162,20 @@ Scott's instruction: Luke $2,400 (from 1 Sept), Erica $600, Jessica $550, Allie 
 
 **Zapier.** Seat is inside the **Fly-Rides** account (members: Antoine G Martin, Member; Scott Good, Owner, `jkeentauna@gmail.com`). Only one Zap is visible to the seat (a Mailchimp to HubSpot note Zap) and "Shared with me" folders are empty, so **Scott's deal-creation Zap is in his private folder**. Only Scott can move it to a shared folder; until then the name-merge fix cannot even be looked at. This is the first genuine "stuck" item.
 
+## Writes made 2026-09-03 (founder-approved, founder's HubSpot seat, Claude in Chrome)
+
+| Deal | Stage | Amount | Close date | Read back |
+|---|---|---|---|---|
+| Luke Beasley 345166437112 | Closed Won | $2,400.00 (Scott's figure; his own email quoted $2,500, founder chose $2,400) | 2026-09-01 (set by hand, Scott's date) | **confirmed after reload** |
+| Erica Davies 345540685539 | Closed Won | $600.00 | 2026-09-03 (HubSpot auto-stamped on close) | **confirmed after reload** |
+| Jessica Best 345188826828 | Closed Won | $550.00 | 2026-09-03 (auto) | header confirmed |
+| Allie Waddle 345241557701 (she did have a deal; earlier "no deal" read was a loading card) | Closed Won | $1,000.00 | 2026-09-03 (auto) | **confirmed after reload** |
+
+Method notes for the blueprint: the header Amount is not editable by click; Actions > View all properties > search "Amount" > click the value > type > **Tab** (blur) is what saves. Return alone does not commit and the header stays "--". Stage changes from the header dropdown work only intermittently across tabs; the reliable path is the same All Properties panel, search "stage", open the Deal stage dropdown there. **All four writes complete and read back 2026-09-03.** Next check: `HubSpot - Customer` conversions for Luke (click id present) and Erica (click id present) appearing in Google Ads over the following days; Jessica and Allie have no click id and cannot attribute. The Close date field auto-fills with today on Closed Won; override it if the client gave a date.
+
+**HubSpot MCP connector created 2026-09-03 under the founder's seat** (Development > MCP Auth Apps, which resolves to the MCP Connectors page): name **SingularWeb Claude**, App ID **51705490**, Client ID `d84942ce-550a-4d02-ba65-dcd08ffc3224`, redirect registered `http://127.0.0.1:8080/callback` (HubSpot's form refused `http://localhost:8080/callback`; if Claude Code's OAuth callback insists on `localhost`, add that redirect on the app page afterwards or expect a mismatch). **Client secret is on the app page behind "Show"; it is not recorded anywhere in this repo and must not be.** The Mac had no `claude` CLI (Claude Code runs inside the desktop app), so `@anthropic-ai/claude-code` 2.1.259 was installed globally via npm on 2026-09-03 (nvm Node 24 bin path; loads in any new zsh). Registration in Claude Code is the founder's terminal step, user scope so it lives in `~/.claude.json` and not the repo:
+`claude mcp add --transport http --client-id d84942ce-550a-4d02-ba65-dcd08ffc3224 --client-secret --callback-port 8080 hubspot https://mcp.hubspot.com` then `/mcp` to authorise as the seat.
+
 ## Ad account findings, not yet sent to Scott
 
 **1. Google's auto-apply is deleting Scott's negative keywords, repeatedly.** Every one of the 6 auto-apply rows is a negative keyword removal, and the payloads name them:

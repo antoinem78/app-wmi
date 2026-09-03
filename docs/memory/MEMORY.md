@@ -53,3 +53,5 @@
 - [Cowork cannot drive embedded app surfaces](cowork-cannot-drive-embedded-app-surfaces.md) — Shopify theme code editor and Loox take clicks but not keystrokes; those are founder-by-hand, and scope brief rules to the surface they were written for
 - [Vercel sensitive env pull returns stubs](vercel-sensitive-env-pull-returns-stubs.md) — Sensitive vars are write-only; a pulled short value is a stub, find the real one in .env.local or substrate.env
 - [GHL contact exists but index is blind](ghl-contact-exists-but-index-blind.md) — fetch by id before declaring a contact missing; lists, search and the UI all sit on a laggy index
+- [Meta token lives in n8n execution data](meta-token-lives-in-n8n-execution-data.md) — Graph echoes the query-auth token in paging.next, so stored executions and verbatim fixtures are credentials; strip paging, scan for EAA…, prefer header auth
+- [Replay real executions through the glue](replay-real-executions-through-the-glue.md) — extracted-function unit tests miss the n8n glue; run the node code on captured executions with Postgres in a rolled-back transaction, then diff n8n against the generator
