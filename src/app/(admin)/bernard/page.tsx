@@ -174,7 +174,7 @@ export default async function BernardPage() {
         <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
           <h2 className="text-sm font-semibold text-zinc-900">Note for the next run</h2>
           <p className="mt-1 text-xs text-zinc-500">
-            One-off steering ("go easy on client X this week"). The agent reads it at
+            One-off steering (&quot;go easy on client X this week&quot;). The agent reads it at
             the start of its next run, applies it, and archives it. Not a memory:
             it expires by design.
           </p>
