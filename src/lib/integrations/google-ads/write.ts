@@ -282,8 +282,11 @@ export function campaignCriterionCreateOp(
 export function campaignCriterionRemoveOp(resourceName: string): unknown {
   return { campaignCriterionOperation: { remove: resourceName } };
 }
-/** Switch a campaign's bidding scheme. The updateMask names the scheme message,
- *  so the oneof flips atomically; targets ride inside the new scheme. */
+/** Switch a campaign's bidding scheme. The REST API rejects a field mask that
+ *  names a message with subfields ("The field mask updated a field with
+ *  subfields", proven on a validateOnly probe 2026-09-03), so the mask names a
+ *  SUBFIELD of the new scheme: setting a oneof subfield flips the whole scheme,
+ *  and an explicit zero target means "no target" in every scheme that takes one. */
 export function campaignBiddingOp(
   customerId: string, campaignId: string, strategy: BiddingStrategy,
   targets: { targetCpaMicros?: number; targetRoas?: number },
@@ -292,20 +295,20 @@ export function campaignBiddingOp(
   let mask = "";
   switch (strategy) {
     case "MAXIMIZE_CONVERSIONS":
-      update.maximizeConversions = targets.targetCpaMicros ? { targetCpaMicros: String(Math.round(targets.targetCpaMicros)) } : {};
-      mask = "maximize_conversions";
+      update.maximizeConversions = { targetCpaMicros: String(Math.round(targets.targetCpaMicros ?? 0)) };
+      mask = "maximize_conversions.target_cpa_micros";
       break;
     case "MAXIMIZE_CONVERSION_VALUE":
-      update.maximizeConversionValue = targets.targetRoas ? { targetRoas: targets.targetRoas } : {};
-      mask = "maximize_conversion_value";
+      update.maximizeConversionValue = { targetRoas: targets.targetRoas ?? 0 };
+      mask = "maximize_conversion_value.target_roas";
       break;
     case "TARGET_SPEND":
-      update.targetSpend = {};
-      mask = "target_spend";
+      update.targetSpend = { cpcBidCeilingMicros: "0" };
+      mask = "target_spend.cpc_bid_ceiling_micros";
       break;
     case "MANUAL_CPC":
       update.manualCpc = { enhancedCpcEnabled: false };
-      mask = "manual_cpc";
+      mask = "manual_cpc.enhanced_cpc_enabled";
       break;
   }
   return { campaignOperation: { update, updateMask: mask } };
