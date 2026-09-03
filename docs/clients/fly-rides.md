@@ -135,6 +135,33 @@ Two pre-conditions, both founder-by-hand: add `7345621720` to `GOOGLE_ADS_WRITE_
 
 **New request from Scott, 2026-09-03, unactioned and a scope question:** mark four deals closed won with amounts. Luke Beasley $2,400 (deal from 1 Sept, `app-na2.hubspot.com/contacts/7339040/record/0-3/345166437112/`), Erica Davies $600, Jessica Best $550, Allie Waddle $1,000. This is CRM data entry, outside "fix the tracking", but it doubles as the first live end-to-end test: a deal set to closed won with a real amount should reach Google Ads as a `HubSpot - Customer` conversion with that value inside the sync window, which is the proof the checkpoint needs. If done, it should be the **first supervised HubSpot write**, read back in HubSpot and then in Google Ads. Founder to decide whether to do it and whether to say it is outside scope.
 
+## Live HubSpot and Zapier reads, 2026-09-03 (founder's seats, Claude in Chrome on the "MCC6 MAC mini Browser")
+
+**Surface.** The HubSpot MCP cannot be added from inside a session, so day-one work ran through the founder's signed-in Chrome. The Browser pane refuses `app-na2.hubspot.com` outright. Expect a re-sign-in when sessions expire.
+
+**Deal naming defect is universal.** All **1,290** deals in the portal are named `Party Bus Booking –` with the customer name missing, not "35 last week". Deals cannot be found by name; go through the contact.
+
+**Scott's four deals, read before any write:**
+
+| Contact (id) | Deal id | Stage / amount / close | Contact source | GCLID |
+|---|---|---|---|---|
+| Luke Beasley (544591390455) | 345166437112 | Appointment Scheduled / none / none; created 2026-09-02 01:37 GMT+4 | **Paid Search**, campaign "am | ... near me keywords" | **yes** |
+| Erica Davies (331751) | 345540685539 | Appointment Scheduled / none / none; created 2026-09-02 21:56 GMT+4 | Offline Sources via Zapier (contact from Oct 2023) | **yes** |
+| Jessica Best (544718806724) | 345188826828 | Appointment Scheduled / none / none; created 2026-09-02 07:10 GMT+4 | Organic Search | none |
+| Allie Waddle (544111893223) | **no deal** | n/a | Organic Search | none |
+
+Scott's instruction: Luke $2,400 (from 1 Sept), Erica $600, Jessica $550, Allie $1,000, all closed won. **Discrepancy for the founder:** Luke's contact record shows Scott quoting $2,500 for two buses on 2 Sept; Scott asked for $2,400. Ask, do not guess. Luke and Erica carry click ids, so their closed-won imports are the live test; Jessica and Allie cannot attribute to a click whatever is done.
+
+**HubSpot Ads conversion event** (`/ads/7339040/events`): one event, `HubSpot - Customer`, Active, ad account Fly-Rides 734-562-1720, trigger "Lifecycle stage change", **217 events synced, last synced 2026-09-01 18:07**, Conversions column blank. Banner: 1 event created in Google Ads Data Manager, 3 remaining. Identifier and value mapping not yet read (a Microsoft Advertising promo modal blocked the detail panel).
+
+**HubSpot Ads event detail (id 10573199), read 2026-09-03, nothing saved:** trigger Lifecycle stage change to **Customer**; Google conversion event **Converted Lead**; **Value: fixed $900** (currency picker plus a literal 900, no property-source option on a lifecycle-stage event); consent property Marketing consent = yes; contact data shared: Click ID, Email Address, Phone number, Address, all selected; created 2025-11-20. **So Scott was right about HubSpot sending a flat $900.**
+
+**Where the real values come from, Google side.** `offline_conversion_upload_client_summary` shows **two upload clients**: `GOOGLE_ADS_API` (HubSpot's native sync, last 2026-09-01 17:07) and **`ADS_DATA_CONNECTOR`** (Google Ads Data Manager, last 2026-09-01 11:19), which is the "1 event created in Google Ads Data Manager" the HubSpot banner mentions. Per-day values on `HubSpot - Customer` over 30 conversion days are real amounts (only one day sits at exactly $900 per conversion), so the deal-amount values arrive through the Data Manager connector, not the HubSpot event. **Double-counting suspicion, strong:** daily counts on that action are almost all even (2.0, 4.0, 8.0), consistent with each customer arriving once from each pipeline. Confirm in Google Ads Data Manager (UI only) which conversion action the connector targets and which source it reads, before touching values.
+
+**Google Ads side, same day:** no `HubSpot - Customer` conversion recorded for 28 Aug to 3 Sept, despite both uploaders running on 1 Sept and a $2,500 closed-won deal dated 2 Sept. Offline imports post by click date and lag; re-check after the four writes land.
+
+**Zapier.** Seat is inside the **Fly-Rides** account (members: Antoine G Martin, Member; Scott Good, Owner, `jkeentauna@gmail.com`). Only one Zap is visible to the seat (a Mailchimp to HubSpot note Zap) and "Shared with me" folders are empty, so **Scott's deal-creation Zap is in his private folder**. Only Scott can move it to a shared folder; until then the name-merge fix cannot even be looked at. This is the first genuine "stuck" item.
+
 ## Ad account findings, not yet sent to Scott
 
 **1. Google's auto-apply is deleting Scott's negative keywords, repeatedly.** Every one of the 6 auto-apply rows is a negative keyword removal, and the payloads name them:
@@ -162,6 +189,19 @@ Two pre-conditions, both founder-by-hand: add `7345621720` to `GOOGLE_ADS_WRITE_
 - Location Based: Scott's instinct was right and understated. He raised it $90 to $110 on 21 August and it is still losing **57.3%** of impressions to budget, not the 36% he estimated.
 - General Keywords: he set a **$50 tCPA** on 24 August against an achieved CPL of **$151.78**. A target at a third of reality is the most likely cause of the 19.9% rank loss he asked about, so his own fix is now the constraint.
 - Brand: MANUAL_CPC, $9.37 per conversion, 13.5% of impressions lost to rank, spending about $15 of a $150 daily budget. Cheapest converting traffic in the account with a manual bid ceiling on it.
+
+## Norbert's review of the three pending negatives, 2026-09-03 (written by the platform session on the founder's instruction)
+
+Since 2026-09-03 every proposal Oscar files is reviewed by Norbert in code before the founder sees it (`BERNARD_OPTIMISE_SPEC.md` §9). The three Fly-Rides negatives (`killeen` phrase, `fredericksburg` phrase, `cheap` broad) were the first live reviews, run 05:05 UTC against the account's own seven-day change history. **All three SOUND**; the verdicts are on the cards on app.wmiltd.com and Approve is available.
+
+What Norbert flagged, beyond the verdicts:
+
+- **Thrash on Location Based** (4 changes in 7 days), with the human changes named: `booking@fly-rides.com` re-added negatives on 31 August and Recommendations auto-apply stripped them on 1 September at 22:46 UTC. So the cycle documented in the table above has continued past 24 August, and the interval is now about 33 hours. He judged the two proposals on that campaign as the stabilising move because they restore Scott's own change rather than reversing it.
+- **A second negative deleted on 1 September is not being restored.** Auto-apply removed two campaign criteria that day (criterion ids 11503581 and 15235830, both created by Scott on 31 August); the proposals restore `killeen` and nothing else from that pair. Whoever holds this channel should read what the second one was before Scott notices it is gone.
+- **The precondition is asserted, not verified.** All three proposals gate the apply on the auto-apply subscription being switched off, and nothing in the account confirms that it has been. Until it is read back as off, every negative in the account is provisional and the fix has a shelf life of roughly a day and a half. The subscription is account-wide, so the same deletion is likely happening to negatives no proposal mentions; nobody has audited what else it has reverted.
+- **Nobody in this workflow can execute either the fix or the precondition** while the account is reporting-only and Scott edits it himself. The proposals are therefore instructions for Scott, or for the founder with Scott's say-so, not moves.
+
+Cost of the three reviews $0.18, metered under Norbert. Two inbox notes reached Oscar for the flagged proposals.
 
 ## Standing constraints on this channel
 
