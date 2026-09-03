@@ -46,11 +46,22 @@ export function budgetCaps() {
 }
 
 export type MatchType = "EXACT" | "PHRASE" | "BROAD";
+export type CriterionType = "location" | "negative_location" | "language";
+export type BiddingStrategy = "MAXIMIZE_CONVERSIONS" | "MAXIMIZE_CONVERSION_VALUE" | "TARGET_SPEND" | "MANUAL_CPC";
 export type ExecAction =
   | { kind: "add_negative_keyword"; campaign: string; level: "campaign" | "ad_group"; adGroup?: string; text: string; matchType: MatchType }
   | { kind: "add_shared_negative"; text: string; matchType: MatchType }
   | { kind: "pause_campaign"; campaign: string }
-  | { kind: "set_campaign_budget"; campaign: string; newDailyAmount: number; confirmLargeDecrease?: boolean };
+  | { kind: "set_campaign_budget"; campaign: string; newDailyAmount: number; confirmLargeDecrease?: boolean }
+  // ---- Widened 2026-09-03 (founder ruling: Oscar builds and optimises).
+  // One operation per approval throughout, same as the original four.
+  | { kind: "pause_ad_group"; campaign: string; adGroup: string }
+  | { kind: "pause_ad"; campaign: string; adGroup: string; adId: string }
+  | { kind: "attach_shared_set"; campaign: string; sharedSet: string }
+  | { kind: "detach_shared_set"; campaign: string; sharedSet: string }
+  | { kind: "add_campaign_criterion"; campaign: string; criterionType: CriterionType; constantId: string }
+  | { kind: "remove_campaign_criterion"; campaign: string; criterionType: CriterionType; constantId: string }
+  | { kind: "set_bidding_strategy"; campaign: string; strategy: BiddingStrategy; targetCpa?: number; targetRoas?: number };
 
 /** Parse a proposal's `details.action` into a strict, executable action. Returns
  *  null when the proposal carries no executable action (advisory only). */
@@ -88,6 +99,51 @@ export function parseAction(details: Record<string, unknown>): ExecAction | { er
       if (!campaign || !Number.isFinite(newDailyAmount) || newDailyAmount <= 0)
         return { error: "budget needs campaign + a positive newDailyAmount." };
       return { kind: "set_campaign_budget", campaign, newDailyAmount, confirmLargeDecrease: a.confirmLargeDecrease === true };
+    }
+    case "pause_ad_group": {
+      const campaign = str(a.campaign), adGroup = str(a.adGroup);
+      if (!campaign || !adGroup) return { error: "pause_ad_group needs campaign + adGroup." };
+      return { kind: "pause_ad_group", campaign, adGroup };
+    }
+    case "pause_ad": {
+      const campaign = str(a.campaign), adGroup = str(a.adGroup), adId = str(a.adId).replace(/\D/g, "");
+      if (!campaign || !adGroup || !/^\d{6,}$/.test(adId))
+        return { error: "pause_ad needs campaign, adGroup and a numeric adId (ad names are not unique)." };
+      return { kind: "pause_ad", campaign, adGroup, adId };
+    }
+    case "attach_shared_set":
+    case "detach_shared_set": {
+      const campaign = str(a.campaign), sharedSet = str(a.sharedSet);
+      if (!campaign || !sharedSet) return { error: `${a.kind} needs campaign + sharedSet (name or id).` };
+      return { kind: a.kind, campaign, sharedSet };
+    }
+    case "add_campaign_criterion":
+    case "remove_campaign_criterion": {
+      const campaign = str(a.campaign);
+      const criterionType = str(a.criterionType) as CriterionType;
+      const constantId = str(a.constantId).replace(/\D/g, "");
+      if (!campaign || !constantId) return { error: `${a.kind} needs campaign + a numeric constantId.` };
+      if (!["location", "negative_location", "language"].includes(criterionType))
+        return { error: "criterionType must be location, negative_location or language." };
+      return { kind: a.kind, campaign, criterionType, constantId };
+    }
+    case "set_bidding_strategy": {
+      const campaign = str(a.campaign);
+      const strategy = str(a.strategy).toUpperCase() as BiddingStrategy;
+      if (!campaign) return { error: "set_bidding_strategy needs a campaign." };
+      if (!["MAXIMIZE_CONVERSIONS", "MAXIMIZE_CONVERSION_VALUE", "TARGET_SPEND", "MANUAL_CPC"].includes(strategy))
+        return { error: "strategy must be MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE, TARGET_SPEND or MANUAL_CPC." };
+      const targetCpa = a.targetCpa != null ? Number(a.targetCpa) : undefined;
+      const targetRoas = a.targetRoas != null ? Number(a.targetRoas) : undefined;
+      if (targetCpa !== undefined && (!Number.isFinite(targetCpa) || targetCpa <= 0))
+        return { error: "targetCpa must be a positive number in account currency units." };
+      if (targetRoas !== undefined && (!Number.isFinite(targetRoas) || targetRoas <= 0 || targetRoas > 100))
+        return { error: "targetRoas must be a positive multiple (e.g. 3.5 for 350%), not a percentage." };
+      if (targetCpa !== undefined && strategy !== "MAXIMIZE_CONVERSIONS")
+        return { error: "targetCpa only applies to MAXIMIZE_CONVERSIONS." };
+      if (targetRoas !== undefined && strategy !== "MAXIMIZE_CONVERSION_VALUE")
+        return { error: "targetRoas only applies to MAXIMIZE_CONVERSION_VALUE." };
+      return { kind: "set_bidding_strategy", campaign, strategy, targetCpa, targetRoas };
     }
     default:
       return { error: `Unknown action kind "${a.kind}".` };
@@ -188,4 +244,69 @@ export function campaignSharedSetCreateOp(customerId: string, campaignId: string
 }
 export function sharedCriterionRemoveOp(resourceName: string): unknown {
   return { sharedCriterionOperation: { remove: resourceName } };
+}
+
+// ---- Widened move classes (2026-09-03) ----
+export function adGroupStatusOp(customerId: string, adGroupId: string, status: "PAUSED" | "ENABLED"): unknown {
+  return {
+    adGroupOperation: {
+      update: { resourceName: `customers/${customerId}/adGroups/${adGroupId}`, status },
+      updateMask: "status",
+    },
+  };
+}
+export function adGroupAdStatusOp(customerId: string, adGroupId: string, adId: string, status: "PAUSED" | "ENABLED"): unknown {
+  return {
+    adGroupAdOperation: {
+      update: { resourceName: `customers/${customerId}/adGroupAds/${adGroupId}~${adId}`, status },
+      updateMask: "status",
+    },
+  };
+}
+export function campaignSharedSetRemoveOp(resourceName: string): unknown {
+  return { campaignSharedSetOperation: { remove: resourceName } };
+}
+/** Campaign criterion for a geo target or language constant. negative_location
+ *  is the location criterion with negative: true (an exclusion). */
+export function campaignCriterionCreateOp(
+  customerId: string, campaignId: string, criterionType: CriterionType, constantId: string,
+): unknown {
+  const base: Record<string, unknown> = { campaign: `customers/${customerId}/campaigns/${campaignId}` };
+  if (criterionType === "language") base.language = { languageConstant: `languageConstants/${constantId}` };
+  else {
+    base.location = { geoTargetConstant: `geoTargetConstants/${constantId}` };
+    if (criterionType === "negative_location") base.negative = true;
+  }
+  return { campaignCriterionOperation: { create: base } };
+}
+export function campaignCriterionRemoveOp(resourceName: string): unknown {
+  return { campaignCriterionOperation: { remove: resourceName } };
+}
+/** Switch a campaign's bidding scheme. The updateMask names the scheme message,
+ *  so the oneof flips atomically; targets ride inside the new scheme. */
+export function campaignBiddingOp(
+  customerId: string, campaignId: string, strategy: BiddingStrategy,
+  targets: { targetCpaMicros?: number; targetRoas?: number },
+): unknown {
+  const update: Record<string, unknown> = { resourceName: `customers/${customerId}/campaigns/${campaignId}` };
+  let mask = "";
+  switch (strategy) {
+    case "MAXIMIZE_CONVERSIONS":
+      update.maximizeConversions = targets.targetCpaMicros ? { targetCpaMicros: String(Math.round(targets.targetCpaMicros)) } : {};
+      mask = "maximize_conversions";
+      break;
+    case "MAXIMIZE_CONVERSION_VALUE":
+      update.maximizeConversionValue = targets.targetRoas ? { targetRoas: targets.targetRoas } : {};
+      mask = "maximize_conversion_value";
+      break;
+    case "TARGET_SPEND":
+      update.targetSpend = {};
+      mask = "target_spend";
+      break;
+    case "MANUAL_CPC":
+      update.manualCpc = { enhancedCpcEnabled: false };
+      mask = "manual_cpc";
+      break;
+  }
+  return { campaignOperation: { update, updateMask: mask } };
 }

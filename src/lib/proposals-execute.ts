@@ -14,6 +14,8 @@ import {
   negativeKeywordCreateOp, negativeKeywordRemoveOp, campaignStatusOp, budgetUpdateOp,
   sharedNegativeSetName, sharedSetCreateOp, sharedCriterionCreateOp,
   campaignSharedSetCreateOp, sharedCriterionRemoveOp,
+  adGroupStatusOp, adGroupAdStatusOp, campaignSharedSetRemoveOp,
+  campaignCriterionCreateOp, campaignCriterionRemoveOp, campaignBiddingOp,
   type ExecAction,
 } from "@/lib/integrations/google-ads/write";
 import { recordWriteAudit } from "@/lib/write-audit";
@@ -111,18 +113,37 @@ async function resolveCampaign(customerId: string, name: string): Promise<Campai
     budgetAmountMicros: num(b.amountMicros), budgetShared: b.explicitlyShared === true,
   };
 }
-async function resolveAdGroup(customerId: string, name: string, campaignId: string): Promise<{ id: string } | { error: string }> {
+async function resolveAdGroup(customerId: string, name: string, campaignId: string): Promise<{ id: string; status: string } | { error: string }> {
   const r = String(name ?? "").trim();
   const digits = r.replace(/\D/g, "");
   const predicate = digits.length >= 6 && /^[\d\s-]+$/.test(r) ? `ad_group.id = ${digits}` : `ad_group.name = '${gaqlStr(r)}'`;
   const rows = await gaqlSearch(
     customerId,
-    `SELECT ad_group.id, ad_group.name FROM ad_group
+    `SELECT ad_group.id, ad_group.name, ad_group.status FROM ad_group
      WHERE ${predicate} AND campaign.id = ${campaignId} AND ad_group.status != 'REMOVED'`,
   );
   if (rows.length === 0) return { error: `No ad group matching "${name}" in that campaign.` };
   if (rows.length > 1) return { error: `Ad group "${name}" is ambiguous.` };
-  return { id: String(((rows[0].adGroup ?? {}) as { id?: string | number }).id) };
+  const ag = (rows[0].adGroup ?? {}) as { id?: string | number; status?: string };
+  return { id: String(ag.id), status: String(ag.status ?? "") };
+}
+
+/** Resolve a shared set by exact name or numeric id: negative keyword lists and
+ *  brand lists both live here, which is what makes attach_shared_set cover the
+ *  PMax brand-exclusion case. */
+async function resolveSharedSet(customerId: string, ref: string): Promise<{ resourceName: string; id: string; name: string; type: string } | { error: string }> {
+  const r = String(ref ?? "").trim();
+  const digits = r.replace(/\D/g, "");
+  const predicate = digits.length >= 4 && /^[\d\s-]+$/.test(r) ? `shared_set.id = ${digits}` : `shared_set.name = '${gaqlStr(r)}'`;
+  const rows = await gaqlSearch(
+    customerId,
+    `SELECT shared_set.resource_name, shared_set.id, shared_set.name, shared_set.type
+     FROM shared_set WHERE ${predicate} AND shared_set.status != 'REMOVED'`,
+  );
+  if (rows.length === 0) return { error: `No shared set matching "${ref}" in this account.` };
+  if (rows.length > 1) return { error: `Shared set "${ref}" is ambiguous (${rows.length} matches) — use the id.` };
+  const s = (rows[0].sharedSet ?? {}) as { resourceName?: string; id?: string | number; name?: string; type?: string };
+  return { resourceName: String(s.resourceName), id: String(s.id), name: String(s.name ?? ref), type: String(s.type ?? "") };
 }
 
 function firstResourceName(resp: Awaited<ReturnType<typeof googleAdsMutate>>): string | undefined {
@@ -254,6 +275,149 @@ async function prepare(customerId: string, action: ExecAction): Promise<Prep | {
     return { ops: [campaignStatusOp(customerId, camp.id, "PAUSED")], before: { campaignId: camp.id, status: camp.status }, campaign: camp };
   }
 
+  // ---- Widened kinds (founder ruling 2026-09-03: Oscar builds and optimises).
+  // Gate policy by blast radius: pure-narrowing writes (attach a negative or
+  // brand list, add a negative location) ride like negatives with no campaign
+  // gate; anything delivery-stopping or delivery-widening takes guardCampaignWrite.
+
+  if (action.kind === "pause_ad_group") {
+    const guard = guardCampaignWrite(camp.id);
+    if (guard) return { error: guard };
+    const ag = await resolveAdGroup(customerId, action.adGroup, camp.id);
+    if ("error" in ag) return ag;
+    if (ag.status === "PAUSED") return { error: `Ad group "${action.adGroup}" is already paused.` };
+    return {
+      ops: [adGroupStatusOp(customerId, ag.id, "PAUSED")],
+      before: { adGroupId: ag.id, status: ag.status },
+      campaign: camp,
+    };
+  }
+
+  if (action.kind === "pause_ad") {
+    const guard = guardCampaignWrite(camp.id);
+    if (guard) return { error: guard };
+    const ag = await resolveAdGroup(customerId, action.adGroup, camp.id);
+    if ("error" in ag) return ag;
+    const adRows = await gaqlSearch(
+      customerId,
+      `SELECT ad_group_ad.status, ad_group_ad.ad.id FROM ad_group_ad
+       WHERE ad_group_ad.ad.id = ${action.adId} AND ad_group.id = ${ag.id} AND ad_group_ad.status != 'REMOVED'`,
+    );
+    if (!adRows.length) return { error: `No ad ${action.adId} in ad group "${action.adGroup}".` };
+    const adStatus = String(((adRows[0].adGroupAd ?? {}) as { status?: string }).status ?? "");
+    if (adStatus === "PAUSED") return { error: `Ad ${action.adId} is already paused.` };
+    return {
+      ops: [adGroupAdStatusOp(customerId, ag.id, action.adId, "PAUSED")],
+      before: { adGroupId: ag.id, adId: action.adId, status: adStatus },
+      campaign: camp,
+    };
+  }
+
+  if (action.kind === "attach_shared_set" || action.kind === "detach_shared_set") {
+    // Detaching a negative or brand list WIDENS delivery, so it takes the
+    // campaign gate; attaching only narrows and rides like a negative keyword.
+    if (action.kind === "detach_shared_set") {
+      const guard = guardCampaignWrite(camp.id);
+      if (guard) return { error: guard };
+    }
+    const set = await resolveSharedSet(customerId, action.sharedSet);
+    if ("error" in set) return set;
+    const linkResource = `customers/${customerId}/campaignSharedSets/${camp.id}~${set.id}`;
+    const links = await gaqlSearch(
+      customerId,
+      `SELECT campaign_shared_set.resource_name FROM campaign_shared_set
+       WHERE campaign_shared_set.campaign = 'customers/${customerId}/campaigns/${camp.id}'
+         AND campaign_shared_set.shared_set = '${gaqlStr(set.resourceName)}'
+         AND campaign_shared_set.status != 'REMOVED'`,
+    );
+    const linked = links.length > 0;
+    if (action.kind === "attach_shared_set") {
+      if (linked) return { error: `"${set.name}" is already attached to that campaign.` };
+      return {
+        ops: [campaignSharedSetCreateOp(customerId, camp.id, set.resourceName)],
+        before: { linked: false, sharedSet: set.resourceName, sharedSetName: set.name, sharedSetType: set.type, campaignId: camp.id },
+        campaign: camp,
+        sharedSet: set.resourceName,
+      };
+    }
+    if (!linked) return { error: `"${set.name}" is not attached to that campaign, so there is nothing to detach.` };
+    return {
+      ops: [campaignSharedSetRemoveOp(linkResource)],
+      before: { linked: true, linkResource, sharedSet: set.resourceName, sharedSetName: set.name, sharedSetType: set.type, campaignId: camp.id },
+      campaign: camp,
+      sharedSet: set.resourceName,
+    };
+  }
+
+  if (action.kind === "add_campaign_criterion" || action.kind === "remove_campaign_criterion") {
+    // Adding a negative location narrows; everything else here reshapes
+    // delivery and takes the campaign gate.
+    if (!(action.kind === "add_campaign_criterion" && action.criterionType === "negative_location")) {
+      const guard = guardCampaignWrite(camp.id);
+      if (guard) return { error: guard };
+    }
+    const isLanguage = action.criterionType === "language";
+    const field = isLanguage ? "campaign_criterion.language.language_constant" : "campaign_criterion.location.geo_target_constant";
+    const constant = isLanguage ? `languageConstants/${action.constantId}` : `geoTargetConstants/${action.constantId}`;
+    const rows = await gaqlSearch(
+      customerId,
+      `SELECT campaign_criterion.resource_name, campaign_criterion.negative, ${field}
+       FROM campaign_criterion
+       WHERE campaign.id = ${camp.id} AND ${field} = '${constant}' AND campaign_criterion.status != 'REMOVED'`,
+    );
+    const wantNegative = action.criterionType === "negative_location";
+    const existing = rows.find((r) => {
+      const cc = (r.campaignCriterion ?? {}) as { negative?: boolean };
+      return isLanguage || (cc.negative === true) === wantNegative;
+    });
+    if (action.kind === "add_campaign_criterion") {
+      if (existing) return { error: `That ${action.criterionType} criterion (${constant}) already exists on the campaign.` };
+      return {
+        ops: [campaignCriterionCreateOp(customerId, camp.id, action.criterionType, action.constantId)],
+        before: { campaignId: camp.id, criterion: constant, criterionType: action.criterionType, note: "criterion does not exist yet" },
+        campaign: camp,
+      };
+    }
+    if (!existing) return { error: `No ${action.criterionType} criterion for ${constant} on that campaign.` };
+    const rn = String(((existing.campaignCriterion ?? {}) as { resourceName?: string }).resourceName);
+    return {
+      ops: [campaignCriterionRemoveOp(rn)],
+      before: { campaignId: camp.id, criterion: constant, criterionType: action.criterionType, resourceName: rn },
+      campaign: camp,
+    };
+  }
+
+  if (action.kind === "set_bidding_strategy") {
+    const guard = guardCampaignWrite(camp.id);
+    if (guard) return { error: guard };
+    const rows = await gaqlSearch(
+      customerId,
+      `SELECT campaign.bidding_strategy_type, campaign.bidding_strategy,
+              campaign.maximize_conversions.target_cpa_micros,
+              campaign.maximize_conversion_value.target_roas
+       FROM campaign WHERE campaign.id = ${camp.id}`,
+    );
+    const c = (rows[0]?.campaign ?? {}) as Record<string, unknown>;
+    if (c.biddingStrategy)
+      return { error: "Campaign uses a PORTFOLIO bidding strategy; changing portfolio membership is out of scope for this action. Detach it in the UI first or file an advisory." };
+    const before = {
+      campaignId: camp.id,
+      biddingStrategyType: String(c.biddingStrategyType ?? ""),
+      targetCpaMicros: num(((c.maximizeConversions ?? {}) as { targetCpaMicros?: unknown }).targetCpaMicros),
+      targetRoas: num(((c.maximizeConversionValue ?? {}) as { targetRoas?: unknown }).targetRoas),
+    };
+    if (before.biddingStrategyType === action.strategy && !action.targetCpa && !action.targetRoas)
+      return { error: `Campaign already runs ${action.strategy} with no target change requested.` };
+    return {
+      ops: [campaignBiddingOp(customerId, camp.id, action.strategy, {
+        targetCpaMicros: action.targetCpa ? action.targetCpa * 1_000_000 : undefined,
+        targetRoas: action.targetRoas,
+      })],
+      before,
+      campaign: camp,
+    };
+  }
+
   // set_campaign_budget
   const guard = guardCampaignWrite(camp.id);
   if (guard) return { error: guard };
@@ -378,6 +542,39 @@ export async function rollbackProposal(id: string, actor: string): Promise<Resul
     const before = exec.before as { campaignId?: string; status?: string } | undefined;
     if (!before?.campaignId) return { error: "No prior state stored." };
     op = campaignStatusOp(customerId, before.campaignId, (before.status as "ENABLED") ?? "ENABLED");
+  } else if (action.kind === "pause_ad_group") {
+    const before = exec.before as { adGroupId?: string; status?: string } | undefined;
+    if (!before?.adGroupId) return { error: "No prior ad group state stored." };
+    op = adGroupStatusOp(customerId, before.adGroupId, (before.status as "ENABLED") ?? "ENABLED");
+  } else if (action.kind === "pause_ad") {
+    const before = exec.before as { adGroupId?: string; adId?: string; status?: string } | undefined;
+    if (!before?.adGroupId || !before.adId) return { error: "No prior ad state stored." };
+    op = adGroupAdStatusOp(customerId, before.adGroupId, before.adId, (before.status as "ENABLED") ?? "ENABLED");
+  } else if (action.kind === "attach_shared_set") {
+    const rn = exec.resourceName as string | undefined;
+    if (!rn) return { error: "No link resource name stored — cannot detach." };
+    op = campaignSharedSetRemoveOp(rn);
+  } else if (action.kind === "detach_shared_set") {
+    const before = exec.before as { campaignId?: string; sharedSet?: string } | undefined;
+    if (!before?.campaignId || !before.sharedSet) return { error: "No prior link stored — cannot re-attach." };
+    op = campaignSharedSetCreateOp(customerId, before.campaignId, before.sharedSet);
+  } else if (action.kind === "add_campaign_criterion") {
+    const rn = exec.resourceName as string | undefined;
+    if (!rn) return { error: "No criterion resource name stored — cannot remove it." };
+    op = campaignCriterionRemoveOp(rn);
+  } else if (action.kind === "remove_campaign_criterion") {
+    const before = exec.before as { campaignId?: string } | undefined;
+    if (!before?.campaignId) return { error: "No prior criterion stored — cannot re-create it." };
+    op = campaignCriterionCreateOp(customerId, before.campaignId, action.criterionType, action.constantId);
+  } else if (action.kind === "set_bidding_strategy") {
+    const before = exec.before as { campaignId?: string; biddingStrategyType?: string; targetCpaMicros?: number; targetRoas?: number } | undefined;
+    if (!before?.campaignId || !before.biddingStrategyType) return { error: "No prior bidding scheme stored." };
+    const prevValid = ["MAXIMIZE_CONVERSIONS", "MAXIMIZE_CONVERSION_VALUE", "TARGET_SPEND", "MANUAL_CPC"].includes(before.biddingStrategyType);
+    if (!prevValid) return { error: `Prior scheme ${before.biddingStrategyType} is not one this worker can restore — restore it by hand.` };
+    op = campaignBiddingOp(customerId, before.campaignId, before.biddingStrategyType as "MAXIMIZE_CONVERSIONS", {
+      targetCpaMicros: num(before.targetCpaMicros) || undefined,
+      targetRoas: num(before.targetRoas) || undefined,
+    });
   } else {
     const before = exec.before as { budgetResourceName?: string; amountMicros?: number } | undefined;
     if (!before?.budgetResourceName) return { error: "No prior budget stored." };
@@ -425,6 +622,45 @@ async function verify(
   if (action.kind === "set_campaign_budget" && prep.campaign) {
     const rows = await gaqlSearch(customerId, `SELECT campaign_budget.amount_micros FROM campaign WHERE campaign.id = ${prep.campaign.id}`);
     return { amountMicros: num(((rows[0]?.campaignBudget ?? {}) as { amountMicros?: string }).amountMicros) };
+  }
+  if (action.kind === "pause_ad_group" && resourceName) {
+    const rows = await gaqlSearch(customerId, `SELECT ad_group.status FROM ad_group WHERE ad_group.resource_name = '${gaqlStr(resourceName)}'`);
+    return { status: ((rows[0]?.adGroup ?? {}) as { status?: string }).status };
+  }
+  if (action.kind === "pause_ad" && resourceName) {
+    const rows = await gaqlSearch(customerId, `SELECT ad_group_ad.status FROM ad_group_ad WHERE ad_group_ad.resource_name = '${gaqlStr(resourceName)}'`);
+    return { status: ((rows[0]?.adGroupAd ?? {}) as { status?: string }).status };
+  }
+  if ((action.kind === "attach_shared_set" || action.kind === "detach_shared_set") && prep.campaign && prep.sharedSet) {
+    const rows = await gaqlSearch(
+      customerId,
+      `SELECT campaign_shared_set.resource_name FROM campaign_shared_set
+       WHERE campaign_shared_set.campaign = 'customers/${customerId}/campaigns/${prep.campaign.id}'
+         AND campaign_shared_set.shared_set = '${gaqlStr(prep.sharedSet)}'
+         AND campaign_shared_set.status != 'REMOVED'`,
+    );
+    return { linked: rows.length > 0, expected: action.kind === "attach_shared_set" };
+  }
+  if (action.kind === "add_campaign_criterion" && resourceName) {
+    const rows = await gaqlSearch(customerId, `SELECT campaign_criterion.resource_name, campaign_criterion.negative FROM campaign_criterion WHERE campaign_criterion.resource_name = '${gaqlStr(resourceName)}'`);
+    return { exists: rows.length > 0, resourceName };
+  }
+  if (action.kind === "remove_campaign_criterion" && prep.campaign) {
+    return { removed: true };
+  }
+  if (action.kind === "set_bidding_strategy" && prep.campaign) {
+    const rows = await gaqlSearch(
+      customerId,
+      `SELECT campaign.bidding_strategy_type, campaign.maximize_conversions.target_cpa_micros,
+              campaign.maximize_conversion_value.target_roas
+       FROM campaign WHERE campaign.id = ${prep.campaign.id}`,
+    );
+    const c = (rows[0]?.campaign ?? {}) as Record<string, unknown>;
+    return {
+      biddingStrategyType: String(c.biddingStrategyType ?? ""),
+      targetCpaMicros: num(((c.maximizeConversions ?? {}) as { targetCpaMicros?: unknown }).targetCpaMicros),
+      targetRoas: num(((c.maximizeConversionValue ?? {}) as { targetRoas?: unknown }).targetRoas),
+    };
   }
   return {};
 }

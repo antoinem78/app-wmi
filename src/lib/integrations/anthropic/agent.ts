@@ -199,20 +199,33 @@ const TOOLS: Anthropic.Tool[] = [
         details: {
           type: "object",
           description:
-            "To make the proposal EXECUTABLE (gives it an Apply button), include an `action` object — exactly ONE operation per proposal (one op per approval; NO batching). For multiple negatives, file SEPARATE proposals, one keyword each. For campaign-level actions (add_negative_keyword, pause_campaign, set_campaign_budget) the `campaign` field is REQUIRED and must be an EXACT campaign name from list_campaigns (do NOT guess). For an account-wide shared negative use add_shared_negative (NO campaign). If you cannot pin a campaign-level change to a specific campaign, OMIT `action` entirely and file it as ADVISORY — never emit a campaign-level action with a missing or invented campaign.",
+            "To make the proposal EXECUTABLE (gives it an Apply button), include an `action` object — exactly ONE operation per proposal (one op per approval; NO batching). For multiple negatives or criteria, file SEPARATE proposals, one each. Every campaign-scoped action's `campaign` field must be an EXACT campaign name or id from list_campaigns (do NOT guess). For an account-wide shared negative use add_shared_negative (NO campaign). If you cannot pin a change to its exact entity, OMIT `action` entirely and file it as ADVISORY — never emit an action with a missing or invented entity reference.",
           properties: {
             action: {
               type: "object",
               description:
-                "campaign negative: {kind:'add_negative_keyword', campaign, level:'campaign'|'ad_group', adGroup?, text:'<one keyword>', matchType:'EXACT'|'PHRASE'|'BROAD'}. shared/account-level negative (attaches to all Search campaigns): {kind:'add_shared_negative', text:'<one keyword>', matchType:'EXACT'|'PHRASE'|'BROAD'}. pause: {kind:'pause_campaign', campaign}. budget: {kind:'set_campaign_budget', campaign, newDailyAmount:<number in account currency>}.",
+                "campaign negative: {kind:'add_negative_keyword', campaign, level:'campaign'|'ad_group', adGroup?, text:'<one keyword>', matchType:'EXACT'|'PHRASE'|'BROAD'}. " +
+                "shared/account-level negative (attaches to all Search campaigns): {kind:'add_shared_negative', text, matchType}. " +
+                "pause: {kind:'pause_campaign', campaign} | {kind:'pause_ad_group', campaign, adGroup} | {kind:'pause_ad', campaign, adGroup, adId:'<numeric ad id>'}. " +
+                "budget: {kind:'set_campaign_budget', campaign, newDailyAmount:<number in account currency>}. " +
+                "shared set link, covering negative keyword lists AND brand lists (PMax brand exclusions): {kind:'attach_shared_set'|'detach_shared_set', campaign, sharedSet:'<exact shared set name or id>'}. " +
+                "campaign criterion: {kind:'add_campaign_criterion'|'remove_campaign_criterion', campaign, criterionType:'location'|'negative_location'|'language', constantId:'<geo target or language constant id, digits only>'}. " +
+                "bidding: {kind:'set_bidding_strategy', campaign, strategy:'MAXIMIZE_CONVERSIONS'|'MAXIMIZE_CONVERSION_VALUE'|'TARGET_SPEND'|'MANUAL_CPC', targetCpa?:<currency units, MAXIMIZE_CONVERSIONS only>, targetRoas?:<a multiple like 3.5, MAXIMIZE_CONVERSION_VALUE only>}. A campaign on a PORTFOLIO bidding strategy is refused by the worker; say so rather than proposing one.",
               properties: {
-                kind: { type: "string", enum: ["add_negative_keyword", "add_shared_negative", "pause_campaign", "set_campaign_budget"] },
+                kind: { type: "string", enum: ["add_negative_keyword", "add_shared_negative", "pause_campaign", "set_campaign_budget", "pause_ad_group", "pause_ad", "attach_shared_set", "detach_shared_set", "add_campaign_criterion", "remove_campaign_criterion", "set_bidding_strategy"] },
                 campaign: { type: "string" },
                 level: { type: "string", enum: ["campaign", "ad_group"] },
                 adGroup: { type: "string" },
+                adId: { type: "string" },
                 text: { type: "string" },
                 matchType: { type: "string", enum: ["EXACT", "PHRASE", "BROAD"] },
                 newDailyAmount: { type: "number" },
+                sharedSet: { type: "string" },
+                criterionType: { type: "string", enum: ["location", "negative_location", "language"] },
+                constantId: { type: "string" },
+                strategy: { type: "string", enum: ["MAXIMIZE_CONVERSIONS", "MAXIMIZE_CONVERSION_VALUE", "TARGET_SPEND", "MANUAL_CPC"] },
+                targetCpa: { type: "number" },
+                targetRoas: { type: "number" },
               },
             },
             revision_of: {
@@ -267,7 +280,7 @@ YOUR JOB:
 - You may PROPOSE optimisations (negatives to add, budget reallocations, RSA improvements, campaigns/ad groups to pause) with clear, figure-backed rationale. But you CANNOT execute anything.
 - When the user asks you to PROPOSE something (or you've found a concrete change worth formalising), call propose_optimization to file it as a reviewable card, then tell the user it is filed. The founder can approve and apply WITHOUT leaving this chat: on his explicit word, decide_proposal records the approval and apply_proposal executes it behind the same guardrails as the Proposals page. Offer dry_run_proposal when he hesitates. NEVER claim a change was made unless apply_proposal returned success; execution authority is his word, never your inference.
 - NORBERT REVIEWS EVERY PROPOSAL YOU FILE, in code, before the founder sees it (since 2026-09-03). The propose_optimization result carries his verdict and any flags (thrashing entity, recent human changes, unreadable change history). Report the verdict to the founder as it is. If Norbert objects, do not argue in chat: either accept the objection in one sentence, or file ONE corrected proposal with details.revision_of set to the objected proposal's id. There is no third round. His verdict is advice; the founder decides, and an unreviewed proposal cannot be approved.
-- For the executable actions — add a single (campaign or ad-group) negative keyword, add a shared/account-level negative, pause a campaign, set a campaign daily budget — include the precise details.action block so the proposal can be applied behind the approval gate. ONE operation per proposal: to add several negatives, file several proposals (one keyword each), never a batch. For a campaign-level negative, pause, or budget change, first call list_campaigns to get the EXACT campaign name. For a shared negative (no campaign), use the add_shared_negative action.
+- For the executable actions, include the precise details.action block so the proposal can be applied behind the approval gate. The kinds you can execute (widened 2026-09-03, founder-ruled): negatives (campaign, ad-group, or account-wide shared), pause at campaign, AD GROUP and AD level, campaign daily budget, attach or detach a SHARED SET (negative keyword lists and brand lists, which is how a PMax brand exclusion is applied), add or remove a campaign CRITERION (location, negative location, language, by constant id), and SET BIDDING STRATEGY (type and target; portfolio-strategy campaigns are refused by the worker). ONE operation per proposal, never a batch. Resolve the exact entity first: list_campaigns for campaign names, and never invent an ad id, shared set name or constant id. Detaching a shared set and changing bidding are consequential (they widen delivery or reset bidding learning); say so in the rationale so the founder decides with that in view. Conversion action create/edit is NOT executable yet; file those as advisory.
 - NEGATIVE KEYWORDS: before proposing ANY negative keyword, call get_search_terms and cite the actual wasted queries (meaningful cost, zero/low conversions). Never invent a query. If get_search_terms returns nothing, say so and do not fabricate one. If a wasted query is spending across many Search campaigns, file a shared negative (add_shared_negative); if it is confined to one campaign, file a campaign-level add_negative_keyword against that exact campaign.
 - If asked whether an optimisation is needed and you think NOT, prove it with the figures.
 - dispatch_build creates a full Search campaign from a spec: campaign PAUSED always, atomic (all or nothing), gates in code, result verified by re-read. You CAN build from this chat. Lay the spec out, get the founder's explicit go, run validate_only first if anything is uncertain, then build and report the verified counts. The founder activates; you never do. PMax, Demand Gen and Shopping builds do not exist here; say so rather than improvising.
