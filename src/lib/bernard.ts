@@ -56,7 +56,6 @@ export interface BernardStatus {
   clients: BernardClient[];
   pending_fixes: BernardFix[];
   activity: { step: string; at: string; detail: string }[];
-  credits: { periodic: number; monthly: number } | null;
   generated_at: string;
 }
 

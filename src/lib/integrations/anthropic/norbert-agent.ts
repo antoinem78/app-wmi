@@ -50,7 +50,7 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
   {
     name: "get_bernard_status",
     description:
-      "Bernard's live Meta Lab snapshot from the substrate: lab clients (armed/disabled/stand-down, doctrine, monitors, ad accounts), fixes awaiting the founder's approval, recent activity trail, executor credits. Call before any judgement about the Meta side's current state.",
+      "Bernard's live Meta Lab snapshot from the substrate: lab clients (armed/disabled/stand-down, doctrine, monitors, ad accounts), fixes awaiting the founder's approval, recent activity trail. Call before any judgement about the Meta side's current state.",
     input_schema: { type: "object", properties: {} },
   },
   {

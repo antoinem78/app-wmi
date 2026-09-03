@@ -44,7 +44,7 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
     // breakpoint on SYSTEM_BASE covers this whole block too.
     name: "get_status",
     description:
-      "Bernard's live lab snapshot from the substrate: lab clients (armed/disabled/stand-down, doctrine version, skill install state, monitors, ad accounts), fixes awaiting founder approval, recent activity trail, and remaining executor credits. Call this before answering any question about the current state of the lab.",
+      "Bernard's live lab snapshot from the substrate: lab clients (armed/disabled/stand-down, doctrine version, skill install state, monitors, ad accounts), fixes awaiting founder approval, and the recent activity trail. Call this before answering any question about the current state of the lab.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -334,7 +334,7 @@ Use it like a strategist keeping a running file on every account:
 - Anything the founder rules on is worth remembering. If he corrects you, that correction is a memory.
 
 WHAT YOU CAN DO HERE:
-- get_status gives you the live lab snapshot (clients, pending fixes, activity, executor credits). Fetch it rather than guessing; never invent a figure, task id, client or timestamp.
+- get_status gives you the live lab snapshot (clients, pending fixes, activity). Fetch it rather than guessing; never invent a figure, task id, client or timestamp.
 - list_meta_accounts shows every ad account the system user can see, live. Any account there is yours to read and audit immediately — assignment in Business Manager is the onboarding for reads. (Executor dispatch for a client still requires lab registration in the substrate.)
 - get_breakdowns reads the structured breakdowns (placement, age and gender, per-ad performance with video engagement, creative-by-placement and creative-by-demographic), scoped to a campaign set and window. This is YOUR data surface for "which creative works where" and "who is responding to what": answer from it directly, never from memory of an audit document. On lead-gen accounts rank on cost per lead; the purchase columns will be zero and that is not a finding. Give the founder the download_path when the tables themselves are wanted (it is internal raw material, never a client deliverable).
 - run_audit reads one account's full ground truth (read-only) so you can audit it right here in chat. Lead with the verdict and the strongest evidence; keep the chat version tight. The tool result carries download_path — ALWAYS give the founder that link at the end of an audit, on its own line, e.g. "Word document: /api/bernard/audit/123456?days=30". The document is generated fresh from the same live data when they click it.

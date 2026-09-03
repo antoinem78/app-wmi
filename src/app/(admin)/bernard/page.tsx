@@ -58,17 +58,6 @@ export default async function BernardPage() {
             Meta Lab supervisor — audits, dispatches and verifies the executor; never activates anything.
           </p>
         </div>
-        {/* Guard on the NUMBERS, not the object: the webhook returned null in
-            the Manus era and returns {} now, and an empty object is truthy,
-            which blanked the whole page on 26 August. */}
-        {typeof status?.credits?.periodic === "number" && typeof status?.credits?.monthly === "number" && (
-          <div className="text-right text-sm text-zinc-500">
-            Executor credits
-            <div className="text-lg font-semibold text-zinc-900">
-              {status.credits.periodic.toLocaleString()} + {status.credits.monthly.toLocaleString()}
-            </div>
-          </div>
-        )}
       </div>
 
       {error && (
