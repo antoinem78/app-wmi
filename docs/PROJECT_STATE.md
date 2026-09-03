@@ -378,6 +378,7 @@ Client operational history that predates the split lives in git (checkpoint d71c
 Both tracks share this repo, the substrate, Supabase, the GHL account and Bernard. So:
 
 - **Coordinate through this file.** Update it when something lands, gets blocked, or a ruling is made. That is the whole mechanism.
+- **The strategic layer is `docs/SINGULARWEB_PROJECT_STATE.md`** (repo copy is the master, founder-ruled 2026-09-03; convention in AGENTS.md). Rulings, client-book changes, product-line status, agent capability and closed open items get a section edit plus a §0 changelog line there, in the same commit as the change. Operational state stays here and in the channel files.
 - **Agent memory is the other shared surface.** If you learn something durable about an account, it belongs in `agent_memory` (portal DB, scoped by the `agent` column: `bernard` for Meta, `oscar` for Google) so the other session's agent has it too.
 - **Watch for collisions on shared files.** `src/lib/integrations/anthropic/`, `src/lib/bernard*.ts` and the substrate workflows are touched by both tracks. Check `git status` and recent commits before editing.
 - **Migrations are numbered sequentially** in `docs/substrate-migrations/` (0001 to 0003 taken; **0004 claimed by the ecommerce session 2026-07-31** for `0004_commerce_schema.sql`, target substrate; next free is `0005_`). Two sessions creating the same number will conflict, so claim it here when you start one, and state the target database in the file header per the README.

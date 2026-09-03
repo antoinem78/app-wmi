@@ -11,6 +11,7 @@
 ## 0. Changelog (newest first; one line per change; this is what makes the file alive)
 
 - 2026-09-03 · Fly-Rides channel: HubSpot and Zapier seats granted; §6.6 filled (case (a), Fly-Rides, free remediation, four acceptance criteria, checkpoint w/c 22 Sept); read/write method ruled (HubSpot MCP); §10 updated; technical shape in repo `docs/HUBSPOT_CLIENT_BLUEPRINT.md`.
+- 2026-09-03 · Founder ruling: the repo copy is the master; every Code session reads §0 and §4 at start and updates this file in the same commit as the change (AGENTS.md, PROJECT_STATE §7, §11 here). Validation report for Chat at `docs/SINGULARWEB_STATE_VALIDATION_REPORT.md`.
 - 2026-09-03 · Optimise glue smoke built (`tests/optimise-glue.smoke.js`); two live verifier bugs found and fixed, both workflows redeployed; §8 and §10 updated.
 - 2026-09-03 · Oscar's Norbert insertion built (spec §9) and proven live on three Fly-Rides proposals; §8 and §10 updated.
 - 2026-09-03 · WE BET test client deleted by the founder; §7 and §10 updated.
@@ -146,8 +147,8 @@ Verify against reality; claimed is not true until read back. Decisions written b
 ## 11. Maintenance protocol
 
 1. Any session (Chat or Code) that introduces a feature, closes a ruling, signs a client, or learns something that changes doctrine **appends one changelog line** and edits the one section it touches. Surgical, never redrafted.
-2. The founder refreshes the project-panel copy from the newest version; Code mirrors to the repo; sibling projects receive the parent context on their next session.
-3. **Friday sync:** reconcile against Code's PROJECT_STATE, update the sync horizon, and flag anything UNVERIFIED that is still unverified a week later.
+2. **The repo copy (`docs/SINGULARWEB_PROJECT_STATE.md`) is the master, founder-ruled 2026-09-03.** Every Code session reads §0 and §4 at start and edits this file in the same commit as the change it records; the rule is in `AGENTS.md`, which every session loads. Chat proposes edits as a named section plus a §0 line and hands them to the founder for the repo; it does not edit its own copy. The founder refreshes the panel copy from the repo; nobody edits the panel copy directly. Sibling projects receive the parent context on their next session.
+3. **Friday sync** is a diff review, panel against repo, not an authoring session: update the sync horizon with the commit hash, and flag anything UNVERIFIED that is still unverified a week later.
 4. The register's maintenance rule applies: a capability, client, or ruling that disappears from this file without a status word (retired, parked, superseded, closed) is a defect, not a tidy-up.
 
 ## 12. Code verification pass, 2026-09-03 (the four asks)
