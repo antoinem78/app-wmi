@@ -11,7 +11,7 @@
 ## 0. Changelog (newest first; one line per change; this is what makes the file alive)
 
 - 2026-09-03 · Fly-Rides channel: HubSpot and Zapier seats granted; §6.6 filled (case (a), Fly-Rides, free remediation, four acceptance criteria, checkpoint w/c 22 Sept); read/write method ruled (HubSpot MCP); §10 updated; technical shape in repo `docs/HUBSPOT_CLIENT_BLUEPRINT.md`.
-- 2026-09-03 · Oscar's Norbert insertion built (spec §9); §8 and §10 updated.
+- 2026-09-03 · Oscar's Norbert insertion built (spec §9) and proven live on three Fly-Rides proposals; §8 and §10 updated.
 - 2026-09-03 · WE BET test client deleted by the founder; §7 and §10 updated.
 - 2026-09-03 · Code verification pass: 9 falsifications corrected inline (§1, §4, §5, §7, §10), §8 filled from live reads, §12 appended with evidence, missing rulings added to §4, Gopoxy and Fly-Rides added to §5, booking engine, upsells and agent optimise added to §7. Mirrored to the repo as `docs/SINGULARWEB_PROJECT_STATE.md`.
 - 2026-09-03 · File created. HubSpot blueprint entry opened as a template (§6.6) pending founder input. Unverified items from Code flagged (§8). Sync horizon declared.
