@@ -12,7 +12,7 @@
 
 - 2026-09-03 · Fly-Rides: HubSpot MCP connected (founder's seat, connector in the client portal); four closed-won deals written and read back; Muneeb's Google Data Connector identified as the second import pipeline (double-count suspicion); Zap fix blocked on Scott sharing his private Zap folder.
 - 2026-09-03 · Fly-Rides channel: HubSpot and Zapier seats granted; §6.6 filled (case (a), Fly-Rides, free remediation, four acceptance criteria, checkpoint w/c 22 Sept); read/write method ruled (HubSpot MCP); §10 updated; technical shape in repo `docs/HUBSPOT_CLIENT_BLUEPRINT.md`.
-- 2026-09-03 · Meta token moved from query-string to header auth across all 21 Graph nodes; old executions still hold it, pruning awaits the founder.
+- 2026-09-03 · Meta token moved from query-string to header auth across all 21 Graph nodes; the 8 stored executions that held it pruned on the founder's word; instance-wide re-scan clean.
 - 2026-09-03 · n8n and Supabase audit (`docs/N8N_SUPABASE_AUDIT_2026-09-03.md`): six fixes live (error handlers, internal webhook auth, null-tenant guard, Drive quota offset, probes off); backups confirmed daily since 16 Aug; eight founder items listed in §10.
 - 2026-09-03 · Founder ruling: the repo copy is the master; every Code session reads §0 and §4 at start and updates this file in the same commit as the change (AGENTS.md, PROJECT_STATE §7, §11 here). Validation report for Chat at `docs/SINGULARWEB_STATE_VALIDATION_REPORT.md`.
 - 2026-09-03 · Optimise glue smoke built (`tests/optimise-glue.smoke.js`); two live verifier bugs found and fixed, both workflows redeployed; §8 and §10 updated.
