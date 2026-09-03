@@ -4,6 +4,7 @@
 // (the P5 mutate layer will later hang off an approved proposal).
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity";
+import { approvalGate, type ReviewRecord } from "@/lib/norbert-review-rules";
 
 export type ProposalType =
   | "negative_keywords"
@@ -27,6 +28,10 @@ export interface Proposal {
   decidedBy: string | null;
   decidedAt: string | null;
   execution: Record<string, unknown>;
+  // Norbert's review (0026). null until he has looked at it; the approve and
+  // apply gates refuse a proposal he has never reviewed.
+  norbertReview: ReviewRecord | null;
+  norbertReviewedAt: string | null;
 }
 
 const PROPOSAL_TYPES: ProposalType[] = [
@@ -43,6 +48,7 @@ type Row = {
   status: string; created_by: string | null; created_at: string;
   decided_by: string | null; decided_at: string | null;
   execution: Record<string, unknown> | null;
+  norbert_review?: ReviewRecord | null; norbert_reviewed_at?: string | null;
 };
 function mapRow(r: Row): Proposal {
   return {
@@ -51,6 +57,7 @@ function mapRow(r: Row): Proposal {
     title: r.title, rationale: r.rationale, details: r.details ?? {},
     status: r.status as ProposalStatus, createdBy: r.created_by, createdAt: r.created_at,
     decidedBy: r.decided_by, decidedAt: r.decided_at, execution: r.execution ?? {},
+    norbertReview: r.norbert_review ?? null, norbertReviewedAt: r.norbert_reviewed_at ?? null,
   };
 }
 
@@ -189,11 +196,17 @@ export async function decideProposal(
   const supabase = createSupabaseAdminClient();
   const { data: row } = await supabase
     .from("optimization_proposals")
-    .select("client_id, status, title, type")
+    .select("client_id, status, title, type, norbert_review, norbert_reviewed_at")
     .eq("id", id)
     .single();
   if (!row) return { error: "Proposal not found." };
   if (row.status !== "pending") return { error: `Already ${row.status}.` };
+  // Norbert before the founder (spec §9). Dismissing needs no review; approving
+  // an unreviewed proposal is refused here, in code, whichever surface asked.
+  if (decision === "approved") {
+    const gate = approvalGate(row.norbert_review, (row.norbert_reviewed_at as string | null) ?? null);
+    if ("error" in gate) return gate;
+  }
   const { error } = await supabase
     .from("optimization_proposals")
     .update({ status: decision, decided_by: by, decided_at: new Date().toISOString() })

@@ -176,7 +176,7 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
   },
 ];
 
-const SYSTEM_BASE = `You are Norbert, the supervising agent at Rexos. Oscar (Google Ads) and Bernard (Meta) do the platform work; you review it, and this chat is the operation's front door: the founder discusses intent, priorities and judgement calls with you FIRST, and only then are Oscar and Bernard called and dispatched. You already review Bernard's staged optimisation moves in the substrate before the founder decides them; this chat extends the same role to the conversation layer.
+const SYSTEM_BASE = `You are Norbert, the supervising agent at Rexos. Oscar (Google Ads) and Bernard (Meta) do the platform work; you review it, and this chat is the operation's front door: the founder discusses intent, priorities and judgement calls with you FIRST, and only then are Oscar and Bernard called and dispatched. You already review Bernard's staged optimisation moves in the substrate before the founder decides them, and since 2026-09-03 every proposal Oscar files is reviewed by you in code the moment it is filed (verdict, flags and your untouched-problem paragraph sit on the proposal card; get_oscar_queue shows them). This chat extends the same role to the conversation layer.
 
 You are talking to the founder inside the Rexos portal.
 
@@ -372,6 +372,15 @@ async function runTool(
         createdAt: p.createdAt,
         decidedBy: p.decidedBy,
         decidedAt: p.decidedAt,
+        norbert: p.norbertReview
+          ? {
+              reviewedAt: p.norbertReviewedAt,
+              verdict: p.norbertReview.verdict ?? null,
+              untouched: p.norbertReview.q2 ?? null,
+              history: p.norbertReview.history ?? null,
+              error: p.norbertReview.error ?? null,
+            }
+          : "not reviewed yet",
       }));
     }
     case "brief_oscar":

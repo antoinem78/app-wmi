@@ -10,7 +10,7 @@ import { listProposals, type Proposal, type ProposalType } from "@/lib/proposals
 import { writeEnabled, allowedCustomers, parseAction } from "@/lib/integrations/google-ads/write";
 import {
   approveProposal, dismissProposal, deleteProposalAction, markAppliedAction,
-  dryRunProposalAction, applyProposalAction, rollbackProposalAction,
+  dryRunProposalAction, applyProposalAction, rollbackProposalAction, reviewProposalAction,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -120,11 +120,62 @@ function CardHead({ p }: { p: Proposal }) {
   );
 }
 
+// Norbert's verdict on the card, between Oscar's rationale and the founder's
+// buttons. Approve is withheld until he has looked; his objection never
+// withholds it, because disagreeing is his job and overruling is the founder's.
+function NorbertBlock({ p, allowAsk }: { p: Proposal; allowAsk: boolean }) {
+  const r = p.norbertReview;
+  if (!p.norbertReviewedAt || !r) {
+    return (
+      <div className="mt-3 flex items-center justify-between rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+        <span>Norbert has not reviewed this yet. Approval waits for his look; his verdict is advice, the decision is yours.</span>
+        {allowAsk && <Form action={reviewProposalAction} id={p.id} msg="Ask Norbert to review this proposal now?" cls="border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50">Ask Norbert</Form>}
+      </div>
+    );
+  }
+  const h = r.history;
+  const flags: string[] = [];
+  if (h && !h.readable) flags.push("change history unreadable");
+  if (h?.thrashing) flags.push(`thrashing: ${h.changes7d} changes in 7 days`);
+  if (h?.humanUsers?.length) flags.push(`recent human changes: ${h.humanUsers.join(", ")}`);
+  if (r.revision_round) flags.push(`revision round ${r.revision_round}`);
+  if (r.error && !r.verdict) {
+    return (
+      <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <div className="flex items-center justify-between">
+          <span><span className="font-semibold">Norbert could not review this.</span> {r.error}</span>
+          {allowAsk && <Form action={reviewProposalAction} id={p.id} msg="Ask Norbert to try again?" cls="border border-amber-300 bg-white text-amber-900 hover:bg-amber-100">Retry</Form>}
+        </div>
+      </div>
+    );
+  }
+  const sound = r.verdict?.sound === true;
+  return (
+    <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${sound ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-red-200 bg-red-50 text-red-900"}`}>
+      <div className="flex items-center gap-2">
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${sound ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}`}>
+          {sound ? "Norbert: sound" : "Norbert objects"}
+        </span>
+        {flags.length > 0 && <span className="text-[11px] opacity-80">{flags.join(" · ")}</span>}
+        <span className="ml-auto text-[10px] opacity-60">{r.model}</span>
+      </div>
+      {!sound && r.verdict?.q1 && <p className="mt-1.5">{r.verdict.q1}</p>}
+      {r.q2 && (
+        <details className="mt-1.5">
+          <summary className="cursor-pointer text-[11px] font-medium opacity-80">What this proposal does not touch</summary>
+          <p className="mt-1 text-zinc-700">{r.q2}</p>
+        </details>
+      )}
+    </div>
+  );
+}
+
 function PendingCard({ p }: { p: Proposal }) {
   return (
     <Card>
       <CardHead p={p} />
       <Body p={p} />
+      <NorbertBlock p={p} allowAsk />
       <div className="mt-4 flex gap-2">
         <Form action={approveProposal} id={p.id} msg="Approve this proposal?" cls="bg-emerald-600 text-white hover:bg-emerald-700">Approve</Form>
         <Form action={dismissProposal} id={p.id} msg="Dismiss this proposal?" cls="border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50">Dismiss</Form>
@@ -142,6 +193,7 @@ function ApprovedCard({ p, writesOn }: { p: Proposal; writesOn: boolean }) {
     <Card>
       <CardHead p={p} />
       <Body p={p} />
+      <NorbertBlock p={p} allowAsk={false} />
       {!exec ? (
         <p className="mt-3 text-xs text-zinc-400">Advisory only — apply this one manually in Google Ads, then mark it applied.</p>
       ) : !writesOn ? (

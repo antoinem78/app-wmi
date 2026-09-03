@@ -5,6 +5,18 @@ import { requireAgencyAdmin } from "@/lib/auth/guard";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { decideProposal, deleteProposal, markProposalApplied } from "@/lib/proposals";
 import { dryRunProposal, applyProposal, rollbackProposal } from "@/lib/proposals-execute";
+import { reviewProposal } from "@/lib/norbert-review";
+
+// Ask Norbert: runs (or re-runs) his review on a pending proposal. Used for
+// proposals filed by hand, and when a review failed at filing time.
+export async function reviewProposalAction(formData: FormData): Promise<void> {
+  const { email } = await requireAgencyAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) throw new Error("Missing proposal id.");
+  await reviewProposal(id, "founder", email);
+  revalidatePath("/proposals");
+  revalidatePath("/dashboard");
+}
 
 async function decide(formData: FormData, decision: "approved" | "dismissed") {
   const { email } = await requireAgencyAdmin();

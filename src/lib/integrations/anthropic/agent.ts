@@ -21,6 +21,7 @@ import { getFeedAudit } from "@/lib/integrations/google-ads/feed";
 import { getCommandCenter } from "@/lib/command-center";
 import { createProposal, decideProposal, listProposals, type ProposalType, type ProposalStatus } from "@/lib/proposals";
 import { applyProposal, dryRunProposal } from "@/lib/proposals-execute";
+import { reviewProposal } from "@/lib/norbert-review";
 import { buildGoogleCampaign, type GoogleBuildSpec } from "@/lib/integrations/google-ads/build";
 import { entityConfig } from "@/lib/config";
 import { makeEmDashScrubber } from "@/lib/emdash";
@@ -214,6 +215,10 @@ const TOOLS: Anthropic.Tool[] = [
                 newDailyAmount: { type: "number" },
               },
             },
+            revision_of: {
+              type: "string",
+              description: "ONLY when correcting a proposal Norbert objected to: the id of the objected proposal. One revision round exists; a revision of a revision is reviewed but its verdict is final.",
+            },
           },
         },
       },
@@ -261,6 +266,7 @@ YOUR JOB:
 - Anything drafted in the founder's voice (client messages, freelancer instructions) is first person SINGULAR: I, me, my. Never the agency "we/us/our", even where it feels natural ("we cut the videos"). Ruled 2026-08-03. Sweep the draft for "we" before handing it over.
 - You may PROPOSE optimisations (negatives to add, budget reallocations, RSA improvements, campaigns/ad groups to pause) with clear, figure-backed rationale. But you CANNOT execute anything.
 - When the user asks you to PROPOSE something (or you've found a concrete change worth formalising), call propose_optimization to file it as a reviewable card, then tell the user it is filed. The founder can approve and apply WITHOUT leaving this chat: on his explicit word, decide_proposal records the approval and apply_proposal executes it behind the same guardrails as the Proposals page. Offer dry_run_proposal when he hesitates. NEVER claim a change was made unless apply_proposal returned success; execution authority is his word, never your inference.
+- NORBERT REVIEWS EVERY PROPOSAL YOU FILE, in code, before the founder sees it (since 2026-09-03). The propose_optimization result carries his verdict and any flags (thrashing entity, recent human changes, unreadable change history). Report the verdict to the founder as it is. If Norbert objects, do not argue in chat: either accept the objection in one sentence, or file ONE corrected proposal with details.revision_of set to the objected proposal's id. There is no third round. His verdict is advice; the founder decides, and an unreviewed proposal cannot be approved.
 - For the executable actions — add a single (campaign or ad-group) negative keyword, add a shared/account-level negative, pause a campaign, set a campaign daily budget — include the precise details.action block so the proposal can be applied behind the approval gate. ONE operation per proposal: to add several negatives, file several proposals (one keyword each), never a batch. For a campaign-level negative, pause, or budget change, first call list_campaigns to get the EXACT campaign name. For a shared negative (no campaign), use the add_shared_negative action.
 - NEGATIVE KEYWORDS: before proposing ANY negative keyword, call get_search_terms and cite the actual wasted queries (meaningful cost, zero/low conversions). Never invent a query. If get_search_terms returns nothing, say so and do not fabricate one. If a wasted query is spending across many Search campaigns, file a shared negative (add_shared_negative); if it is confined to one campaign, file a campaign-level add_negative_keyword against that exact campaign.
 - If asked whether an optimisation is needed and you think NOT, prove it with the figures.
@@ -667,10 +673,17 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
         createdBy: ctx.actor,
       });
       if ("error" in res) return { error: res.error };
+      // Norbert reviews before the founder sees the card (spec §9). Awaited so
+      // Oscar can carry the verdict into his reply instead of learning it later.
+      const isRevision = typeof (input.details as Record<string, unknown> | undefined)?.revision_of === "string";
+      const review = await reviewProposal(res.id, isRevision ? "revision" : "filed", ctx.actor)
+        .catch((e) => ({ error: e instanceof Error ? e.message : String(e), summary: "Norbert's review did not run; the card shows it unreviewed." }));
       return {
         ok: true,
         proposalId: res.id,
-        message: `Proposal filed for ${acc.company} — pending review in the Proposals page.`,
+        norbert: review.summary,
+        norbert_q2: "ok" in review ? review.record.q2 ?? null : null,
+        message: `Proposal filed for ${acc.company} — pending the founder in the Proposals page, with Norbert's verdict on the card.`,
       };
     }
     default:

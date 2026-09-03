@@ -17,6 +17,7 @@ import {
   type ExecAction,
 } from "@/lib/integrations/google-ads/write";
 import { recordWriteAudit } from "@/lib/write-audit";
+import { approvalGate } from "@/lib/norbert-review-rules";
 
 // Two independent scopes on EVERY write and validate:
 //   1. MCC membership — a hard boundary verified against the live hierarchy;
@@ -58,6 +59,7 @@ type Row = {
   id: string; client_id: string; account_label: string | null; type: string;
   title: string; status: string; details: Record<string, unknown> | null;
   execution: Record<string, unknown> | null;
+  norbert_review: unknown; norbert_reviewed_at: string | null;
 };
 type Result = { ok: true; [k: string]: unknown } | { error: string };
 
@@ -65,7 +67,7 @@ async function loadRow(id: string): Promise<Row | null> {
   const supabase = createSupabaseAdminClient();
   const { data } = await supabase
     .from("optimization_proposals")
-    .select("id, client_id, account_label, type, title, status, details, execution")
+    .select("id, client_id, account_label, type, title, status, details, execution, norbert_review, norbert_reviewed_at")
     .eq("id", id)
     .single();
   return (data as Row) ?? null;
@@ -298,6 +300,10 @@ export async function applyProposal(id: string, actor: string): Promise<Result> 
   if (!row) return { error: "Proposal not found." };
   // STEP 4: the worker is the control boundary — never trust the UI.
   if (row.status !== "approved") return { error: `Proposal is ${row.status}, not approved — refusing.` };
+  // The worker re-checks Norbert's review too: an approval recorded before 0026
+  // landed, or written around the UI, does not get to skip him.
+  const reviewed = approvalGate(row.norbert_review, row.norbert_reviewed_at);
+  if ("error" in reviewed) return reviewed;
   const action = parseAction(row.details ?? {});
   if (!action) return { error: "This proposal has no executable action." };
   if ("error" in action) return { error: action.error };

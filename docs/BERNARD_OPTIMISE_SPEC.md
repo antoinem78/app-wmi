@@ -78,6 +78,16 @@ Creative swaps, targeting, bid strategy (destroy learning history). Scheduling, 
 
 **Amended 2026-08-26: audience EXCLUSIONS moved in scope as v1.1** (§2 above). The carve-out rests on one property: an exclusion can only narrow delivery, never widen it, so its worst case is bounded (under-delivery plus a disclosed learning reset), unlike interest/geo/age edits whose worst case is unbounded wrong-audience spend. The rest of targeting stays out, exclusion REMOVAL stays out (it breaks the one-way property and needs its own ruling), and placements stay out for a named reason: on Advantage+ placements an exclusion is a mode change to manual that forfeits per-asset Customize Media, a trade that needs a founder ruling first (v1.1 spec §8).
 
-## 9. Oscar's leg, scoped not built
+## 9. Oscar's leg, built 2026-09-03
 
-Oscar already has the machinery this spec would otherwise invent: `list_proposals`, `decide_proposal`, `apply_proposal` with guardrail re-checks, and `write_audit`. What he gains is **Norbert inserted between proposal and founder**, the same two questions, the same one revision round, and the same session-only trigger. No new Google write surface. The thrash gate and human-change check apply identically, reading the Google Ads change history. Build order: Meta leg first because it is net-new; Oscar's insertion is a follow-up in the same pattern once Norbert exists.
+Oscar already had the machinery this spec would otherwise invent: `list_proposals`, `decide_proposal`, `apply_proposal` with guardrail re-checks, and `write_audit`. What he gained is **Norbert inserted between proposal and founder**, the same two questions, the same one revision round. No new Google write surface.
+
+How it is wired (portal-side, because the proposals live in the portal DB):
+
+- **Trigger.** `propose_optimization` calls `reviewProposal(id, "filed")` the moment the row exists and awaits it, so Oscar's tool result carries the verdict and he reports it in the same turn. The founder can run or re-run the review from the card (Ask Norbert, trigger `founder`) for hand-filed proposals and after a failed review. A revision (`details.revision_of`) is reviewed with trigger `revision`.
+- **Evidence.** The target campaign's state and last seven days (status, budget, cost, clicks, conversions) and its `change_event` rows for the same window, with `user_email`. Shared negatives and advisory proposals get the account-level change history instead. Norbert sees the entity and the stated rationale, not Oscar's reasoning.
+- **Rules in code, not in the prompt** (`src/lib/norbert-review-rules.ts`, tested): thrash at four or more changes in seven days; a change by any login not in `GOOGLE_ADS_OWN_LOGINS` is a human change and is named; an unreadable change history fails closed and is reported as unassessed, never as quiet; one revision round, after which the verdict is final.
+- **Gates.** `decideProposal(approved)` and the `applyProposal` worker both refuse a proposal Norbert has never reviewed. They do NOT refuse an objected proposal (disagreeing is his job, overruling is the founder's) and they do NOT refuse when the review itself failed (a Norbert outage is visible on the card and must not freeze the queue). Dismissing needs no review.
+- **Return leg.** An objection, a thrash flag, a human-change flag or an unreadable history is written to Oscar's feedback inbox in the same call, so the verdict reaches the agent as well as the founder.
+- **Metering.** Each review is one `agent_usage` row under `norbert`, scope `review:oscar:<proposal id>`, model `claude-fable-5`.
+- **Storage.** `optimization_proposals.norbert_review` (jsonb) and `norbert_reviewed_at` (migration 0026). `get_oscar_queue` surfaces the verdict to Norbert's own chat.
