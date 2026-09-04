@@ -250,6 +250,38 @@ export async function gaqlSearch(
 }
 
 /**
+ * Run a GAQL query and follow nextPageToken until the result set is complete
+ * or `maxRows` is reached. A single search page holds up to 10,000 rows, so a
+ * caller that stops at one page on a large account gets a round number that
+ * looks like the whole account; this walks the pages instead. `maxRows` is a
+ * guard on payload size, and when it bites the caller sees `truncated: true`
+ * rather than a silently short list.
+ */
+export async function gaqlSearchAll(
+  customerId: string,
+  query: string,
+  maxRows = 50_000,
+): Promise<{ rows: Record<string, unknown>[]; truncated: boolean }> {
+  const rows: Record<string, unknown>[] = [];
+  let pageToken: string | undefined;
+  for (;;) {
+    const res = await fetch(`${API}/customers/${customerId}/googleAds:search`, {
+      method: "POST",
+      headers: await adsHeaders(),
+      body: JSON.stringify(pageToken ? { query, pageToken } : { query }),
+    });
+    const body = (await res.json()) as { results?: Record<string, unknown>[]; nextPageToken?: string };
+    if (!res.ok) throw new GoogleAdsError(extractAdsError(body), false);
+    for (const r of body.results ?? []) {
+      if (rows.length >= maxRows) return { rows, truncated: true };
+      rows.push(r);
+    }
+    if (!body.nextPageToken) return { rows, truncated: false };
+    pageToken = body.nextPageToken;
+  }
+}
+
+/**
  * Given a linked customer id (which may be a manager/MCC), find the account we
  * should REPORT on. Managers have no campaigns, so we enumerate the hierarchy
  * and take the leaf account(s). Returns the single leaf when there's exactly

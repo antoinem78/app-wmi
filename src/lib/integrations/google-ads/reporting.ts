@@ -304,7 +304,7 @@ async function impressionShareSuite(
 // the campaign's channel type (so non-Search ad-group criteria are labelled
 // product/listing groups, not keywords — the reported mis-classification).
 // Returns null for noise. FACTS only; rationale is added by the narrative LLM.
-function classifyChange(
+export function classifyChange(
   ce: {
     changeResourceType?: string;
     resourceChangeOperation?: string;

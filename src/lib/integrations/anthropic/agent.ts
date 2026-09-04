@@ -15,8 +15,14 @@ import {
 import { logAgentUsage } from "@/lib/agent-usage";
 import { consumeFeedback, renderFeedback } from "@/lib/agent-feedback";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { getDashboard, getWeeklyOptimisations } from "@/lib/integrations/google-ads/reporting";
-import { gaqlSearch, listManagedAccounts } from "@/lib/integrations/google-ads";
+import { getDashboard, classifyChange } from "@/lib/integrations/google-ads/reporting";
+import { gaqlSearch, gaqlSearchAll, listManagedAccounts } from "@/lib/integrations/google-ads";
+import {
+  CAMPAIGN_LIST_CAP, CHANGE_EVENT_LIMIT, CHANGE_EVENTS_SHOWN, CHANGE_HISTORY_MAX_DAYS,
+  capList, deriveWindow, fourWeekWindows, tabulateChanges, clientTypeLabel, editorKind,
+  removedSummary, joinConversionConfig, labelAccess, customerIdOf,
+  type ConversionActionConfig, type ChangeEventIn, type WindowTotals,
+} from "@/lib/oscar-reads";
 import { getFeedAudit } from "@/lib/integrations/google-ads/feed";
 import { getCommandCenter } from "@/lib/command-center";
 import { createProposal, decideProposal, listProposals, type ProposalType, type ProposalStatus } from "@/lib/proposals";
@@ -157,13 +163,28 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "list_campaigns",
-    description: "List an account's campaigns (name, id, status, type) INCLUDING PAUSED ones, independent of recent activity. Use this to find the EXACT campaign name to target for a proposal — especially on paused or low-activity accounts where get_account_report shows little. Always confirm the exact campaign name here before filing an executable proposal.",
-    input_schema: { type: "object", properties: { account: { type: "string", description: "Client name, client id, or Google customer id" } }, required: ["account"] },
+    description: "List an account's campaigns INCLUDING PAUSED ones, independent of recent activity: name, id, status, serving status, type, bidding strategy type and any target, daily budget in account currency, whether the budget is shared, start and end dates. Pages the whole account; when the list is cut at the cap the result says truncated:true with the total, so narrow with status or name_contains rather than treating the returned rows as the whole account. Use this to find the EXACT campaign name to target for a proposal and to verify a budget or bidding setting. Always confirm the exact campaign name here before filing an executable proposal.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account: { type: "string", description: "Client name, client id, or Google customer id" },
+        status: { type: "string", enum: ["ALL", "ENABLED", "PAUSED"], description: "Filter by campaign status (default ALL non-removed). Use PAUSED to list only paused campaigns." },
+        name_contains: { type: "string", description: "Case-insensitive substring filter on the campaign name (e.g. 'Everpure')." },
+      },
+      required: ["account"],
+    },
   },
   {
     name: "get_account_report",
-    description: "Full performance snapshot for ONE account this week vs prior: KPIs (incl. by-time + ROAS/AOV), by-channel, impression-share suite, top campaigns, conversions-by-action, top search terms, top ads, device split. Use for 'how is <client> doing' and to justify/refute optimisations.",
-    input_schema: { type: "object", properties: { account: { type: "string", description: "Client name or id (from list_accounts)" } }, required: ["account"] },
+    description: "Full performance snapshot for ONE account this week vs prior: KPIs (incl. by-time + ROAS/AOV), by-channel, impression-share suite, top campaigns, conversions-by-action WITH each action's configuration (primary flag, origin, category, counting, include-in-conversions) and a double-count risk flag, top search terms, top ads, device split. Pass windows: 4 to also get four consecutive complete weeks with their dates: two windows cannot tell a fall from a return to normal, so any claim about a break needs four. Use for 'how is <client> doing' and to justify/refute optimisations.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account: { type: "string", description: "Client name or id (from list_accounts)" },
+        windows: { type: "number", enum: [1, 4], description: "1 (default) = this week vs prior week. 4 = also return four consecutive complete Monday to Sunday weeks, each with spend, clicks, conversions, revenue and derived CPA/ROAS/AOV." },
+      },
+      required: ["account"],
+    },
   },
   {
     name: "get_all_account_summaries",
@@ -172,7 +193,20 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "get_recent_changes",
-    description: "The logged account changes (optimisations) for ONE account this week, from the Google Ads change history.",
+    description: "The account's Google Ads change history for ONE account, with attribution: every event carries its timestamp, the user email, the client type (web interface, API, Editor, automated rule, script, Recommendations Auto-Apply), resource type, operation, changed fields and campaign; REMOVE events carry what was removed. Returns the tabulation by editor (user email x client type, each labelled ours / shared founder-freelancer login / other / system), by resource and operation, by campaign, plus the most recent events in full. Tabulate this BEFORE judging how an account is run: our own login and Auto-Apply often account for most of the count. The API serves about 30 days; ask for days up to 29. Pass campaign to scope to one campaign.",
+    input_schema: {
+      type: "object",
+      properties: {
+        account: { type: "string", description: "Client name or id" },
+        days: { type: "number", description: "Look-back window in days ending today (default 7, max 29: the API keeps roughly 30 days)." },
+        campaign: { type: "string", description: "Optional exact campaign name or id to scope the history to one campaign." },
+      },
+      required: ["account"],
+    },
+  },
+  {
+    name: "get_account_access",
+    description: "Who holds an account: the users with access (email, role, since, invited by, each labelled ours / shared founder-freelancer login / other), pending access invitations, and the manager accounts linked above it (with whether each is our own MCC). Read-only. Each of the three reads reports its own error when it cannot be read (user access needs admin rights on the account), so an empty list with an error next to it is NOT evidence of nobody having access. Use with get_recent_changes (who edits) before saying who runs an account.",
     input_schema: { type: "object", properties: { account: { type: "string", description: "Client name or id" } }, required: ["account"] },
   },
   {
@@ -281,7 +315,7 @@ Use it like a strategist keeping a running file on every account:
 
 HOW YOU WORK:
 - Use the tools to fetch REAL figures. Never invent, estimate or recompute a number, %, campaign name or metric. If you don't have it, fetch it.
-- Resolve accounts with list_accounts (you can reference an account by name OR its Google customer id). Use get_account_report for one account, get_all_account_summaries for cross-account questions, get_recent_changes for what was changed, get_search_terms for real query data, get_feed_audit for Shopping/feed (ecommerce) questions, and list_campaigns to get the EXACT campaign names (including paused ones) before filing any executable proposal.
+- Resolve accounts with list_accounts (you can reference an account by name OR its Google customer id). Use get_account_report for one account (windows: 4 when judging any rise or fall, since two windows cannot tell a fall from a return to normal), get_all_account_summaries for cross-account questions, get_recent_changes for what was changed and BY WHOM (tabulate by editor before judging an account; our own login and Recommendations Auto-Apply are not the client's changes), get_account_access for who holds an account, get_search_terms for real query data, get_feed_audit for Shopping/feed (ecommerce) questions, and list_campaigns to get the EXACT campaign names (including paused ones) before filing any executable proposal.
 - Figures are ACCOUNT-WIDE across all channel types. Attribute correctly — never call Performance Max / Shopping activity "Search", never call product/listing groups "keywords". Search impression share and search terms are Search-only. Two conversion bases exist (interaction date vs by-time); don't conflate them.
 - Respect each account's own currency; never sum across currencies.
 - Don't narrate your tool use ("let me check…", "I'll look that up"); just call the tools, then give the answer.
@@ -571,18 +605,128 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
     case "list_campaigns": {
       const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
       if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
-      const rows = await gaqlSearch(acc.reportingId, "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type FROM campaign WHERE campaign.status != 'REMOVED' ORDER BY campaign.name");
-      const campaigns = rows.map((r) => {
-        const c = (r.campaign ?? {}) as { id?: string | number; name?: string; status?: string; advertisingChannelType?: string };
-        return { id: String(c.id), name: c.name, status: c.status, type: c.advertisingChannelType };
-      }).slice(0, 80);
-      return { company: acc.company, customerId: acc.reportingId, campaignCount: campaigns.length, campaigns };
+      const statusIn = String(input.status ?? "ALL").toUpperCase();
+      const statusFilter = statusIn === "ENABLED" || statusIn === "PAUSED" ? statusIn : "ALL";
+      const needle = String(input.name_contains ?? "").trim().toLowerCase();
+      const where = statusFilter === "ALL" ? "campaign.status != 'REMOVED'" : `campaign.status = '${statusFilter}'`;
+      // Paged read, never one page: on a large account the first page of an
+      // alphabetical list is all "AM |" names and the rest is invisible.
+      const { rows, truncated: pageCut } = await gaqlSearchAll(
+        acc.reportingId,
+        `SELECT campaign.id, campaign.name, campaign.status, campaign.serving_status, campaign.advertising_channel_type,
+                campaign.bidding_strategy_type, campaign.bidding_strategy, campaign.start_date_time, campaign.end_date_time,
+                campaign.target_roas.target_roas, campaign.maximize_conversion_value.target_roas,
+                campaign.target_cpa.target_cpa_micros, campaign.maximize_conversions.target_cpa_micros,
+                campaign_budget.amount_micros, campaign_budget.explicitly_shared, campaign_budget.name,
+                customer.currency_code
+         FROM campaign WHERE ${where} ORDER BY campaign.status, campaign.name`,
+      );
+      let currency: string | undefined;
+      const all = rows.map((r) => {
+        const c = (r.campaign ?? {}) as Record<string, unknown>;
+        const b = (r.campaignBudget ?? {}) as Record<string, unknown>;
+        currency ??= ((r.customer ?? {}) as { currencyCode?: string }).currencyCode;
+        const micros = (v: unknown) => (v == null ? null : Number(Number(v) / 1e6));
+        const tRoas = (c.targetRoas as { targetRoas?: number } | undefined)?.targetRoas
+          ?? (c.maximizeConversionValue as { targetRoas?: number } | undefined)?.targetRoas ?? null;
+        const tCpa = micros((c.targetCpa as { targetCpaMicros?: unknown } | undefined)?.targetCpaMicros
+          ?? (c.maximizeConversions as { targetCpaMicros?: unknown } | undefined)?.targetCpaMicros);
+        return {
+          id: String(c.id), name: String(c.name ?? ""), status: c.status, servingStatus: c.servingStatus, type: c.advertisingChannelType,
+          biddingStrategyType: c.biddingStrategyType ?? null,
+          portfolioStrategy: c.biddingStrategy ? String(c.biddingStrategy) : null,
+          targetRoas: tRoas || null, targetCpa: tCpa || null,
+          dailyBudget: micros(b.amountMicros), budgetShared: b.explicitlyShared === true, budgetName: b.explicitlyShared === true ? (b.name ?? null) : undefined,
+          startDate: c.startDateTime ?? null, endDate: c.endDateTime ?? null,
+        };
+      });
+      const filtered = needle ? all.filter((x) => x.name.toLowerCase().includes(needle)) : all;
+      const cut = capList(filtered, CAMPAIGN_LIST_CAP);
+      return {
+        company: acc.company, customerId: acc.reportingId, currency: currency ?? null,
+        filter: { status: statusFilter, name_contains: needle || null },
+        totalCampaigns: cut.total, returned: cut.items.length, truncated: cut.truncated || pageCut,
+        ...(cut.truncated || pageCut ? { note: `Only ${cut.items.length} of ${cut.total} campaigns are listed. Narrow with status or name_contains; do not treat this list as the whole account.` } : {}),
+        note_budget: "dailyBudget is in the account currency (micros divided out). budgetShared true means the budget is shared with other campaigns and its name is given.",
+        campaigns: cut.items,
+      };
     }
     case "get_account_report": {
       const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
       if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
       const dash = await getDashboard(acc.clientId, acc.reportingId, { kind: "week" });
-      return compactReport(acc.company, dash);
+      const report = compactReport(acc.company, dash) as Record<string, unknown>;
+
+      // Conversion action configuration joined onto the reported actions, so
+      // single-source versus double-counted is judged from one read.
+      try {
+        const cfgRows = await gaqlSearch(
+          acc.reportingId,
+          `SELECT conversion_action.id, conversion_action.name, conversion_action.status, conversion_action.type,
+                  conversion_action.category, conversion_action.origin, conversion_action.primary_for_goal,
+                  conversion_action.counting_type, conversion_action.include_in_conversions_metric,
+                  conversion_action.value_settings.default_value, conversion_action.value_settings.always_use_default_value,
+                  conversion_action.attribution_model_settings.attribution_model
+           FROM conversion_action WHERE conversion_action.status != 'REMOVED'`,
+        );
+        const config: ConversionActionConfig[] = cfgRows.map((r) => {
+          const c = (r.conversionAction ?? {}) as Record<string, unknown>;
+          const vs = (c.valueSettings ?? {}) as Record<string, unknown>;
+          const am = (c.attributionModelSettings ?? {}) as Record<string, unknown>;
+          return {
+            id: String(c.id), name: String(c.name ?? ""), status: (c.status as string) ?? null, type: (c.type as string) ?? null,
+            category: (c.category as string) ?? null, origin: (c.origin as string) ?? null,
+            primaryForGoal: typeof c.primaryForGoal === "boolean" ? c.primaryForGoal : null,
+            countingType: (c.countingType as string) ?? null,
+            includeInConversionsMetric: typeof c.includeInConversionsMetric === "boolean" ? c.includeInConversionsMetric : null,
+            defaultValue: vs.defaultValue == null ? null : Number(vs.defaultValue),
+            alwaysUseDefaultValue: typeof vs.alwaysUseDefaultValue === "boolean" ? vs.alwaysUseDefaultValue : null,
+            attributionModel: (am.attributionModel as string) ?? null,
+          };
+        });
+        const joined = joinConversionConfig(dash.byConversionAction, config);
+        report.conversionsByAction = joined.actions;
+        const idle = config.filter((c) => !dash.byConversionAction.some((a) => a.action.trim().toLowerCase() === c.name.trim().toLowerCase()));
+        report.conversionActionsNotInWindow = {
+          total: idle.length,
+          actions: idle.slice(0, 60).map((c) => ({ name: c.name, status: c.status, category: c.category, origin: c.origin, primaryForGoal: c.primaryForGoal, includeInConversionsMetric: c.includeInConversionsMetric })),
+        };
+        report.conversionActionsUnmatched = joined.unmatched;
+        report.conversionActionsSharingAName = joined.duplicateNames;
+        report.doubleCountRisk = joined.doubleCountRisk;
+        report.note_conversions = "primaryForGoal true and includeInConversionsMetric true is what bidding optimises to. Two primary actions in one category both carrying value is a double-count RISK to check (origins, tags, whether they fire on the same event), not a verdict. Reported conversions are keyed by action NAME, so where several actions share one name (conversionActionsSharingAName) their conversions are already merged in the report and the attached config is the first of them.";
+      } catch (e) {
+        report.conversionActionConfig = { error: `could not read conversion action configuration: ${e instanceof Error ? e.message : String(e)}` };
+      }
+
+      // Four consecutive complete weeks on request (the four-window rule).
+      if (Number(input.windows) === 4) {
+        try {
+          const wins = fourWeekWindows(dash.weekly.start, dash.weekly.end);
+          const totals = await Promise.all(wins.map(async (w) => {
+            const rows = await gaqlSearch(
+              acc.reportingId,
+              `SELECT metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value,
+                      metrics.conversions_by_conversion_date, metrics.conversions_value_by_conversion_date
+               FROM customer WHERE segments.date BETWEEN '${w.start}' AND '${w.end}'`,
+            );
+            const t: WindowTotals = { spend: 0, impressions: 0, clicks: 0, conversions: 0, revenue: 0, conversionsByTime: 0, revenueByTime: 0 };
+            for (const r of rows) {
+              const m = (r.metrics ?? {}) as Record<string, unknown>;
+              const n = (v: unknown) => Number(v ?? 0) || 0;
+              t.spend += n(m.costMicros) / 1e6; t.impressions += n(m.impressions); t.clicks += n(m.clicks);
+              t.conversions += n(m.conversions); t.revenue += n(m.conversionsValue);
+              t.conversionsByTime += n(m.conversionsByConversionDate); t.revenueByTime += n(m.conversionsValueByConversionDate);
+            }
+            return { ...w, ...deriveWindow(t) };
+          }));
+          report.fourWindows = totals;
+          report.note_windows = "Four consecutive complete Monday to Sunday weeks, account-wide, all channel types, click-date basis (byTime fields are conversion-date basis). Compare all four before calling anything a fall or a rise.";
+        } catch (e) {
+          report.fourWindows = { error: `could not build the four windows: ${e instanceof Error ? e.message : String(e)}` };
+        }
+      }
+      return report;
     }
     case "get_all_account_summaries": {
       const cc = await getCommandCenter(7);
@@ -602,9 +746,128 @@ async function runTool(name: string, input: Record<string, unknown>, ctx: ToolCo
     case "get_recent_changes": {
       const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
       if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
-      const dash = await getDashboard(acc.clientId, acc.reportingId, { kind: "week" });
-      const changes = await getWeeklyOptimisations(acc.reportingId, dash.weekly.start, dash.weekly.end);
-      return { company: acc.company, period: dash.weekly, changes: changes.length ? changes : ["No account changes logged this week."] };
+      const days = Math.min(CHANGE_HISTORY_MAX_DAYS, Math.max(1, Math.round(Number(input.days) || 7)));
+      const ymd = (d: Date) => d.toISOString().slice(0, 10);
+      const end = new Date();
+      const start = new Date(end.getTime() - (days - 1) * 86_400_000);
+      const campRows = await gaqlSearch(acc.reportingId, "SELECT campaign.id, campaign.name, campaign.advertising_channel_type FROM campaign");
+      const nameById: Record<string, string> = {};
+      const channelById: Record<string, string> = {};
+      for (const r of campRows) {
+        const c = (r.campaign ?? {}) as { id?: string | number; name?: string; advertisingChannelType?: string };
+        if (c.id != null) { nameById[String(c.id)] = c.name ?? ""; channelById[String(c.id)] = c.advertisingChannelType ?? ""; }
+      }
+      let scope = "";
+      const campRef = String(input.campaign ?? "").trim();
+      if (campRef) {
+        const digits = campRef.replace(/\D/g, "");
+        const id = digits.length >= 6 && /^[\d\s-]+$/.test(campRef)
+          ? digits
+          : Object.entries(nameById).find(([, n]) => n.toLowerCase() === campRef.toLowerCase())?.[0];
+        if (!id) return { error: `No campaign matching "${campRef}" in ${acc.company}. Use list_campaigns for the exact name or id.` };
+        scope = ` AND change_event.campaign = 'customers/${acc.reportingId}/campaigns/${id}'`;
+      }
+      // Two reads. The tabulation reads every event in the window WITHOUT the
+      // resource bodies (7,000 events with bodies took 43 seconds live); the
+      // detail read fetches bodies only for the events shown in full.
+      const where = `WHERE change_event.change_date_time >= '${ymd(start)} 00:00:00'
+             AND change_event.change_date_time <= '${ymd(end)} 23:59:59'${scope}`;
+      const light = `change_event.change_date_time, change_event.user_email, change_event.client_type,
+                  change_event.change_resource_type, change_event.resource_change_operation, change_event.changed_fields,
+                  change_event.campaign, change_event.change_resource_name`;
+      let rows: Record<string, unknown>[];
+      let detailRows: Record<string, unknown>[];
+      let pageCut = false;
+      try {
+        const [all, detail] = await Promise.all([
+          gaqlSearchAll(acc.reportingId, `SELECT ${light} FROM change_event ${where} ORDER BY change_event.change_date_time DESC LIMIT ${CHANGE_EVENT_LIMIT}`, CHANGE_EVENT_LIMIT),
+          gaqlSearch(acc.reportingId, `SELECT ${light}, change_event.old_resource, change_event.new_resource FROM change_event ${where} ORDER BY change_event.change_date_time DESC LIMIT ${CHANGE_EVENTS_SHOWN}`),
+        ]);
+        rows = all.rows; pageCut = all.truncated; detailRows = detail;
+      } catch (e) {
+        // Fail closed: an unreadable history is reported as unreadable, never as quiet.
+        return { company: acc.company, window: { start: ymd(start), end: ymd(end), days }, readable: false, error: `change history could not be read: ${e instanceof Error ? e.message : String(e)}` };
+      }
+      const campName = (res: string) => { const id = (res.match(/campaigns\/(\d+)/) ?? [])[1]; return (id && nameById[id]) || res; };
+      const toEvent = (r: Record<string, unknown>): ChangeEventIn => {
+        const ce = (r.changeEvent ?? {}) as Record<string, unknown>;
+        return {
+          at: String(ce.changeDateTime ?? ""), user: (ce.userEmail as string) ?? null, clientType: (ce.clientType as string) ?? null,
+          resourceType: (ce.changeResourceType as string) ?? null, op: (ce.resourceChangeOperation as string) ?? null,
+          fields: (ce.changedFields as string) ?? null, campaign: (ce.campaign as string) ?? null,
+          resourceName: (ce.changeResourceName as string) ?? null, oldResource: ce.oldResource, newResource: ce.newResource,
+        };
+      };
+      const events = rows.map(toEvent);
+      const own = (process.env.GOOGLE_ADS_OWN_LOGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+      const shared = (process.env.GOOGLE_ADS_SHARED_LOGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+      const tab = tabulateChanges(events, own, shared, campName);
+      const truncated = pageCut || rows.length >= CHANGE_EVENT_LIMIT;
+      const recent = detailRows.map(toEvent).map((e) => {
+        const campId = (e.campaign?.match(/campaigns\/(\d+)/) ?? [])[1];
+        const action = classifyChange(
+          { changeResourceType: e.resourceType ?? undefined, resourceChangeOperation: e.op ?? undefined, changedFields: e.fields ?? undefined, newResource: (e.newResource ?? undefined) as Record<string, Record<string, unknown>> | undefined },
+          campId ? channelById[campId] : undefined,
+        );
+        return {
+          at: e.at, user: e.user || null, editor: editorKind(e.user, own, shared), via: clientTypeLabel(e.clientType),
+          resourceType: e.resourceType, op: e.op, fields: e.fields ? e.fields.slice(0, 200) : null,
+          campaign: e.campaign ? campName(e.campaign) : null, resource: e.resourceName, action,
+          ...(e.op === "REMOVE" ? { removed: removedSummary(e.oldResource) } : {}),
+        };
+      });
+      return {
+        company: acc.company, customerId: acc.reportingId,
+        window: { start: ymd(start), end: ymd(end), days, apiLimit: "change_event serves about the last 30 days" },
+        readable: true, total: tab.total, truncated,
+        ...(truncated ? { note: `The API cap of ${CHANGE_EVENT_LIMIT} events was hit; the total is at least this. Narrow the window or scope to a campaign.` } : {}),
+        byEditor: tab.byEditor, autoApplyCount: tab.autoApplyCount, humanUsers: tab.humanUsers,
+        byResourceOp: tab.byResourceOp.slice(0, 30), byCampaign: tab.byCampaign.slice(0, 40),
+        earliestAt: tab.earliestAt, latestAt: tab.latestAt,
+        recentEvents: recent,
+        agencyLogins: own, sharedFounderFreelancerLogins: shared,
+        note_reading: "Judge the account only after reading byEditor: changes under our own login and Recommendations Auto-Apply are not the client's or the freelancer's. A REMOVE carries what was removed in `removed`.",
+      };
+    }
+    case "get_account_access": {
+      const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
+      if (!acc) return { error: `No account matches "${input.account}". Call list_accounts.` };
+      const own = (process.env.GOOGLE_ADS_OWN_LOGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+      const shared = (process.env.GOOGLE_ADS_SHARED_LOGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+      const ourMcc = (process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID ?? "").replace(/\D/g, "");
+      const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+      const read = async <T,>(q: string, shape: (r: Record<string, unknown>) => T): Promise<{ rows: T[] } | { error: string }> => {
+        try { return { rows: (await gaqlSearch(acc.reportingId, q)).map(shape) }; } catch (e) { return { error: errText(e) }; }
+      };
+      const [customer, users, invitations, managers] = await Promise.all([
+        read("SELECT customer.id, customer.descriptive_name, customer.manager, customer.status, customer.currency_code, customer.time_zone, customer.conversion_tracking_setting.google_ads_conversion_customer FROM customer LIMIT 1", (r) => {
+          const c = (r.customer ?? {}) as Record<string, unknown>;
+          const cts = (c.conversionTrackingSetting ?? {}) as Record<string, unknown>;
+          return { id: String(c.id ?? ""), name: c.descriptiveName ?? null, isManager: c.manager === true, status: c.status ?? null, currency: c.currencyCode ?? null, timeZone: c.timeZone ?? null, conversionTrackingOwner: customerIdOf(cts.googleAdsConversionCustomer as string) };
+        }),
+        read("SELECT customer_user_access.user_id, customer_user_access.email_address, customer_user_access.access_role, customer_user_access.access_creation_date_time, customer_user_access.inviter_user_email_address FROM customer_user_access", (r) => {
+          const u = (r.customerUserAccess ?? {}) as Record<string, unknown>;
+          return { email: String(u.emailAddress ?? ""), role: (u.accessRole as string) ?? null, since: (u.accessCreationDateTime as string) ?? null, invitedBy: (u.inviterUserEmailAddress as string) ?? null };
+        }),
+        read("SELECT customer_user_access_invitation.email_address, customer_user_access_invitation.access_role, customer_user_access_invitation.creation_date_time, customer_user_access_invitation.invitation_status FROM customer_user_access_invitation", (r) => {
+          const u = (r.customerUserAccessInvitation ?? {}) as Record<string, unknown>;
+          return { email: String(u.emailAddress ?? ""), role: (u.accessRole as string) ?? null, createdAt: (u.creationDateTime as string) ?? null, status: (u.invitationStatus as string) ?? null };
+        }),
+        read("SELECT customer_manager_link.manager_customer, customer_manager_link.manager_link_id, customer_manager_link.status FROM customer_manager_link", (r) => {
+          const l = (r.customerManagerLink ?? {}) as Record<string, unknown>;
+          const managerId = customerIdOf(l.managerCustomer as string);
+          return { managerCustomerId: managerId, status: (l.status as string) ?? null, ours: !!ourMcc && managerId === ourMcc };
+        }),
+      ]);
+      return {
+        company: acc.company, customerId: acc.reportingId,
+        customer: "rows" in customer ? customer.rows[0] ?? null : { error: customer.error },
+        users: "rows" in users ? labelAccess(users.rows, own, shared) : { error: users.error, note: "Not readable from our login (customer_user_access needs admin access on the account). This is NOT evidence that nobody has access." },
+        pendingInvitations: "rows" in invitations ? invitations.rows : { error: invitations.error },
+        managerLinks: "rows" in managers ? managers.rows : { error: managers.error },
+        ourMccId: ourMcc || null, agencyLogins: own, sharedFounderFreelancerLogins: shared,
+        note: "Holder = who has user access (roles ADMIN, STANDARD, READ_ONLY, EMAIL_ONLY) plus which managers link above. Billing ownership is not readable here. Join with get_recent_changes to see who actually edits.",
+      };
     }
     case "get_search_terms": {
       const acc = resolveAccount(ctx.roster, String(input.account ?? ""));
@@ -803,6 +1066,7 @@ function statusLabel(name: string, input: Record<string, unknown>): string {
     case "get_account_report": return `Reading ${acc || "account"}…`;
     case "get_all_account_summaries": return "Scanning all accounts…";
     case "get_recent_changes": return `Checking ${acc || "account"} changes…`;
+    case "get_account_access": return `Reading who holds ${acc || "the account"}…`;
     case "get_search_terms": return `Pulling ${acc || "account"} search terms…`;
     case "get_feed_audit": return `Auditing ${acc || "account"} feed…`;
     case "propose_optimization": return `Filing proposal${acc ? ` for ${acc}` : ""}…`;

@@ -45,7 +45,7 @@
 
 ## Proposed build order (each step usable on GoPoxy the day it ships)
 
-1. **Oscar read gaps** (request §3): pure reads, kills most Code hand-pulls immediately.
+1. **Oscar read gaps** (request §3): pure reads, kills most Code hand-pulls immediately. **Status: first tranche LANDED 2026-09-04 on a preview branch, awaiting the founder's deploy word; detail below.**
 2. **Norbert insertion into Oscar's proposal path** (already scoped in spec §9).
 3. **Oscar action kinds 1b + 1c + 1f** (criteria, shared sets, granular pause): the live PMax gap.
 4. **Bernard read gaps** (except the API-blind destination setting).
@@ -55,6 +55,17 @@
 8. **MC supplemental-feed writes** (after its ruling).
 9. **Listing-group mutations** (last, with its own diff surface).
 10. **Bernard move-class widening** (as and when ruled, one class at a time).
+
+### Step 1 status, 2026-09-04: four read gaps closed, surfaced by the FiltersFast channel
+
+Trigger: Oscar's first sweep of a large account (1,480 non-removed campaigns, about 81,000 USD a week) where he stated four reads as could-not-read. Each is closed in `src/lib/integrations/anthropic/agent.ts`, with the shaping rules in a pure module `src/lib/oscar-reads.ts` (16 tests in `tests/oscar-reads.test.js`, wired into `npm test`). Every query shape was proven live against the account, read-only, before this note was written. Reads only; no write surface changed.
+
+1. **`list_campaigns` no longer stops at 80.** It pages the whole account (`gaqlSearchAll`, new in the Google Ads module, follows `nextPageToken`) and returns budget in account units, whether the budget is shared, bidding strategy type and target, serving status, start and end dates, and the account currency. A `status` filter (ENABLED, PAUSED, ALL) and a `name_contains` filter narrow it. A cap of 300 remains for payload size, and when it bites the result carries `truncated: true`, the total, and a note to narrow. Ordering is status then name, so enabled campaigns are never the ones cut. Live: the paused Standard Shopping campaign the founder asked about came back with its 4,000 USD daily budget, TARGET_ROAS 1.25, unshared. Field-name trap found live: at API v24 the dates are `campaign.start_date_time` and `end_date_time`; the old names are rejected.
+2. **`get_recent_changes` returns attribution.** Every event carries timestamp, `user_email`, `client_type` (in words, with Recommendations Auto-Apply named as such), resource type, operation, changed fields and campaign; REMOVE events carry what was removed, read from `old_resource`. The tabulation by editor (user x client type, each labelled ours / shared founder-freelancer login / other / system) comes first, then by resource and operation, then by campaign, then the 80 most recent events in full. Window is `days` up to 29 (the API's 30-day wall) and an optional `campaign` scope. The old round 1,000 was a LIMIT: the live 7-day count is 1,460 and the 29-day count 7,015. Two reads, not one: the tabulation reads every event without the resource bodies, the detail read fetches bodies for the 80 shown, because bodies for 7,015 events took 43 seconds and the route budget is 120. An unreadable history returns `readable: false` with the error, never an empty list.
+3. **`get_account_report` takes `windows: 4`** and returns four consecutive complete Monday to Sunday weeks with their dates, spend, clicks, conversions, revenue, by-time variants and derived CPA, ROAS and AOV (null where the denominator is zero). Always, it now joins each reported conversion action to its configuration (primary flag, origin, category, counting type, include-in-conversions, default value, attribution model), lists live actions with no conversions in the window, names actions that share one name across several ids (the report keys by name, so those are merged before Oscar sees them), and raises a `doubleCountRisk` flag when two or more primary actions in one category all carry value. Live: 100 conversion actions on the account, dozens of them primary PURCHASE with value, which is exactly the risk the flag exists for.
+4. **`get_account_access`, new.** Users with access (email, role, since, invited by, each labelled), pending invitations, and every manager link with its status and whether it is our MCC, plus the conversion-tracking owner. Each of the three reads reports its own error in place, so an empty list beside an error is never read as nobody having access. Live: five users, eleven manager links (two active).
+
+Not yet in this tranche from request §3: campaign criteria, asset groups and listing-group filters, network and placement segmentation, and the shopping_performance_view joins. Also noted: `GOOGLE_ADS_OWN_LOGINS` is still unset on the deployment, so our own API changes are labelled "other" in the tabulation until the founder sets it (the shared-login list is set and works: 6,075 of the 7,015 changes in 29 days on the sweep account were under the shared founder-freelancer login).
 
 ## Founder rulings needed, one line each
 
