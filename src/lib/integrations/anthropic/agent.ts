@@ -283,7 +283,7 @@ YOUR JOB:
 - For the executable actions, include the precise details.action block so the proposal can be applied behind the approval gate. The kinds you can execute (widened 2026-09-03, founder-ruled): negatives (campaign, ad-group, or account-wide shared), pause at campaign, AD GROUP and AD level, campaign daily budget, attach or detach a SHARED SET (negative keyword lists and brand lists, which is how a PMax brand exclusion is applied), add or remove a campaign CRITERION (location, negative location, language, by constant id), and SET BIDDING STRATEGY (type and target; portfolio-strategy campaigns are refused by the worker). ONE operation per proposal, never a batch. Resolve the exact entity first: list_campaigns for campaign names, and never invent an ad id, shared set name or constant id. Detaching a shared set and changing bidding are consequential (they widen delivery or reset bidding learning); say so in the rationale so the founder decides with that in view. Conversion action create/edit is NOT executable yet; file those as advisory.
 - NEGATIVE KEYWORDS: before proposing ANY negative keyword, call get_search_terms and cite the actual wasted queries (meaningful cost, zero/low conversions). Never invent a query. If get_search_terms returns nothing, say so and do not fabricate one. If a wasted query is spending across many Search campaigns, file a shared negative (add_shared_negative); if it is confined to one campaign, file a campaign-level add_negative_keyword against that exact campaign.
 - If asked whether an optimisation is needed and you think NOT, prove it with the figures.
-- dispatch_build creates a full Search campaign from a spec: campaign PAUSED always, atomic (all or nothing), gates in code, result verified by re-read. You CAN build from this chat. Lay the spec out, get the founder's explicit go, run validate_only first if anything is uncertain, then build and report the verified counts. The founder activates; you never do. PMax, Demand Gen and Shopping builds do not exist here; say so rather than improvising.
+- dispatch_build creates a full campaign from a spec: SEARCH, STANDARD SHOPPING or DSA (widened 2026-09-03, founder-ruled). Campaign PAUSED always, atomic (all or nothing), gates in code, result verified by re-read. You CAN build from this chat. Lay the spec out, get the founder's explicit go, run validate_only first if anything is uncertain, then build and report the verified counts. The founder activates; you never do. Shopping needs the linked merchant_id and its listing-group tree ships as one all-products root (subdividing it is a separate surface; do not promise tiered trees). DSA needs the site domain and webpage targets. PMax and Demand Gen builds do not exist here; say so rather than improvising.
 
 Operating doctrine, adopted 2026-08-18 from a reviewed external field study:
 - Every operating report OPENS with problems ranked by money at stake, stated explicitly, before any narrative. "Client X is losing £Y/week" outranks "client Z could use £50 more". A status-shaped report is a failed report.
@@ -383,7 +383,7 @@ const BUILD_TOOL: Anthropic.Tool[] = [
   {
     name: "dispatch_build",
     description:
-      "Build a complete SEARCH campaign in a client's Google Ads account from a spec: budget, bidding, geo, schedule, campaign negatives, ad groups with keywords and responsive search ads. The build is one atomic operation (it fully exists or nothing does), the CAMPAIGN is always created PAUSED regardless of the spec (the founder activates; groups and ads inside are enabled so activation is a single action), and the result is verified by re-reading every count from the account. Gates enforced in code: global write kill switch, customer allowlist, budget hard cap, operation budget, duplicate-name refusal. ONLY call this when the founder has explicitly told you to build a SPECIFIC spec laid out in this conversation. Offer validate_only first when anything is uncertain: it runs Google's full server-side validation and changes NOTHING. Search campaigns only; Performance Max, Demand Gen and Shopping are not buildable here and you should say so plainly if asked.",
+      "Build a complete campaign in a client's Google Ads account from a spec. Three types (campaign.type): 'search' (default; ad groups with keywords and responsive search ads), 'shopping' (Standard Shopping: needs merchant_id, optional campaign_priority 0-2 and feed_label; each ad group gets one product ad and a root all-products listing group, and bidding is manual_cpc, maximize_clicks or target_roas, never maximize_conversions; subdividing the listing-group tree is a separate surface, do not promise it), 'dsa' (Dynamic Search Ads: needs dsa.domain, optional dsa.language; each ad group takes webpage_targets with conditions and dsa_ads carrying description lines, Google generates headlines and landing pages). Every type: one atomic operation (it fully exists or nothing does), the CAMPAIGN always created PAUSED regardless of the spec (the founder activates; everything inside is enabled so activation is one action), result verified by re-reading counts. Gates in code: global write kill switch, customer allowlist, budget hard cap, operation budget, duplicate-name refusal. ONLY call this when the founder has explicitly told you to build a SPECIFIC spec laid out in this conversation. Offer validate_only first when anything is uncertain: it runs Google's full server-side validation and changes NOTHING. Performance Max and Demand Gen are deliberately not buildable; say so plainly if asked.",
     input_schema: {
       type: "object",
       properties: {
@@ -392,12 +392,18 @@ const BUILD_TOOL: Anthropic.Tool[] = [
         validate_only: { type: "boolean", description: "true = Google validates the full build server-side, creating nothing. Use as the dry run before a real build." },
         campaign: {
           type: "object",
-          description: "The spec agreed with the founder. daily_budget and target_cpa/cpc_bid in account currency units. geo takes geo target constant ids or GB shorthand. schedule optional. Every ad: 3-15 headlines (max 30 chars), 2-4 descriptions (max 90 chars), final_url.",
+          description: "The spec agreed with the founder. daily_budget and target_cpa/cpc_bid in account currency units; target_roas a multiple like 3.5. geo takes geo target constant ids or GB shorthand. schedule optional. Search ads: 3-15 headlines (max 30 chars), 2-4 descriptions (max 90 chars), final_url. Shopping ad groups: name and cpc_bid only. DSA ad groups: webpage_targets (conditions of operand URL|CATEGORY|PAGE_TITLE|PAGE_CONTENT|CUSTOM_LABEL and argument) plus dsa_ads (description max 90 chars, optional description2).",
           properties: {
+            type: { type: "string", enum: ["search", "shopping", "dsa"] },
             name: { type: "string" },
             daily_budget: { type: "number" },
-            bidding: { type: "string", enum: ["maximize_conversions", "maximize_clicks", "manual_cpc"] },
+            bidding: { type: "string", enum: ["maximize_conversions", "maximize_clicks", "manual_cpc", "target_roas"] },
             target_cpa: { type: "number" },
+            target_roas: { type: "number" },
+            merchant_id: { type: "string" },
+            campaign_priority: { type: "number" },
+            feed_label: { type: "string" },
+            dsa: { type: "object", properties: { domain: { type: "string" }, language: { type: "string" } }, required: ["domain"] },
             geo: { type: "array", items: {} },
             negatives: { type: "array", items: { type: "object", properties: { text: { type: "string" }, match: { type: "string", enum: ["EXACT", "PHRASE", "BROAD"] } }, required: ["text", "match"] } },
             schedule: { type: "object", properties: { days: { type: "string", enum: ["MON_FRI", "ALL_WEEK"] }, start_hour: { type: "number" }, end_hour: { type: "number" } }, required: ["days", "start_hour", "end_hour"] },
@@ -409,7 +415,12 @@ const BUILD_TOOL: Anthropic.Tool[] = [
                 descriptions: { type: "array", items: { type: "string" } },
                 final_url: { type: "string" }, path1: { type: "string" }, path2: { type: "string" },
               }, required: ["headlines", "descriptions", "final_url"] } },
-            }, required: ["name", "keywords", "ads"] } },
+              webpage_targets: { type: "array", items: { type: "object", properties: {
+                name: { type: "string" },
+                conditions: { type: "array", items: { type: "object", properties: { operand: { type: "string", enum: ["URL", "CATEGORY", "PAGE_TITLE", "PAGE_CONTENT", "CUSTOM_LABEL"] }, argument: { type: "string" } }, required: ["operand", "argument"] } },
+              }, required: ["name", "conditions"] } },
+              dsa_ads: { type: "array", items: { type: "object", properties: { description: { type: "string" }, description2: { type: "string" } }, required: ["description"] } },
+            }, required: ["name"] } },
           },
           required: ["name", "daily_budget", "bidding", "geo", "ad_groups"],
         },

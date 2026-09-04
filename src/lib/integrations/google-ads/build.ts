@@ -36,24 +36,53 @@ export interface BuildAd {
   path1?: string;            // <= 15 chars
   path2?: string;
 }
+export type WebpageOperand = "URL" | "CATEGORY" | "PAGE_TITLE" | "PAGE_CONTENT" | "CUSTOM_LABEL";
+export interface WebpageTarget {
+  /** Display name for the auto-target ("All pages", "Product pages"). */
+  name: string;
+  /** Every condition must hold (AND). URL means "URL contains argument". */
+  conditions: { operand: WebpageOperand; argument: string }[];
+}
 export interface BuildAdGroup {
   name: string;
-  cpc_bid?: number;          // account currency units; only used with manual_cpc
-  keywords: BuildKeyword[];
-  ads: BuildAd[];
+  cpc_bid?: number;          // account currency units; manual/eCPC bidding
+  /** search type: required. */
+  keywords?: BuildKeyword[];
+  /** search type: required. */
+  ads?: BuildAd[];
+  /** dsa type: required, at least one auto-target. */
+  webpage_targets?: WebpageTarget[];
+  /** dsa type: required. Google generates headline and landing page; each entry
+   *  is one ad's description line(s), each <= 90 chars. */
+  dsa_ads?: { description: string; description2?: string }[];
+  // shopping type: neither keywords nor ads; each group gets one product ad and
+  // a root "all products" listing group (subdividing the tree is build-order
+  // step 9, a separate surface with its own diff).
 }
+export type BuildCampaignType = "search" | "shopping" | "dsa";
 export interface GoogleBuildSpec {
   account: string;           // customer id, digits or formatted
   build_ref: string;         // recorded in the audit trail
   campaign: {
+    /** Defaults to "search"; "shopping" is Standard Shopping (never PMax). */
+    type?: BuildCampaignType;
     name: string;
     daily_budget: number;    // account currency units
-    bidding: "maximize_conversions" | "maximize_clicks" | "manual_cpc";
+    bidding: "maximize_conversions" | "maximize_clicks" | "manual_cpc" | "target_roas";
     target_cpa?: number;     // account currency units, optional with maximize_conversions
+    target_roas?: number;    // a multiple like 3.5; required with target_roas bidding
+    /** shopping: the linked Merchant Center account id. Required. */
+    merchant_id?: string | number;
+    /** shopping: 0 (default) to 2; higher priority wins product auctions. */
+    campaign_priority?: number;
+    /** shopping: feed label, only when the feed uses one. */
+    feed_label?: string;
+    /** dsa: the site Google crawls for landing pages. Required. */
+    dsa?: { domain: string; language?: string };
     /** Geo target constant ids (e.g. 2826 = United Kingdom, 20339 = Essex).
      *  "GB" is accepted as shorthand for 2826. */
     geo: (string | number)[];
-    /** Negative keywords applied at campaign level. */
+    /** Negative keywords applied at campaign level (valid on all three types). */
     negatives?: BuildKeyword[];
     /** Mon-Fri window in the account timezone; omit for always-on. */
     schedule?: { days: "MON_FRI" | "ALL_WEEK"; start_hour: number; end_hour: number };
@@ -90,26 +119,64 @@ export function planBuild(spec: GoogleBuildSpec): { error?: string; ops?: unknow
   if (!Array.isArray(c.geo) || !c.geo.length) return { error: "campaign.geo needs at least one geo target (id, or GB shorthand)." };
   if (!Array.isArray(c.ad_groups) || !c.ad_groups.length) return { error: "at least one ad group is required." };
 
+  const type: BuildCampaignType = c.type ?? "search";
+  if (!["search", "shopping", "dsa"].includes(type)) return { error: `unknown campaign type "${type}" (search, shopping or dsa; PMax and Demand Gen are deliberately not buildable).` };
+  if (c.bidding === "target_roas" && !(Number.isFinite(c.target_roas) && (c.target_roas as number) > 0))
+    return { error: "target_roas bidding needs campaign.target_roas (a positive multiple like 3.5)." };
+  if (type === "shopping") {
+    if (!norm(String(c.merchant_id ?? ""))) return { error: "shopping needs campaign.merchant_id (the linked Merchant Center account id)." };
+    if (c.campaign_priority != null && ![0, 1, 2].includes(Number(c.campaign_priority)))
+      return { error: "campaign_priority must be 0, 1 or 2." };
+    if (c.bidding === "maximize_conversions") return { error: "Standard Shopping does not take maximize_conversions; use manual_cpc, maximize_clicks or target_roas." };
+  }
+  if (type === "dsa") {
+    const domain = c.dsa?.domain?.trim() ?? "";
+    if (!domain || /^https?:/i.test(domain)) return { error: "dsa needs campaign.dsa.domain as a bare domain (example.co.uk, no protocol)." };
+  }
+
   for (const g of c.ad_groups) {
     if (!g.name?.trim()) return { error: "every ad group needs a name." };
-    if (!g.keywords?.length) return { error: `ad group "${g.name}" has no keywords.` };
-    if (!g.ads?.length) return { error: `ad group "${g.name}" has no ads.` };
-    for (const k of g.keywords) {
-      if (!k.text?.trim()) return { error: `empty keyword in "${g.name}".` };
-      if (!["EXACT", "PHRASE", "BROAD"].includes(k.match)) return { error: `keyword "${k.text}": match must be EXACT, PHRASE or BROAD.` };
-    }
-    for (const a of g.ads) {
-      if (!a.final_url?.startsWith("http")) return { error: `ad in "${g.name}" needs a valid final_url.` };
-      if (!a.headlines || a.headlines.length < 3 || a.headlines.length > 15)
-        return { error: `ad in "${g.name}": 3 to 15 headlines required (got ${a.headlines?.length ?? 0}).` };
-      if (!a.descriptions || a.descriptions.length < 2 || a.descriptions.length > 4)
-        return { error: `ad in "${g.name}": 2 to 4 descriptions required (got ${a.descriptions?.length ?? 0}).` };
-      const badH = a.headlines.find((h) => h.length > 30);
-      if (badH) return { error: `headline over 30 chars: "${badH}"` };
-      const badD = a.descriptions.find((d) => d.length > 90);
-      if (badD) return { error: `description over 90 chars: "${badD.slice(0, 60)}…"` };
-      if (a.path1 && a.path1.length > 15) return { error: `path1 over 15 chars: "${a.path1}"` };
-      if (a.path2 && a.path2.length > 15) return { error: `path2 over 15 chars: "${a.path2}"` };
+    if (type === "search") {
+      if (!g.keywords?.length) return { error: `ad group "${g.name}" has no keywords.` };
+      if (!g.ads?.length) return { error: `ad group "${g.name}" has no ads.` };
+      for (const k of g.keywords) {
+        if (!k.text?.trim()) return { error: `empty keyword in "${g.name}".` };
+        if (!["EXACT", "PHRASE", "BROAD"].includes(k.match)) return { error: `keyword "${k.text}": match must be EXACT, PHRASE or BROAD.` };
+      }
+      for (const a of g.ads) {
+        if (!a.final_url?.startsWith("http")) return { error: `ad in "${g.name}" needs a valid final_url.` };
+        if (!a.headlines || a.headlines.length < 3 || a.headlines.length > 15)
+          return { error: `ad in "${g.name}": 3 to 15 headlines required (got ${a.headlines?.length ?? 0}).` };
+        if (!a.descriptions || a.descriptions.length < 2 || a.descriptions.length > 4)
+          return { error: `ad in "${g.name}": 2 to 4 descriptions required (got ${a.descriptions?.length ?? 0}).` };
+        const badH = a.headlines.find((h) => h.length > 30);
+        if (badH) return { error: `headline over 30 chars: "${badH}"` };
+        const badD = a.descriptions.find((d) => d.length > 90);
+        if (badD) return { error: `description over 90 chars: "${badD.slice(0, 60)}…"` };
+        if (a.path1 && a.path1.length > 15) return { error: `path1 over 15 chars: "${a.path1}"` };
+        if (a.path2 && a.path2.length > 15) return { error: `path2 over 15 chars: "${a.path2}"` };
+      }
+    } else if (type === "shopping") {
+      if (g.keywords?.length || g.ads?.length || g.webpage_targets?.length || g.dsa_ads?.length)
+        return { error: `shopping ad group "${g.name}" takes only name and cpc_bid: products come from the feed, and the listing-group tree is a separate surface.` };
+    } else {
+      if (!g.webpage_targets?.length) return { error: `dsa ad group "${g.name}" needs at least one webpage target.` };
+      if (!g.dsa_ads?.length) return { error: `dsa ad group "${g.name}" needs at least one dsa ad (a description line).` };
+      if (g.keywords?.length || g.ads?.length) return { error: `dsa ad group "${g.name}" takes webpage_targets and dsa_ads, not keywords or RSA ads.` };
+      for (const w of g.webpage_targets) {
+        if (!w.name?.trim()) return { error: `a webpage target in "${g.name}" needs a name.` };
+        if (!w.conditions?.length) return { error: `webpage target "${w.name}" needs at least one condition.` };
+        for (const cond of w.conditions) {
+          if (!["URL", "CATEGORY", "PAGE_TITLE", "PAGE_CONTENT", "CUSTOM_LABEL"].includes(cond.operand))
+            return { error: `webpage condition operand "${cond.operand}" is not URL, CATEGORY, PAGE_TITLE, PAGE_CONTENT or CUSTOM_LABEL.` };
+          if (!cond.argument?.trim()) return { error: `webpage condition in "${w.name}" needs an argument.` };
+        }
+      }
+      for (const a of g.dsa_ads) {
+        if (!a.description?.trim()) return { error: `a dsa ad in "${g.name}" has no description.` };
+        if (a.description.length > 90) return { error: `dsa description over 90 chars: "${a.description.slice(0, 60)}…"` };
+        if (a.description2 && a.description2.length > 90) return { error: `dsa description2 over 90 chars.` };
+      }
     }
   }
   if (c.schedule) {
@@ -133,17 +200,37 @@ export function planBuild(spec: GoogleBuildSpec): { error?: string; ops?: unknow
   const bidding: Record<string, unknown> =
     c.bidding === "maximize_clicks" ? { targetSpend: {} }
     : c.bidding === "manual_cpc" ? { manualCpc: { enhancedCpcEnabled: false } }
+    : c.bidding === "target_roas" ? { targetRoas: { targetRoas: c.target_roas } }
     : c.target_cpa ? { maximizeConversions: { targetCpaMicros: String(Math.round(c.target_cpa * 1_000_000)) } }
     : { maximizeConversions: {} };
+
+  const typeFields: Record<string, unknown> =
+    type === "shopping" ? {
+      advertisingChannelType: "SHOPPING",
+      shoppingSetting: {
+        merchantId: norm(String(c.merchant_id)),
+        campaignPriority: Number(c.campaign_priority ?? 0),
+        ...(c.feed_label ? { feedLabel: c.feed_label } : {}),
+      },
+      // Standard Shopping serves on Google Search; partners stay off, same
+      // conservative default as Search builds.
+      networkSettings: { targetGoogleSearch: true, targetSearchNetwork: false, targetContentNetwork: false, targetPartnerSearchNetwork: false },
+    } : type === "dsa" ? {
+      advertisingChannelType: "SEARCH",
+      dynamicSearchAdsSetting: { domainName: c.dsa!.domain.trim(), languageCode: c.dsa?.language?.trim() || "en" },
+      networkSettings: { targetGoogleSearch: true, targetSearchNetwork: false, targetContentNetwork: false, targetPartnerSearchNetwork: false },
+    } : {
+      advertisingChannelType: "SEARCH",
+      networkSettings: { targetGoogleSearch: true, targetSearchNetwork: false, targetContentNetwork: false, targetPartnerSearchNetwork: false },
+    };
 
   ops.push({ campaignOperation: { create: {
     resourceName: campaignRes,
     name: c.name,
     status: "PAUSED", // non-negotiable: the founder activates
-    advertisingChannelType: "SEARCH",
     campaignBudget: budgetRes,
     ...bidding,
-    networkSettings: { targetGoogleSearch: true, targetSearchNetwork: false, targetContentNetwork: false, targetPartnerSearchNetwork: false },
+    ...typeFields,
     containsEuPoliticalAdvertising: "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
   } } });
 
@@ -167,18 +254,53 @@ export function planBuild(spec: GoogleBuildSpec): { error?: string; ops?: unknow
   }
 
   let temp = -3;
+  const groupType = type === "shopping" ? "SHOPPING_PRODUCT_ADS" : type === "dsa" ? "SEARCH_DYNAMIC_ADS" : "SEARCH_STANDARD";
   for (const g of c.ad_groups) {
     const groupRes = `customers/${cid}/adGroups/${temp--}`;
     ops.push({ adGroupOperation: { create: {
       resourceName: groupRes, name: g.name, campaign: campaignRes,
-      type: "SEARCH_STANDARD", status: "ENABLED",
+      type: groupType, status: "ENABLED",
       ...(g.cpc_bid ? { cpcBidMicros: String(Math.round(g.cpc_bid * 1_000_000)) } : {}),
     } } });
-    for (const k of g.keywords) {
+
+    if (type === "shopping") {
+      // The root "all products" listing group, without which a shopping ad
+      // group cannot serve, and one product ad. Subdividing the tree is
+      // build-order step 9, deliberately not here.
+      ops.push({ adGroupCriterionOperation: { create: {
+        adGroup: groupRes, status: "ENABLED", listingGroup: { type: "UNIT" },
+        ...(g.cpc_bid ? { cpcBidMicros: String(Math.round(g.cpc_bid * 1_000_000)) } : {}),
+      } } });
+      ops.push({ adGroupAdOperation: { create: {
+        adGroup: groupRes, status: "ENABLED", ad: { shoppingProductAd: {} },
+      } } });
+      continue;
+    }
+
+    if (type === "dsa") {
+      for (const w of g.webpage_targets ?? []) {
+        ops.push({ adGroupCriterionOperation: { create: {
+          adGroup: groupRes, status: "ENABLED",
+          webpage: {
+            criterionName: w.name,
+            conditions: w.conditions.map((cond) => ({ operand: cond.operand, argument: cond.argument })),
+          },
+        } } });
+      }
+      for (const a of g.dsa_ads ?? []) {
+        ops.push({ adGroupAdOperation: { create: {
+          adGroup: groupRes, status: "ENABLED",
+          ad: { expandedDynamicSearchAd: { description: a.description, ...(a.description2 ? { description2: a.description2 } : {}) } },
+        } } });
+      }
+      continue;
+    }
+
+    for (const k of g.keywords ?? []) {
       ops.push({ adGroupCriterionOperation: { create: {
         adGroup: groupRes, status: "ENABLED", keyword: { text: k.text, matchType: k.match } } } });
     }
-    for (const a of g.ads) {
+    for (const a of g.ads ?? []) {
       ops.push({ adGroupAdOperation: { create: {
         adGroup: groupRes, status: "ENABLED",
         ad: {
@@ -240,18 +362,26 @@ export async function buildGoogleCampaign(
       .map((r) => (r.campaignResult as { resourceName?: string } | undefined)?.resourceName)
       .find(Boolean);
 
-    // Verify by re-read: claimed is not true until read.
+    // Verify by re-read: claimed is not true until read. "keywords" counts the
+    // ad-group targeting criteria for the campaign's type: keywords on search,
+    // root listing groups on shopping, webpage auto-targets on dsa.
+    const type = spec.campaign.type ?? "search";
     const expected = {
       ad_groups: spec.campaign.ad_groups.length,
-      keywords: spec.campaign.ad_groups.reduce((n, g) => n + g.keywords.length, 0),
-      ads: spec.campaign.ad_groups.reduce((n, g) => n + g.ads.length, 0),
+      keywords: type === "shopping" ? spec.campaign.ad_groups.length
+        : type === "dsa" ? spec.campaign.ad_groups.reduce((n, g) => n + (g.webpage_targets?.length ?? 0), 0)
+        : spec.campaign.ad_groups.reduce((n, g) => n + (g.keywords?.length ?? 0), 0),
+      ads: type === "shopping" ? spec.campaign.ad_groups.length
+        : type === "dsa" ? spec.campaign.ad_groups.reduce((n, g) => n + (g.dsa_ads?.length ?? 0), 0)
+        : spec.campaign.ad_groups.reduce((n, g) => n + (g.ads?.length ?? 0), 0),
     };
+    const criterionGaqlType = type === "shopping" ? "LISTING_GROUP" : type === "dsa" ? "WEBPAGE" : "KEYWORD";
     let verified = { campaign_status: undefined as string | undefined, ad_groups: 0, keywords: 0, ads: 0 };
     try {
       const cRows = await gaqlSearch(cid, `SELECT campaign.status FROM campaign WHERE campaign.resource_name = '${campaignRes}'`);
       verified.campaign_status = (cRows?.[0] as { campaign?: { status?: string } })?.campaign?.status;
       const g = await gaqlSearch(cid, `SELECT ad_group.id FROM ad_group WHERE campaign.resource_name = '${campaignRes}'`);
-      const k = await gaqlSearch(cid, `SELECT ad_group_criterion.criterion_id FROM ad_group_criterion WHERE campaign.resource_name = '${campaignRes}' AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE`);
+      const k = await gaqlSearch(cid, `SELECT ad_group_criterion.criterion_id FROM ad_group_criterion WHERE campaign.resource_name = '${campaignRes}' AND ad_group_criterion.type = '${criterionGaqlType}' AND ad_group_criterion.negative = FALSE`);
       const a = await gaqlSearch(cid, `SELECT ad_group_ad.ad.id FROM ad_group_ad WHERE campaign.resource_name = '${campaignRes}'`);
       verified = { campaign_status: verified.campaign_status, ad_groups: g?.length ?? 0, keywords: k?.length ?? 0, ads: a?.length ?? 0 };
     } catch {
