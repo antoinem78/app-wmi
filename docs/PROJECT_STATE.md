@@ -288,7 +288,7 @@ API quirks learned during submission, so nobody rediscovers them: end-user attri
 - [GoPoxy](clients/gopoxy.md): freelancer-managed, analysis-only; Shopify connected; distributor leg reframed to stockists (their GHL already holds a pipeline of enquiries); OCT to be offered free as the retention wedge per the bridge doctrine
 - [Atelier Brunos](clients/atelier-brunos.md): Gibran Zaki, AED 1,800/mo via FZCO portal; destination misconfig found and corrected 2026-08-15
 - [Super Henry](clients/super-henry.md): prospect (Rhodri); free review in flight; unit-economics rebuild is the lead finding
-- [Monde du Tabouret](clients/monde-du-tabouret.md): Phase 0 blocked on client Shopify app setup; monitor fixed 2026-07-30
+- [Monde du Tabouret](clients/monde-du-tabouret.md): Phase 0 re-verified live 2026-09-04, still blocked; storefront fires a Meta pixel outside the client business and the channel sync has delivered 1 of ~1,450 products; third shell catalog appeared 11 Aug; channel agent-operated since 2026-09-04
 - [Tropical Oasis](clients/tropical-oasis.md): audit delivered; awaiting client
 - [Vasco Electronics](clients/vasco-electronics.md): prospect; FR account audited 2026-08-11, deck delivered
 - [House of Isabella UK](clients/house-of-isabella.md): Google only, under Oscar (founder ruling 2026-08-18); 2026-08-18 feed review overturned all three of the client's premises (backorder sold as in stock, titles pulling the SEO field, Shoptimised already live); two ungranted Merchant Centers spending real money
@@ -347,7 +347,7 @@ Client operational history that predates the split lives in git (checkpoint d71c
 | KST sending domain | Live and verified |
 | KST nurture sequence | Written, not built. Blocked on a booking page. |
 | KST GHL snapshot | Not started. Blocks the blueprint purpose. |
-| MDT Phase 1 | Shells PAUSED. Blocked on client Shopify app setup. |
+| MDT Phase 1 | Shells PAUSED. Blocked on the client's Shopify channel connection: pixel sits outside business 908995597197130, catalog holds 1 product (re-verified 2026-09-04). |
 | MDT Phase 0 monitor | **Fixed and live** (2026-07-30, founder-approved). Gate is now pixel + 20-product floor + pixel linked as event source + no failed checks. Posts on state change, not green only. Manus node removed. |
 | Atelier Brunos prospecting | **LIVE on INITIATE_CHECKOUT** (ad set 120249780355700607, $40/day, created 2026-08-12; the ATC ad set 120249561418670607 is now PAUSED). **⚠ CAUSE FOUND 2026-08-15: personalised destinations was on with only "Shop" toggled, so since 13 Aug every paid click went to the Meta shop and not to atelierbrunos.com** (121 clicks, 1 landing page view, 132 on-Meta ViewContents, 0 purchases). Picked up from guided-creation defaults in the 12 Aug rebuild. Client spotted it first. Fix is a founder toggle and will reset learning a third time.** Detail in `docs/clients/atelier-brunos.md`. |
 | Atelier Brunos retargeting | **Campaign PAUSED but the ad set is ACTIVE at $21/day** (campaign 120249561479620607, ad set 120249561480450607, WT 180 Days ex PUR 730). The two defective originals are deleted. **The 2026-08-06 pre-activation gate is still unmet: `advantage_audience` is still 1 and there is no frequency cap.** Unpausing in this state ships the fault the audit named. |
