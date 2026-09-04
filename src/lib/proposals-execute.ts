@@ -20,6 +20,7 @@ import {
 } from "@/lib/integrations/google-ads/write";
 import { isMerchantAction } from "@/lib/integrations/google-ads/write";
 import { dryRunMerchant, applyMerchant, rollbackMerchant } from "@/lib/proposals-execute-merchant";
+import { readTree, renderTree, planExclusion, planSplit, planRestore, type TreeNode } from "@/lib/listing-groups";
 import { recordWriteAudit } from "@/lib/write-audit";
 import { approvalGate } from "@/lib/norbert-review-rules";
 
@@ -394,6 +395,41 @@ async function prepare(customerId: string, action: ExecAction): Promise<Prep | {
     };
   }
 
+  if (action.kind === "lg_exclude_product" || action.kind === "lg_split") {
+    // Tree surgery is delivery-shaping at catalog scale: campaign gate, a hard
+    // Standard Shopping check (PMax filter trees are a different resource,
+    // deliberately not here), and the rendered before/after diff IS the
+    // approval surface.
+    const guard = guardCampaignWrite(camp.id);
+    if (guard) return { error: guard };
+    const chRows = await gaqlSearch(customerId, `SELECT campaign.advertising_channel_type FROM campaign WHERE campaign.id = ${camp.id}`);
+    const channel = String(((chRows[0]?.campaign ?? {}) as { advertisingChannelType?: string }).advertisingChannelType ?? "");
+    if (channel !== "SHOPPING")
+      return { error: `Listing-group surgery covers Standard Shopping only; this campaign is ${channel || "unreadable"}. PMax filter trees are a separate surface (brand exclusions there ride attach_shared_set).` };
+    const ag = await resolveAdGroup(customerId, action.adGroup, camp.id);
+    if ("error" in ag) return ag;
+    const nodes = await readTree(customerId, ag.id);
+    if ("error" in nodes) return { error: `Could not read the listing tree: ${nodes.error}` };
+    if (action.kind === "lg_split" && action.tiers.some((t) => t.cpcBid > 100) || (action.kind === "lg_split" && action.othersBid > 100))
+      return { error: "A tier bid over 100 currency units fails the sanity ceiling." };
+    const plan = action.kind === "lg_exclude_product"
+      ? planExclusion(customerId, ag.id, nodes, action.dimension)
+      : planSplit(customerId, ag.id, nodes, action.dimensionType, action.tiers, action.othersBid);
+    if ("error" in plan) return { error: plan.error };
+    return {
+      ops: plan.ops,
+      before: {
+        adGroupId: ag.id,
+        tree: nodes,
+        before_tree: renderTree(nodes, "acct"),
+        after_tree: plan.afterText("acct"),
+        expected: plan.expected,
+        note: "READ THE TWO TREES ABOVE BEFORE APPROVING. The everything-else node must appear in the after tree, included, or the rest of the catalog stops serving.",
+      },
+      campaign: camp,
+    };
+  }
+
   if (action.kind === "set_bidding_strategy") {
     const guard = guardCampaignWrite(camp.id);
     if (guard) return { error: guard };
@@ -600,6 +636,29 @@ export async function rollbackProposal(id: string, actor: string): Promise<Resul
     const before = exec.before as { campaignId?: string } | undefined;
     if (!before?.campaignId) return { error: "No prior criterion stored — cannot re-create it." };
     op = campaignCriterionCreateOp(customerId, before.campaignId, action.criterionType, action.constantId);
+  } else if (action.kind === "lg_exclude_product" || action.kind === "lg_split") {
+    // Tree rollback is a full atomic restore of the snapshot: remove the
+    // current root (cascades) and recreate the stored tree exactly.
+    const before = exec.before as { adGroupId?: string; tree?: TreeNode[] } | undefined;
+    if (!before?.adGroupId || !Array.isArray(before.tree)) return { error: "No tree snapshot stored — restore it by hand from the audit trail." };
+    const current = await readTree(customerId, before.adGroupId);
+    if ("error" in current) return { error: `Cannot read the current tree: ${current.error}` };
+    const plan = planRestore(customerId, before.adGroupId, current, before.tree);
+    if ("error" in plan) return { error: plan.error };
+    try {
+      await googleAdsMutate(customerId, plan.ops, { validateOnly: true });
+      await googleAdsMutate(customerId, plan.ops, { validateOnly: false });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await recordWriteAudit({ phase: "rollback", customerId, action: action.kind, approver: actor, clientId: row.client_id, mccCheck: "ok", allowlistCheck: "ok", result: "failed", detail: { error: msg } });
+      return { error: `Tree restore failed: ${msg}` };
+    }
+    const restored = await readTree(customerId, before.adGroupId);
+    await recordWriteAudit({ phase: "rollback", customerId, action: action.kind, approver: actor, clientId: row.client_id, mccCheck: "ok", allowlistCheck: "ok", result: "ok", detail: { restored_tree: "error" in restored ? restored.error : renderTree(restored, "acct") } });
+    await patch(id, { status: "rolled_back", rolled_back_at: new Date().toISOString(), rolled_back_by: actor, execution: { ...exec, rolledBackAt: new Date().toISOString() } });
+    await logActivity({ clientId: row.client_id, eventType: "proposal_rolled_back", actor: `admin:${actor}`, payload: { id, action: action.kind } });
+    await alert(`↩️ Rexos rolled back (listing tree restored): *${row.title}* (${row.account_label}) by ${actor}.`);
+    return { ok: true, rolledBack: true, restored_tree: "error" in restored ? undefined : renderTree(restored, "acct") };
   } else if (action.kind === "set_bidding_strategy") {
     const before = exec.before as { campaignId?: string; biddingStrategyType?: string; targetCpaMicros?: number; targetRoas?: number } | undefined;
     if (!before?.campaignId || !before.biddingStrategyType) return { error: "No prior bidding scheme stored." };
@@ -681,6 +740,19 @@ async function verify(
   }
   if (action.kind === "remove_campaign_criterion" && prep.campaign) {
     return { removed: true };
+  }
+  if ((action.kind === "lg_exclude_product" || action.kind === "lg_split") && prep.campaign) {
+    const before = (prep as unknown as { before?: { adGroupId?: string; expected?: { units: number; excluded: number } } }).before;
+    if (!before?.adGroupId) return { note: "no ad group recorded; tree not re-read" };
+    const nodes = await readTree(customerId, before.adGroupId);
+    if ("error" in nodes) return { note: `tree read-back failed: ${nodes.error}` };
+    const units = nodes.filter((n) => n.type === "UNIT").length;
+    const excluded = nodes.filter((n) => n.negative).length;
+    return {
+      tree: renderTree(nodes, "acct"),
+      units, excluded,
+      matches_plan: !!before.expected && units === before.expected.units && excluded === before.expected.excluded,
+    };
   }
   if (action.kind === "set_bidding_strategy" && prep.campaign) {
     const rows = await gaqlSearch(

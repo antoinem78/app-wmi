@@ -66,7 +66,17 @@ export type ExecAction =
   // 2026-09-04). One attribute per proposal; reversal is deleting the overlay
   // input so the primary feed's value returns. NEVER a store write.
   | { kind: "mc_set_title"; merchantId: string; offerId: string; contentLanguage: string; feedLabel: string; title: string }
-  | { kind: "mc_set_price"; merchantId: string; offerId: string; contentLanguage: string; feedLabel: string; amount: number; currency: string };
+  | { kind: "mc_set_price"; merchantId: string; offerId: string; contentLanguage: string; feedLabel: string; amount: number; currency: string }
+  // ---- Listing-group tree mutations (build-order step 9, founder go
+  // 2026-09-04). Standard Shopping ad-group trees only, single-level surgery
+  // only: trees are replace-semantics and a malformed one silently excludes a
+  // catalog, so v1 refuses anything it cannot render as a complete diff.
+  | { kind: "lg_exclude_product"; campaign: string; adGroup: string; dimension: ListingDimension }
+  | { kind: "lg_split"; campaign: string; adGroup: string; dimensionType: ListingDimensionType; tiers: { value: string; cpcBid: number }[]; othersBid: number };
+
+export type ListingDimensionType = "item_id" | "brand" | "product_type_l1" | "custom_label_0" | "custom_label_1" | "custom_label_2" | "custom_label_3" | "custom_label_4";
+export interface ListingDimension { type: ListingDimensionType; value: string }
+export const LISTING_DIMENSION_TYPES: ListingDimensionType[] = ["item_id", "brand", "product_type_l1", "custom_label_0", "custom_label_1", "custom_label_2", "custom_label_3", "custom_label_4"];
 
 /** Parse a proposal's `details.action` into a strict, executable action. Returns
  *  null when the proposal carries no executable action (advisory only). */
@@ -168,6 +178,39 @@ export function parseAction(details: Record<string, unknown>): ExecAction | { er
       if (!Number.isFinite(amount) || amount <= 0) return { error: "mc_set_price needs a positive amount in currency units." };
       if (!/^[A-Z]{3}$/.test(currency)) return { error: "mc_set_price needs a 3-letter currency code matching the feed." };
       return { kind: "mc_set_price", merchantId, offerId, contentLanguage, feedLabel, amount, currency };
+    }
+    case "lg_exclude_product": {
+      const campaign = str(a.campaign), adGroup = str(a.adGroup);
+      const dim = (a.dimension ?? {}) as Record<string, unknown>;
+      const type = str(dim.type) as ListingDimensionType;
+      const value = str(dim.value);
+      if (!campaign || !adGroup) return { error: "lg_exclude_product needs campaign + adGroup." };
+      if (!LISTING_DIMENSION_TYPES.includes(type)) return { error: `dimension.type must be one of: ${LISTING_DIMENSION_TYPES.join(", ")}.` };
+      if (!value) return { error: "dimension.value is required (the item id, brand, product type or label to exclude)." };
+      return { kind: "lg_exclude_product", campaign, adGroup, dimension: { type, value } };
+    }
+    case "lg_split": {
+      const campaign = str(a.campaign), adGroup = str(a.adGroup);
+      const dimensionType = str(a.dimensionType) as ListingDimensionType;
+      const othersBid = Number(a.othersBid);
+      const tiersRaw = Array.isArray(a.tiers) ? (a.tiers as Record<string, unknown>[]) : [];
+      if (!campaign || !adGroup) return { error: "lg_split needs campaign + adGroup." };
+      if (!LISTING_DIMENSION_TYPES.includes(dimensionType)) return { error: `dimensionType must be one of: ${LISTING_DIMENSION_TYPES.join(", ")}.` };
+      if (!tiersRaw.length || tiersRaw.length > 20) return { error: "lg_split needs 1-20 tiers." };
+      const tiers: { value: string; cpcBid: number }[] = [];
+      const seen = new Set<string>();
+      for (const t of tiersRaw) {
+        const value = str(t.value);
+        const cpcBid = Number(t.cpcBid);
+        if (!value) return { error: "every tier needs a value." };
+        if (seen.has(value)) return { error: `tier value "${value}" appears twice.` };
+        seen.add(value);
+        if (!Number.isFinite(cpcBid) || cpcBid <= 0) return { error: `tier "${value}" needs a positive cpcBid (account currency units).` };
+        tiers.push({ value, cpcBid });
+      }
+      if (!Number.isFinite(othersBid) || othersBid <= 0)
+        return { error: "othersBid is required and positive: the everything-else node keeps the rest of the catalog serving, and it never ships without an explicit bid." };
+      return { kind: "lg_split", campaign, adGroup, dimensionType, tiers, othersBid };
     }
     default:
       return { error: `Unknown action kind "${a.kind}".` };
