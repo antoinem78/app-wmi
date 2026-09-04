@@ -258,8 +258,10 @@ wf1_nodes = [
   (select coalesce(jsonb_object_agg(t.entity_id, t.n), '{}'::jsonb) from (
      select ms.entity_id, count(*) n from move_snapshots ms
      where ms.client_id = '{{ $json.id }}'::uuid and ms.entity_id is not null
-       and ms.created_at > now() - interval '7 days' group by ms.entity_id) t) as our_changes_7d;""",
-     [400, 0], note="Ceiling and thrash inputs. Reads move_snapshots, never tasks (1,177 OpenDental rows there are not moves)."),
+       and ms.created_at > now() - interval '7 days'
+       and ms.move_class in ('executed', 'died')
+     group by ms.entity_id) t) as our_changes_7d;""",
+     [400, 0], note="Ceiling and thrash inputs. Reads move_snapshots, never tasks. Only executed (and died: the write may have landed, v1.1 incident) rows count toward thrash; a gate_blocked or rejected counterfactual changed nothing on the account, and counting refusals as churn let the 2026-09-04 acceptance tests thrash-lock an entity they never touched."),
 
   {"parameters": {"url": "=https://graph.facebook.com/v23.0/{{ $('Webhook').first().json.body.account_id }}/activities",
                   "authentication": "genericCredentialType", "genericAuthType": META_AUTH_TYPE,
