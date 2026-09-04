@@ -2,10 +2,26 @@
 
 **Channel file for the instawarm client session.** Read `docs/PROJECT_STATE.md` §1, §2 and §7 first; they carry the entities, the standing rulings and the cross-session rules. This file is the client's full state and is owned by the instawarm session; update it as things land. Cross-cutting changes (rulings, platform lessons, anything another client would trip over) also get one line in PROJECT_STATE.
 
+## State at a glance (2026-09-03)
+
+The file below is long because this account has moved fast. Ten lines to orient a fresh session:
+
+1. **$350/month retainer only.** The $225 fix package was voided and folded in. August collected by separate invoice after a chargeback.
+2. **⚠️ The ads have never run.** Six weeks in, zero traffic. Heated jackets sell October to January. This is the most important thing on the account.
+3. **The store is now honest.** Every false or contradictory claim is off it, verified by reading the live pages: shipping, returns, power bank, temperatures, safety claim, battery hours, size guide format, About page, support address, gallery, sticky buy bar, URL, typos.
+4. **Everything left is gated on one decision Vincent has not made: which supplier.** That blocks the product page, the corrected size chart and the zone artwork.
+5. **He is not actually blocked**, and may not realise it: an Eprolo agent has already offered in writing to bundle the jacket and power bank and ship them as one parcel.
+6. **Founder to do, ~15 minutes, not blocked by anything:** disable the AS SEEN ON section in both templates, swap the 21-zone image, hide two Loox review photos.
+7. **Parked with a scheduled reminder:** restart the retainer subscription on 2026-09-09.
+8. **Cowork cannot edit theme code or drive Loox.** Proven twice. Those are founder-by-hand.
+9. **Five things have turned out to describe a different product** than the one he ships: the battery, the zone count, the size chart, the review photos, the arm heating. Assume any product fact is wrong until checked.
+10. **Sourcing work was done as a favour and named as such**, so it does not become retainer scope.
+
 ## Who and what
 
 - **Client:** Vincent Weimer, Minnesota, US. Store: instawarm.shop (heated jackets). Canonical Shopify domain: `kgh1am-nd.myshopify.com` (the `instawarm-shop` admin handle is an alias). USD, America/Chicago.
-- **Commercial (founder-clarified 2026-08-13):** TWO engagements, both count in the client book: (1) **$350/month retainer**, signed via the FZCO portal (the relationship; entity = WEB MARKETING INTERNATIONAL - FZCO, see PROJECT_STATE §1); (2) **$225 one-off first-look fix package** (opened $450, Vincent countered $225, accepted). **Payment on completion** (founder agreed 2026-08-14); delivery staged on a **duplicate theme** with Vincent approving a preview link before publish.
+- **Commercial, current as of 2026-09-03:** **$350/month retainer only.** The **$225 fix package was VOIDED** by founder ruling 2026-08-17 and its work folded into the retainer. August's $350 was collected by separate Stripe invoice after the dispute (below). Retainer scope stated to the client from September: advertising (campaign build, management, creative, reporting) plus store work where it serves the campaigns; anything substantial and separate is quoted before starting. Historical: opened $450, Vincent countered $225, accepted; the duplicate-theme staging that was agreed on 2026-08-14 was withdrawn as technically unsound, see the execution-model note below.
+- **⚠️ THE ADS HAVE NOT STARTED. As of 2026-09-03 no traffic has ever run.** Six weeks of the engagement have gone on store fixes and supplier evaluation. Heated jackets sell October to January, so the selling season is being consumed by supply-chain admin on a product with 5 lifetime orders and no proven demand. **This is the single most important open item on the account** and it was put to Vincent in those terms on 2026-09-03.
 
 ## Store connection (LIVE since 2026-08-14 ~23:00): first real merchant on the commerce pipeline
 
@@ -31,6 +47,28 @@ Consequence for this store: the gate could lose days without anyone noticing, an
 
 - Store ledger: **5 lifetime orders, 2 products** (first-look doc said 0 purchases; the 5 are presumably tests, on record either way).
 - Vincent's tracking since 11 July: 836 product-page views, 7 add-to-carts (<1% vs 5-8% healthy), 2 checkouts, 0 purchases.
+
+## The supplier question, 2026-08-27 to 2026-09-03: settled facts
+
+**Why this dominates the account.** Vincent wants the power bank in the box, correctly, because a $149.95 jacket that arrives after two to four weeks and cannot be switched on is a refund and a one-star review. Everything else has queued behind it.
+
+**Market answer, evidenced by a Cowork sweep 2026-09-03** (`docs/COWORK_BRIEF_instawarm_supplier_hunt.md`): **almost nobody bundles, and it is structural, not bad luck.** Of ~12 heated-jacket listings examined across AliExpress and Alibaba, exactly ONE confirmed a battery in the box via an itemised packing list, and it fails everything else ($144.96, no hood at all, sizes stop at 2XL, $385 landed). At least FIVE listing titles said the opposite in their own words ("No Power Bank", "Power Supply Not Included", "Not Included The Power Bank"). The rest are silent. **The cause is lithium air-freight rules**, later confirmed independently by USAdrop telling Vincent that bundling "is generally not recommended because shipping battery-powered products can significantly increase shipping costs". CJ Dropshipping, Zendrop and Spocket could not be searched: catalogues behind login or bot-detection walls, and the brief forbade account creation and CAPTCHA solving.
+
+**Eprolo listing REJECTED 2026-09-03** (`docs/COWORK_BRIEF_instawarm_supplier_read.md`). Vincent proposed it specifically to bundle. Its own description says: *"Please use mobile power. At the same time, our products do not include mobile power."* It also fails three other ways: the 9-zone tier is only sold M to 3XL (losing S and 4XL, while he wanted to ADD 5XL/6XL); its heat settings are 50/40/30°C, nine degrees hotter than the current jacket at every level, so every temperature figure on four pages would be wrong again; and its own 9-zone tier claims "whole body heating" while its own diagram shows nothing on hood, neck or arms. Genuinely faster (7-18 days) and cheaper ($25.69 + $20.59 shipping) if he ever switches for those reasons instead.
+
+**BUT: an Eprolo agent has since offered the bundle directly** (WhatsApp screenshot, +86 158 2020 5795, 2026-09-03): *"I will set up the price in the Eprolo account than our warehouse will ship 2 items together once you have sales"* and *"you can connect your store so that I can set them bundle for you."* **This is the key unlock, and Vincent moved past it too fast.** The listing does not include a battery; the fulfilment agent will pack two items into one parcel, which is the same outcome for the customer. **He is not blocked.** This also vindicates the standing advice: ask the agent directly rather than reading what is listed.
+
+**Current supplier said no.** Vincent asked and they declined to bundle.
+
+**USAdrop is Vincent's current preference** (2026-09-03): fastest shipping, more sizes, will bundle with the cost caveat. **Five things must be answered before any switch**, put to him that day: total landed cost per bundled order including the higher battery shipping (a number, not a principle); whether it is physically the same jacket, with a link or photos; whether XL exists; the bundled power bank's capacity and output; and a real US delivery quote rather than a marketing claim.
+
+**Two factual corrections given to Vincent 2026-09-03**, both verified: his store already carries **7 sizes (S, M, L, XL, 2XL, 3XL, 4XL)**, not the four he believed, confirmed by reading the live product variants; and **the USAdrop range he quoted contains no XL** (S, M, L, 2XL, 3XL, 4XL, 5XL, 6XL), which on a jacket that runs small is likely his best seller, so he would gain 5XL/6XL and lose XL.
+
+**Filed for later, not now:** Dongguan S-King ("Dr.Warm") on Alibaba is the strongest visual and size match anyone found (black hooded puffer, horizontal channel quilting, left-chest button, XXS-4XL, ~$23/unit at 10-piece MOQ) and explicitly offers OEM/ODM at 500 pieces, which is exactly where a bundled battery gets specified. That is ~$11k of stock against 5 lifetime orders, so it is a post-traction option.
+
+**Fallback that always works, and Vincent has not tried it:** buy 10,000mAh banks in bulk to Minnesota and post one per order. Roughly $12-15 an order against a $149.95 sale, makes "battery included" true, and lands something on the customer's doormat in days rather than weeks. Caveat given: check USPS lithium rules first, a 10,000mAh bank is about 37Wh.
+
+**Sourcing was done as a favour, not retainer scope.** Named as such to Vincent, deliberately, given the scope conversation on 2026-08-17.
 
 ## Supplier documents received 2026-08-27, and a third wrong-product finding
 
@@ -64,6 +102,10 @@ Probable but unproven cause of Vincent's fraud dispute. Changed regardless, beca
 **Verified by reading the live storefront, not from reports.** Homepage, features page, FAQ page and product page are all clean of the old temperatures (150/130/110°F), the "fully tested to meet international safety standards" claim, and the unsupported battery-hours claim. Delivered across four Cowork waves plus founder theme edits.
 
 **Live and verified:** honest shipping figures on three surfaces plus a line on the product page; returns consistent across product page, FAQ and refund policy (30 days, any reason, buyer pays postage unless faulty); power bank stated as NOT included at the top of the product description and as the first FAQ question; heat settings corrected to 113/95/77°F everywhere; size guide rebuilt from a screenshot into a real table with inches and a runs-small warning; About page in Vincent's first person with his name; support@instawarm.shop everywhere including store settings, domain authenticated; gallery leading with two outdoor shots; sticky mobile buy bar; product URL shortened to `/products/heated-jacket` with a working 301; footer in his voice; all typos cleared.
+
+**Confirmed 2026-08-29: the 9-zone jacket does NOT heat the arms.** That makes four things on the site wrong, not one: the "21 HEATING ZONES ... targeting arms, back, shoulders & core" image callout is now confirmed false rather than merely unverified; the homepage says the system "provides lightweight warmth all over the body"; and the product description says it "targets your whole body" and gives "edge-to-edge warmth". A buyer expecting warm sleeves has a legitimate refund claim under the 30-day any-reason policy. **The honest version sells better: it heats the core and back, which is where warmth does the work, and a specific claim beats a vague one.**
+
+**Size chart NOT published, deliberately.** A corrected chart was built from the supplier's real figures (garment measured flat, chest = their "bust" figure doubled: S 100cm/39.5" through 6XL 132cm/52") and is in the working notes. **Held because the supplier is unsettled**: publishing a chart for a jacket he may stop selling is churn. This reverses earlier advice to publish immediately, and the reason changed rather than the reasoning: a switch was speculative then and is live now. The chart currently on the site is still wrong for the jacket he ships.
 
 **Still outstanding, FOUNDER ONLY (see the Cowork limits below):** disable the AS SEEN ON section in `templates/index.json` (`image_banner_e8VNbp`) and `templates/product.json` (`image_banner_MPRFNF`) by adding `"disabled": true` to the SECTION object, since neither has a `blocks` key. Swap `Screenshot_2026-02-13_at_17.59.48.webp` (the "21 HEATING ZONES" callout, wrong for a 9-zone jacket) for `Screenshot_2026-02-13_at_18.08.09.webp` on block `ai_gen_block_f7b7c54_aHkDLq` in both templates: **swap, do not disable**, because that block also carries five feature title/text pairs. And hide two Loox review photos ("N d" 21 Dec 2025, blue jacket; "Er" 6 Oct 2025, olive jacket).
 
