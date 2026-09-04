@@ -14,6 +14,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { listMetaAdAccounts, metaConfigured } from "@/lib/integrations/meta";
 import { getMetaWeekly, formatMetaWeeklyText, type MetaWeekly } from "@/lib/integrations/meta/weekly";
 import { getMetaBreakdowns, formatMetaBreakdownsText } from "@/lib/integrations/meta/breakdowns";
+import { metaReportFigures } from "@/lib/report-figures";
+import { gradeReport, gradeLines } from "@/lib/report-grade";
 import { stripEmDashes } from "@/lib/integrations/anthropic/narrative";
 
 export const maxDuration = 300;
@@ -81,10 +83,14 @@ export async function GET(request: Request) {
   const channel = process.env.SLACK_META_REVIEW_CHANNEL;
   const slackOn = !!process.env.SLACK_BOT_TOKEN && !!channel;
 
-  const roster = await listMetaAdAccounts();
+  let roster = await listMetaAdAccounts();
   if ("error" in roster) {
     return NextResponse.json({ error: `Could not list ad accounts: ${roster.error}` }, { status: 502 });
   }
+  // ?only=<account digits>: single-account run, for acceptance passes and
+  // founder-triggered regenerations that should not flood the channel.
+  const only = (new URL(request.url).searchParams.get("only") ?? "").replace(/\D/g, "");
+  if (only) roster = roster.filter((a) => a.accountId.replace(/\D/g, "") === only);
 
   // "Generated" and "delivered" are counted apart on purpose. Collapsing them
   // means an unset channel id reports the same success as a delivered report,
@@ -127,19 +133,32 @@ export async function GET(request: Request) {
       const narrative = await narrate(weekly, figures);
       const body = stripEmDashes(narrative ?? figures);
 
+      // Report engine: recompute every stated figure, then Norbert grades the
+      // prose. A draft never reaches the channel without its grade.
+      let grade: Awaited<ReturnType<typeof gradeReport>> | null = null;
+      try {
+        const rf = await metaReportFigures(acc.accountId, weekly);
+        grade = await gradeReport(rf, body, weekly.accountName);
+      } catch (e) {
+        console.error(`Report grade skipped for ${acc.accountId}:`, e);
+      }
+
       generated++;
       if (!slackOn) return; // generated but deliberately undelivered; never counted as delivered
       try {
         const { postMessage } = await import("@/lib/integrations/slack");
+        const g = grade ? gradeLines(grade) : { header: "⚠️ UNGRADED · ", footer: ["*Norbert:* grading pass failed outright; treat as unreviewed."] };
         const draft = [
-          `📘 *Weekly Meta draft: ${weekly.accountName}* (${weekly.period.start} → ${weekly.period.end})`,
+          `📘 ${g.header}*Weekly Meta draft: ${weekly.accountName}* (${weekly.period.start} → ${weekly.period.end})`,
           "",
           body,
           "",
           "*Figures*",
           "```",
           figures,
+          ...(grade ? ["", grade.figuresBlock] : []),
           "```",
+          ...g.footer,
           `Full breakdown tables (placement, demographic, creative crosses): https://app.wmiltd.com/api/bernard/breakdowns/${weekly.accountId}?days=7`,
           "_Draft for review, not yet sent to the client._",
         ].join("\n");

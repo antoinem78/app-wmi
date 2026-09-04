@@ -15,6 +15,8 @@ import {
   formatWeeklyText,
 } from "@/lib/integrations/google-ads/reporting";
 import { generateNarrative, stripEmDashes } from "@/lib/integrations/anthropic/narrative";
+import { googleReportFigures } from "@/lib/report-figures";
+import { gradeReport, gradeLines } from "@/lib/report-grade";
 
 export const maxDuration = 300;
 
@@ -40,7 +42,11 @@ export async function GET(request: Request) {
     .eq("ad_link_status", "approved")
     .not("google_ads_customer_id", "is", null);
 
-  const clients = rows ?? [];
+  let clients = rows ?? [];
+  // ?only=<client uuid>: single-client run for acceptance passes and founder-
+  // triggered regenerations that should not flood the channel.
+  const only = (new URL(request.url).searchParams.get("only") ?? "").trim();
+  if (only) clients = clients.filter((r) => r.client_id === only);
   const base = process.env.APP_BASE_URL ?? "https://app.wmiltd.com";
   const reviewChannel = process.env.SLACK_REVIEW_CHANNEL;
   const slackOn = !!process.env.SLACK_BOT_TOKEN && !!reviewChannel;
@@ -90,14 +96,27 @@ export async function GET(request: Request) {
       }
       const body = stripEmDashes(narrative ?? formatWeeklyText(dash.weekly, dash.currency));
 
+      // Report engine: recompute every stated figure over four windows, then
+      // Norbert grades the prose. A draft never posts without its grade.
+      let grade: Awaited<ReturnType<typeof gradeReport>> | null = null;
+      try {
+        const rf = await googleReportFigures(reportingId, dash as unknown as Parameters<typeof googleReportFigures>[1]);
+        grade = await gradeReport(rf, body, companyName);
+      } catch (e) {
+        console.error(`Report grade skipped for ${clientId}:`, e);
+      }
+
       let slackOk = true;
       if (slackOn) {
         try {
           const { postMessage } = await import("@/lib/integrations/slack");
+          const g = grade ? gradeLines(grade) : { header: "⚠️ UNGRADED · ", footer: ["*Norbert:* grading pass failed outright; treat as unreviewed."] };
           const draft = [
-            `📊 *Weekly report draft: ${companyName}* (${dash.weekly.start} → ${dash.weekly.end})`,
+            `📊 ${g.header}*Weekly report draft: ${companyName}* (${dash.weekly.start} → ${dash.weekly.end})`,
             "",
             body,
+            ...(grade ? ["", "```", grade.figuresBlock, "```"] : []),
+            ...g.footer,
             "",
             `👉 Client dashboard: ${base}/onboarding/${clientId}`,
             "_Draft for review — not yet sent to the client._",
