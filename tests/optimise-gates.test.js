@@ -124,6 +124,19 @@ const check = (name, cond, detail) => {
   check("exclusion plus second move on same adset refuses", dup.gate === "grammar", dup);
 }
 
+// v1.2 placement_exclude grammar (the Advantage+ refusal, is-it-there and
+// last-platform gates need the targeting read and live in Exclusion checks)
+{
+  const px = (over) => ({ op: "placement_exclude", entity_type: "adset", entity_id: "888", placement: "audience_network", evidence: "audience network takes spend with zero results on this ad set", ...over });
+  check("placement_exclude on adset passes gates", runGates(base({ body: { moves: [px({})] } })).ok === true);
+  const camp = runGates(base({ body: { moves: [px({ entity_type: "campaign" })] } }));
+  check("placement_exclude on campaign refuses", camp.gate === "grammar", camp);
+  const bad = runGates(base({ body: { moves: [px({ placement: "tiktok" })] } }));
+  check("unknown placement refuses", bad.gate === "grammar", bad);
+  const missing = runGates(base({ body: { moves: [px({ placement: undefined })] } }));
+  check("missing placement refuses", missing.gate === "grammar", missing);
+}
+
 // happy path carries the flags forward
 {
   const r = runGates(base({}));

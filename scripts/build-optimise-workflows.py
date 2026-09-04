@@ -61,6 +61,48 @@ function verifyExclusionDiff(snapshot, readbackTargeting, audienceId) {
 // ===== END VERIFY EXCLUSION =====
 """
 
+# -------------------------------------------------------- v1.2 verify logic
+# Pure function, embedded in the execute workflow AND extracted verbatim by
+# tests/verify-placement.test.js. A placement exclusion is a read-merge-write
+# on the whole targeting object, so the diff discipline is v1.1's: only the
+# placement fields may differ, and only by the named removal.
+VERIFY_PLACEMENT_FN = r"""
+// ===== VERIFY PLACEMENT (pure; extracted verbatim by tests/verify-placement.test.js) =====
+// Returns the list of problems; empty means the write verified.
+function verifyPlacementDiff(snapshot, readbackTargeting, platform) {
+  const POSITIONS = { audience_network: 'audience_network_positions', messenger: 'messenger_positions',
+    facebook: 'facebook_positions', instagram: 'instagram_positions',
+    whatsapp: 'whatsapp_positions', threads: 'threads_positions' };
+  const posKey = POSITIONS[platform];
+  const sortDeep = (v) => Array.isArray(v) ? v.map(sortDeep)
+    : (v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => (o[k] = sortDeep(v[k]), o), {}) : v);
+  const canon = (v) => JSON.stringify(sortDeep(v));
+  const show = (v) => v === undefined ? 'absent' : JSON.stringify(v).slice(0, 200);
+  const problems = [];
+  const rb = readbackTargeting || {};
+  if (!readbackTargeting) problems.push('read-back returned no targeting object');
+  const keys = new Set(Object.keys(snapshot).concat(Object.keys(rb)));
+  keys.delete('publisher_platforms');
+  keys.delete(posKey);
+  for (const k of keys) {
+    if (canon(snapshot[k]) !== canon(rb[k]))
+      problems.push('field "' + k + '" changed: ' + show(snapshot[k]) + ' -> ' + show(rb[k]));
+  }
+  const before = (snapshot.publisher_platforms || []).slice().sort();
+  const expected = before.filter((p) => p !== platform);
+  const got = (rb.publisher_platforms || []).slice().sort();
+  if (JSON.stringify(got) !== JSON.stringify(expected)) {
+    problems.push(JSON.stringify(got) === JSON.stringify(before)
+      ? 'read-back platforms identical to pre-write: ' + platform + ' was not removed'
+      : 'publisher_platforms read back as [' + got.join(',') + '], expected [' + expected.join(',') + ']');
+  }
+  if (rb[posKey] !== undefined && Array.isArray(rb[posKey]) && rb[posKey].length)
+    problems.push('positions field "' + posKey + '" still present after removing ' + platform);
+  return problems;
+}
+// ===== END VERIFY PLACEMENT =====
+"""
+
 # ---------------------------------------------------------------- gate logic
 # Pure function, embedded in the workflow AND extracted verbatim by the test
 # suite (tests/optimise-gates.test.js), same discipline as parse-batch.
@@ -116,7 +158,7 @@ function runGates(input) {
   const seen = new Set();
   const staged = [];
   for (const m of moves) {
-    if (!['pause', 'budget', 'unpause', 'audience_exclude'].includes(m.op))
+    if (!['pause', 'budget', 'unpause', 'audience_exclude', 'placement_exclude'].includes(m.op))
       return fail('grammar', 'unknown op "' + m.op + '"; the whole set is refused');
     if (!m.entity_id || !['campaign', 'adset', 'ad'].includes(m.entity_type))
       return fail('grammar', 'move missing entity_id/entity_type');
@@ -129,6 +171,16 @@ function runGates(input) {
         return fail('grammar', 'audience_exclude applies to ad sets only; got entity_type "' + m.entity_type + '"');
       if (!/^\d{6,}$/.test(String(m.audience_id || '')))
         return fail('grammar', 'audience_exclude needs a numeric audience_id');
+    }
+    // v1.2 (placement exclusions, founder-ruled 2026-09-04): adset-scoped,
+    // platform-level, narrowing only. The Advantage+ refusal, the is-it-there
+    // check and the never-the-last-platform floor need the targeting read and
+    // run in Exclusion checks, downstream.
+    if (m.op === 'placement_exclude') {
+      if (m.entity_type !== 'adset')
+        return fail('grammar', 'placement_exclude applies to ad sets only; got entity_type "' + m.entity_type + '"');
+      if (!['audience_network', 'messenger', 'facebook', 'instagram', 'whatsapp', 'threads'].includes(String(m.placement || '')))
+        return fail('grammar', 'placement must be audience_network, messenger, facebook, instagram, whatsapp or threads');
     }
     if (!m.evidence || String(m.evidence).trim().length < 10)
       return fail('grammar', 'every move carries evidence; "' + (m.evidence || '') + '" is not evidence');
@@ -279,7 +331,7 @@ return [{ json: { ok: false, gate: j.gate, error: j.error } }];
   # nodes degrade to a harmless account read when the run carries no
   # audience_exclude moves, so the leg stays one straight line (no branch
   # convergence, which is where n8n reference bugs live).
-  {"parameters": {"url": "=https://graph.facebook.com/v23.0/?ids={{ $('Gates').first().json.staged.filter(m => m.op === 'audience_exclude').map(m => m.entity_id).join(',') || $('Gates').first().json.account_id }}&fields={{ $('Gates').first().json.staged.some(m => m.op === 'audience_exclude') ? 'id,name,account_id,created_time,targeting,learning_stage_info,insights.date_preset(maximum){spend}' : 'id' }}",
+  {"parameters": {"url": "=https://graph.facebook.com/v23.0/?ids={{ $('Gates').first().json.staged.filter(m => m.op === 'audience_exclude' || m.op === 'placement_exclude').map(m => m.entity_id).join(',') || $('Gates').first().json.account_id }}&fields={{ $('Gates').first().json.staged.some(m => m.op === 'audience_exclude' || m.op === 'placement_exclude') ? 'id,name,account_id,created_time,targeting,learning_stage_info,insights.date_preset(maximum){spend}' : 'id' }}",
                   "authentication": "genericCredentialType", "genericAuthType": META_AUTH_TYPE, "options": {}},
    "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1400, -320],
    "id": "65dddd1111000000000000000000000000ac"[:36], "name": "Read adset context", "credentials": META,
@@ -367,8 +419,48 @@ if (excl.length) {
   }
   staged = staged.map(m => m); // exclusion moves mutated in place above
 }
+
+// v1.2 placement exclusions (founder-ruled 2026-09-04). Platform-level,
+// narrowing only. Three gates on the targeting read, then the disclosures.
+const plc = staged.filter(m => m.op === 'placement_exclude');
+if (plc.length) {
+  const adsRaw = $('Read adset context').first().json || {};
+  if (adsRaw.error) return fail('placement_read', 'ad set targeting read failed (' + JSON.stringify(adsRaw.error).slice(0, 200) + '); refusing rather than staging blind');
+  for (const m of plc) {
+    const adset = adsRaw[m.entity_id];
+    if (!adset || !adset.targeting)
+      return fail('placement_read', 'ad set ' + m.entity_id + ' returned no targeting object; refusing rather than staging blind', m.entity_id);
+    const t = adset.targeting;
+    const platforms = Array.isArray(t.publisher_platforms) ? t.publisher_platforms : null;
+    // THE ADVANTAGE+ RULE, founder-agreed 2026-09-04: no explicit platform list
+    // means Advantage+ placements, and excluding one there is a mode change to
+    // manual that forfeits per-asset media customisation. Refused, never judged.
+    if (!platforms)
+      return fail('placement_advantage_plus', 'ad set ' + m.entity_id + ' uses Advantage+ placements; excluding a placement there is a mode change to manual that forfeits per-asset media customisation, and that trade is the founder\'s by hand, never a staged move', m.entity_id);
+    if (!platforms.includes(m.placement))
+      return fail('placement_idempotent', 'ad set ' + m.entity_id + ' does not serve on ' + m.placement + '; a no-op still burns a ceiling slot and resets learning, so it is refused', m.entity_id);
+    if (platforms.length <= 1)
+      return fail('placement_floor', 'removing ' + m.placement + ' would leave ad set ' + m.entity_id + ' with no platforms at all; an ad set must keep at least one', m.entity_id);
+    const after = platforms.filter(p => p !== m.placement);
+    const ageDays = adset.created_time ? Math.round((Date.now() - new Date(adset.created_time).getTime()) / 86400000) : null;
+    const spendRaw = ((((adset.insights || {}).data || [])[0]) || {}).spend;
+    const learning = ((adset.learning_stage_info || {}).status) || 'UNKNOWN';
+    m.exclusion_context = {
+      placement: m.placement,
+      platforms_before: platforms,
+      platforms_after: after,
+      learning_status: learning,
+      adset_age_days: ageDays,
+      adset_lifetime_spend: spendRaw != null ? Number(spendRaw) : null,
+    };
+    m.exclusion_disclosure = 'LEARNING RESET: removing ' + m.placement + ' resets the ad set\'s learning phase. The ad set is '
+      + (ageDays != null ? ageDays + ' days old' : 'of unknown age') + ' with '
+      + (spendRaw != null ? spendRaw + ' (account currency) lifetime spend' : 'unknown lifetime spend')
+      + ', currently ' + learning + '. Platforms after the move: ' + after.join(', ') + '.';
+  }
+}
 return [{ json: { ok: true, staged, ...passThrough } }];
-""", [1800, -320], note="v1.1 gates that need Meta reads: same-account, not-already-excluded, not-targeted, cap of 5, plus the section-4 disclosures."),
+""", [1800, -320], note="v1.1 exclusion gates + v1.2 placement gates (Advantage+ refusal, is-it-there, never-the-last-platform), all on the same targeting read."),
 
   {"parameters": {"conditions": {"options": {"caseSensitive": True, "typeValidation": "loose", "version": 3},
     "conditions": [{"id": "ok2", "leftValue": "={{ $json.ok }}", "rightValue": "",
@@ -467,6 +559,11 @@ const rows = j.staged.map(m => {
     fromV = `'${jstr({ excluded_custom_audiences: ctx.exclusions_before || [] })}'::jsonb`;
     toV = `'${jstr({ audience_id: String(m.audience_id), audience_name: (ctx.audience || {}).name || null,
       excluded_custom_audiences_after: (ctx.exclusions_before || []).concat([String(m.audience_id)]),
+      disclosure: m.exclusion_disclosure || null, context: ctx })}'::jsonb`;
+  } else if (m.op === 'placement_exclude') {
+    const ctx = m.exclusion_context || {};
+    fromV = `'${jstr({ publisher_platforms: ctx.platforms_before || [] })}'::jsonb`;
+    toV = `'${jstr({ placement: String(m.placement), publisher_platforms_after: ctx.platforms_after || [],
       disclosure: m.exclusion_disclosure || null, context: ctx })}'::jsonb`;
   } else {
     fromV = `'{"status":"ACTIVE"}'::jsonb`;
@@ -593,6 +690,13 @@ if (m.op === 'audience_exclude') {
     return [{ json: { route: 'error', error: 'audience_exclude move ' + m.id + ' carries no audience_id in to_value; refusing' } }];
   return [{ json: { route: 'approve_exclude', move: m, entity_id: m.entity_id, audience_id: audienceId } }];
 }
+// v1.2: same read-merge-write discipline on the placement fields.
+if (m.op === 'placement_exclude') {
+  const placement = String((m.to_value || {}).placement || '');
+  if (!['audience_network', 'messenger', 'facebook', 'instagram', 'whatsapp', 'threads'].includes(placement))
+    return [{ json: { route: 'error', error: 'placement_exclude move ' + m.id + ' carries no valid placement in to_value; refusing' } }];
+  return [{ json: { route: 'approve_placement', move: m, entity_id: m.entity_id, placement } }];
+}
 
 // Build the ONE Meta write this approval authorises.
 const params = m.op === 'budget'
@@ -614,7 +718,11 @@ return [{ json: { route: 'approve', move: m, entity_id: m.entity_id, write_param
       {"conditions": {"options": {"caseSensitive": True, "typeValidation": "loose", "version": 3},
         "conditions": [{"id": "r3", "leftValue": "={{ $json.route }}", "rightValue": "approve_exclude",
                         "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"},
-       "outputKey": "approve_exclude"}]},
+       "outputKey": "approve_exclude"},
+      {"conditions": {"options": {"caseSensitive": True, "typeValidation": "loose", "version": 3},
+        "conditions": [{"id": "r4", "leftValue": "={{ $json.route }}", "rightValue": "approve_placement",
+                        "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"},
+       "outputKey": "approve_placement"}]},
     "options": {"fallbackOutput": "extra"}},
    "type": "n8n-nodes-base.switch", "typeVersion": 3, "position": [600, 0],
    "id": "71bbbb0000000000000000000000000000cd"[:36], "name": "Route"},
@@ -662,13 +770,80 @@ return [{ json: { sql, result: { ok: okWrite, move_id: m.id, status, read_back: 
   pg("Write outcome", "={{ $json.sql }}", [1400, -120]),
 
   code("Respond approve", r"""
-// The approve leg and the v1.1 exclusion leg converge here; isExecuted picks
-// whichever verifier actually ran.
-const v = $('Verify exclusion').isExecuted
-  ? $('Verify exclusion').first().json
+// Three legs converge here (plain, v1.1 exclusion, v1.2 placement);
+// isExecuted picks whichever verifier actually ran.
+const v = $('Verify exclusion').isExecuted ? $('Verify exclusion').first().json
+  : $('Verify placement').isExecuted ? $('Verify placement').first().json
   : $('Verify + finalise').first().json;
 return [{ json: v.result }];
 """, [1600, -120]),
+
+  # ----- v1.2 placement leg: read, snapshot, merge, write, read back, diff.
+  {"parameters": {"url": "=https://graph.facebook.com/v23.0/{{ $('Decide').first().json.entity_id }}?fields=id,targeting",
+                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth", "options": {}},
+   "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [800, -480],
+   "id": "72cccc3333000000000000000000000000f4"[:36], "name": "Read targeting P", "credentials": META,
+   "notes": "Fresh pre-write read; a failure aborts before any mutation and the move stays proposed."},
+
+  code("Merge placement", r"""
+// Snapshot the complete targeting verbatim, remove ONE platform and its
+// positions field, change NOTHING else. Replace-not-merge, same as v1.1.
+const POSITIONS = { audience_network: 'audience_network_positions', messenger: 'messenger_positions',
+  facebook: 'facebook_positions', instagram: 'instagram_positions',
+  whatsapp: 'whatsapp_positions', threads: 'threads_positions' };
+const d = $('Decide').first().json;
+const cur = $input.first().json || {};
+if (!cur.targeting) throw new Error('pre-write targeting read failed for ad set ' + d.entity_id + '; nothing was written');
+const snapshot = cur.targeting;
+const platforms = Array.isArray(snapshot.publisher_platforms) ? snapshot.publisher_platforms : null;
+if (!platforms)
+  throw new Error('ad set ' + d.entity_id + ' is on Advantage+ placements at execute time; the move is refused by the founder-agreed rule, nothing was written');
+if (!platforms.includes(d.placement))
+  throw new Error(d.placement + ' is not on ad set ' + d.entity_id + ' at execute time (changed between staging and approval); nothing was written');
+if (platforms.length <= 1)
+  throw new Error('removing ' + d.placement + ' would leave no platforms; nothing was written');
+const newTargeting = JSON.parse(JSON.stringify(snapshot));
+newTargeting.publisher_platforms = platforms.filter(p => p !== d.placement);
+delete newTargeting[POSITIONS[d.placement]];
+return [{ json: { entity_id: d.entity_id, snapshot, new_targeting: newTargeting } }];
+""", [1000, -480]),
+
+  {"parameters": {"method": "POST", "url": "=https://graph.facebook.com/v23.0/{{ $json.entity_id }}",
+                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth",
+                  "sendBody": True, "specifyBody": "json",
+                  "jsonBody": "={{ JSON.stringify({ targeting: $json.new_targeting }) }}", "options": {}},
+   "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1200, -480],
+   "id": "72cccc4444000000000000000000000000f5"[:36], "name": "Write targeting P", "credentials": META},
+
+  {"parameters": {"url": "=https://graph.facebook.com/v23.0/{{ $('Decide').first().json.entity_id }}?fields=id,targeting",
+                  "authentication": "genericCredentialType", "genericAuthType": "httpQueryAuth", "options": {}},
+   "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1400, -480],
+   "id": "73dddd2222000000000000000000000000f6"[:36], "name": "Read back targeting P", "credentials": META},
+
+  code("Verify placement", VERIFY_PLACEMENT_FN + r"""
+const d = $('Decide').first().json;
+const m = d.move;
+const pre = $('Merge placement').first().json;
+const now = $input.first().json || {};
+const esc = (s) => String(s).replace(/'/g, "''");
+const jstr = (o) => JSON.stringify(o).replace(/'/g, "''");
+const snap = pre.snapshot;
+const rb = now.targeting || {};
+const problems = verifyPlacementDiff(snap, now.targeting, d.placement);
+const okWrite = problems.length === 0;
+const status = okWrite ? 'executed' : 'verification_failed';
+const snapClass = okWrite ? 'executed' : 'died';
+const reason = okWrite ? null : ('targeting diff vs snapshot failed: ' + problems.join(' | ').slice(0, 1500));
+const sql =
+`update optimise_moves set status='${status}', decided_at=now(), executed_at=${okWrite ? 'now()' : 'NULL'} where id='${m.id}'::uuid;
+insert into move_snapshots (task_id, client_id, build_ref, op_name, entity_type, entity_id, move_class, reason, snapshot, taken_at, executed_at)
+values (NULL, '${m.client_id}'::uuid, NULL, NULL, 'adset', '${esc(m.entity_id)}', '${snapClass}', ${reason ? "'" + esc(reason) + "'" : 'NULL'},
+  jsonb_build_object('op','placement_exclude','placement','${esc(d.placement)}',
+    'targeting_before','${jstr(snap)}'::jsonb,'targeting_read_back','${jstr(rb)}'::jsonb,
+    'evidence','${esc(m.evidence)}','norbert_q1',${m.norbert_q1 ? "'" + esc(m.norbert_q1) + "'" : 'NULL'}),
+  '${m.created_at}'::timestamptz, ${okWrite ? 'now()' : 'NULL'});`;
+return [{ json: { sql, result: { ok: okWrite, move_id: m.id, status, problems, platforms_after: (rb.publisher_platforms || []) } } }];
+""", [1600, -480], note="The pre-write snapshot goes into move_snapshots VERBATIM; anything but the named platform removal differing is verification_failed."),
 
   # ----- v1.1 exclusion leg: read, snapshot, merge, write, read back, diff.
   {"parameters": {"url": "=https://graph.facebook.com/v23.0/{{ $('Decide').first().json.entity_id }}?fields=id,targeting",
@@ -756,7 +931,13 @@ wf2_conn = {
       [{"node": "Meta write", "type": "main", "index": 0}],
       [{"node": "Write rejection", "type": "main", "index": 0}],
       [{"node": "Read targeting", "type": "main", "index": 0}],
+      [{"node": "Read targeting P", "type": "main", "index": 0}],
       [{"node": "Respond error", "type": "main", "index": 0}]]},
+  "Read targeting P": {"main": [[{"node": "Merge placement", "type": "main", "index": 0}]]},
+  "Merge placement": {"main": [[{"node": "Write targeting P", "type": "main", "index": 0}]]},
+  "Write targeting P": {"main": [[{"node": "Read back targeting P", "type": "main", "index": 0}]]},
+  "Read back targeting P": {"main": [[{"node": "Verify placement", "type": "main", "index": 0}]]},
+  "Verify placement": {"main": [[{"node": "Write outcome", "type": "main", "index": 0}]]},
   "Meta write": {"main": [[{"node": "Read back", "type": "main", "index": 0}]]},
   "Read back": {"main": [[{"node": "Verify + finalise", "type": "main", "index": 0}]]},
   "Verify + finalise": {"main": [[{"node": "Write outcome", "type": "main", "index": 0}]]},
@@ -783,4 +964,7 @@ open(os.path.join(OUT, "gates.extracted.js"), "w").write(
 # The v1.1 verify-diff function alone, for its test suite.
 open(os.path.join(OUT, "verify-exclusion.extracted.js"), "w").write(
     VERIFY_EXCLUSION_FN + "\nmodule.exports = verifyExclusionDiff;\n")
-print("wrote wf_optimise.json, wf_execute.json, gates.extracted.js, verify-exclusion.extracted.js")
+# The v1.2 placement verify-diff function alone, for its test suite.
+open(os.path.join(OUT, "verify-placement.extracted.js"), "w").write(
+    VERIFY_PLACEMENT_FN + "\nmodule.exports = verifyPlacementDiff;\n")
+print("wrote wf_optimise.json, wf_execute.json, gates.extracted.js, verify-exclusion.extracted.js, verify-placement.extracted.js")

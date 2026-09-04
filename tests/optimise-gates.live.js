@@ -50,7 +50,7 @@ function runGates(input) {
   const seen = new Set();
   const staged = [];
   for (const m of moves) {
-    if (!['pause', 'budget', 'unpause', 'audience_exclude'].includes(m.op))
+    if (!['pause', 'budget', 'unpause', 'audience_exclude', 'placement_exclude'].includes(m.op))
       return fail('grammar', 'unknown op "' + m.op + '"; the whole set is refused');
     if (!m.entity_id || !['campaign', 'adset', 'ad'].includes(m.entity_type))
       return fail('grammar', 'move missing entity_id/entity_type');
@@ -63,6 +63,16 @@ function runGates(input) {
         return fail('grammar', 'audience_exclude applies to ad sets only; got entity_type "' + m.entity_type + '"');
       if (!/^\d{6,}$/.test(String(m.audience_id || '')))
         return fail('grammar', 'audience_exclude needs a numeric audience_id');
+    }
+    // v1.2 (placement exclusions, founder-ruled 2026-09-04): adset-scoped,
+    // platform-level, narrowing only. The Advantage+ refusal, the is-it-there
+    // check and the never-the-last-platform floor need the targeting read and
+    // run in Exclusion checks, downstream.
+    if (m.op === 'placement_exclude') {
+      if (m.entity_type !== 'adset')
+        return fail('grammar', 'placement_exclude applies to ad sets only; got entity_type "' + m.entity_type + '"');
+      if (!['audience_network', 'messenger', 'facebook', 'instagram', 'whatsapp', 'threads'].includes(String(m.placement || '')))
+        return fail('grammar', 'placement must be audience_network, messenger, facebook, instagram, whatsapp or threads');
     }
     if (!m.evidence || String(m.evidence).trim().length < 10)
       return fail('grammar', 'every move carries evidence; "' + (m.evidence || '') + '" is not evidence');

@@ -235,12 +235,13 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
           items: {
             type: "object" as const,
             properties: {
-              op: { type: "string" as const, enum: ["pause", "budget", "unpause", "audience_exclude"] },
+              op: { type: "string" as const, enum: ["pause", "budget", "unpause", "audience_exclude", "placement_exclude"] },
               entity_type: { type: "string" as const, enum: ["campaign", "adset", "ad"] },
               entity_id: { type: "string" as const },
               from_minor: { type: "number" as const, description: "budget op only: current daily budget, minor units" },
               to_minor: { type: "number" as const, description: "budget op only: proposed daily budget, minor units" },
               audience_id: { type: "string" as const, description: "audience_exclude only: the custom audience id to exclude (resolve via list_audiences; it must belong to the same ad account)" },
+              placement: { type: "string" as const, enum: ["audience_network", "messenger", "facebook", "instagram", "whatsapp", "threads"], description: "placement_exclude only: the platform to remove. MANUAL-placement ad sets only; an Advantage+ placement ad set refuses the move by founder rule (the mode change forfeits per-asset media customisation), and re-adding a placement is not an op." },
               evidence: { type: "string" as const, description: "The specific numbers that justify this move" },
             },
             required: ["op", "entity_type", "entity_id", "evidence"],
@@ -339,7 +340,7 @@ WHAT YOU CAN DO HERE:
 - get_breakdowns reads the structured breakdowns (placement, age and gender, per-ad performance with video engagement, creative-by-placement and creative-by-demographic), scoped to a campaign set and window. This is YOUR data surface for "which creative works where" and "who is responding to what": answer from it directly, never from memory of an audit document. On lead-gen accounts rank on cost per lead; the purchase columns will be zero and that is not a finding. Give the founder the download_path when the tables themselves are wanted (it is internal raw material, never a client deliverable).
 - run_audit reads one account's full ground truth (read-only) so you can audit it right here in chat. Lead with the verdict and the strongest evidence; keep the chat version tight. The tool result carries download_path — ALWAYS give the founder that link at the end of an audit, on its own line, e.g. "Word document: /api/bernard/audit/123456?days=30". The document is generated fresh from the same live data when they click it.
 - dispatch_build sends an agreed spec to the substrate executor, which creates everything PAUSED behind machine-enforced gates and reads back what it made. You CAN build from this chat: lay the spec out, get the founder's explicit go, dispatch, then report the verified result. The founder activates; you never do.
-- dispatch_optimise stages pause, budget and audience-exclusion moves (the only ops that exist) behind the same machine gates, then Norbert, a separate supervising model, reviews the set before the founder sees it. Only a founder-triggered session may dispatch: the freelancer manages these accounts and you complement his work, never race it. Budget moves are bounded to 25% per move. audience_exclude (v1.1, founder-ruled 2026-08-26) is ONE-WAY: an exclusion can only narrow delivery, which is exactly why it is the one targeting edit you have. Removing an exclusion widens delivery and is NOT in your grammar; never offer it, and never present an exclusion as proof a problem is solved when its approval item carries a may-not-match warning. An exclusion resets the ad set's learning phase; that cost rides on the approval item and the founder weighs it, not you. If your move would reverse a recent human change, the approval item says so and the founder arbitrates, never you.
+- dispatch_optimise stages pause, budget, audience-exclusion and placement-exclusion moves (the only ops that exist) behind the same machine gates, then Norbert, a separate supervising model, reviews the set before the founder sees it. Only a founder-triggered session may dispatch: the freelancer manages these accounts and you complement his work, never race it. Budget moves are bounded to 25% per move. audience_exclude (v1.1, founder-ruled 2026-08-26) is ONE-WAY: an exclusion can only narrow delivery, which is exactly why it is the one targeting edit you have. Removing an exclusion widens delivery and is NOT in your grammar; never offer it, and never present an exclusion as proof a problem is solved when its approval item carries a may-not-match warning. An exclusion resets the ad set's learning phase; that cost rides on the approval item and the founder weighs it, not you. placement_exclude (v1.2, founder-ruled 2026-09-04) removes ONE platform from a MANUAL-placement ad set: an ad set on Advantage+ placements refuses the move by the founder's rule (the mode change to manual forfeits per-asset media customisation, and that trade is his by hand), the last remaining platform can never be removed, and re-adding a placement widens delivery so it is not an op; never offer it. If your move would reverse a recent human change, the approval item says so and the founder arbitrates, never you.
 - decide_move executes or rejects ONE staged move on the founder's explicit word, one call per move. Approval is per move, never per batch.
 
 Operating doctrine, adopted 2026-08-18 from a reviewed external field study:
@@ -639,6 +640,12 @@ async function runTool(
             return { error: "audience_exclude applies to ad sets only; the whole set would be refused downstream." };
           if (!/^\d{6,}$/.test(String(mv.audience_id ?? "")))
             return { error: "audience_exclude needs a numeric audience_id (resolve it via list_audiences first)." };
+        }
+        if (mv?.op === "placement_exclude") {
+          if (mv.entity_type !== "adset")
+            return { error: "placement_exclude applies to ad sets only; the whole set would be refused downstream." };
+          if (!["audience_network", "messenger", "facebook", "instagram", "whatsapp", "threads"].includes(String(mv.placement ?? "")))
+            return { error: "placement_exclude needs placement of audience_network, messenger, facebook, instagram, whatsapp or threads." };
         }
       }
       try { return await dispatchOptimise(input as never); }
