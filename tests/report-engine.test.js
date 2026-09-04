@@ -92,6 +92,23 @@ const base = (over = {}) => ({
   check("attribution near the ledger passes", !fine.some((i) => i.check === "store_ledger"), fine);
 }
 
+// POAS honesty (freeze lifted 2026-09-04): the figure only exists on a fully
+// costed ledger, and it must reproduce from ledger profit over spend.
+{
+  const ledger = { revenue: 980, orders: 4, source: "shopify orders (gopoxy)", profit: 400, cogsCoveragePct: 100 };
+  const noLedger = checkReport(base({ claims: { poas: 0.8 } }));
+  check("POAS without a ledger fails", noLedger.some((i) => i.check === "poas" && i.severity === "fail"), noLedger);
+
+  const partial = checkReport(base({ claims: { poas: 0.8 }, storeLedger: { ...ledger, cogsCoveragePct: 62.5 } }));
+  check("POAS on partial COGS coverage fails", partial.some((i) => i.check === "poas" && i.detail.includes("coverage")), partial);
+
+  const wrong = checkReport(base({ claims: { poas: 1.4 }, storeLedger: ledger }));
+  check("POAS not equal to profit over spend fails", wrong.some((i) => i.check === "poas" && i.detail.includes("recomputes")), wrong);
+
+  const right = checkReport(base({ claims: { poas: 0.8 }, storeLedger: ledger }));
+  check("correct POAS on full coverage passes", !right.some((i) => i.check === "poas"), right);
+}
+
 // A fully clean report produces zero issues.
 {
   const issues = checkReport(base({

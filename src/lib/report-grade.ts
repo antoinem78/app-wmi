@@ -9,7 +9,7 @@
 // the agents whose reports he grades, metered under his own name.
 import Anthropic from "@anthropic-ai/sdk";
 import { logAgentUsage } from "@/lib/agent-usage";
-import { checkReport, fourWindowText, renderIssues, type ReportFigures, type CheckIssue } from "@/lib/report-engine";
+import { checkReport, fourWindowText, storeLedgerText, renderIssues, type ReportFigures, type CheckIssue } from "@/lib/report-engine";
 
 const MODEL = "claude-fable-5";
 const AGENT = "norbert";
@@ -38,7 +38,7 @@ export async function gradeReport(
   accountLabel: string,
 ): Promise<ReportGrade> {
   const issues = checkReport(figures);
-  const figuresBlock = `${fourWindowText(figures)}\n\n${renderIssues(issues)}`;
+  const figuresBlock = `${fourWindowText(figures)}\n\n${storeLedgerText(figures)}\n\n${renderIssues(issues)}`;
   const hasFail = issues.some((i) => i.severity === "fail");
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

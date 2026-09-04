@@ -39,6 +39,9 @@ export interface DerivedClaims {
   cpm?: number | null;
   cpc?: number | null;
   reach?: number | null;
+  /** Profit on ad spend: storeLedger.profit / spend. Only statable when the
+   *  ledger's COGS coverage is complete for the window. */
+  poas?: number | null;
 }
 
 export interface EventSource {
@@ -58,8 +61,14 @@ export interface ReportFigures {
   reachSummedAcrossCampaigns?: number | null;
   /** What each counted conversion actually is, by platform identifier. */
   eventSources?: EventSource[];
-  /** Store-ledger revenue for the current window, where a store is connected. */
-  storeLedger?: { revenue: number; orders: number; source: string } | null;
+  /** Store-ledger truth for the current window, where a store is connected.
+   *  profit is null until a COGS sheet covers orders; cogsCoveragePct says how
+   *  much of the window's orders are fully costed, and POAS over the window is
+   *  only honest at 100. */
+  storeLedger?: {
+    revenue: number; orders: number; source: string;
+    profit?: number | null; cogsCoveragePct?: number | null; oldestCostBasis?: string | null;
+  } | null;
 }
 
 export interface CheckIssue {
@@ -152,7 +161,40 @@ export function checkReport(f: ReportFigures): CheckIssue[] {
     }
   }
 
+  // POAS honesty: the figure only exists on a costed ledger, and only fully.
+  if (c.poas != null) {
+    const l = f.storeLedger;
+    if (!l || l.profit == null) {
+      issues.push({ check: "poas", severity: "fail", detail: `POAS is stated as ${n2(c.poas)} but no costed store ledger exists for the window; POAS without a COGS-covered ledger is a made-up number.` });
+    } else if ((l.cogsCoveragePct ?? 0) < 100) {
+      issues.push({ check: "poas", severity: "fail", detail: `POAS is stated as ${n2(c.poas)} on ${n2(l.cogsCoveragePct ?? 0)}% COGS coverage; profit over a partially costed window is not POAS, name the coverage or drop the figure.` });
+    } else if (cur.spend <= 0) {
+      issues.push({ check: "poas", severity: "fail", detail: "POAS is stated but spend is zero." });
+    } else if (!close(c.poas, l.profit / cur.spend)) {
+      issues.push({ check: "poas", severity: "fail", detail: `POAS is stated as ${n2(c.poas)} but recomputes to ${n2(l.profit / cur.spend)} from ledger profit over spend.` });
+    }
+  }
+
   return issues;
+}
+
+/** The store-ledger block for the draft's figures fence: always says where
+ *  POAS stands, including when it cannot exist yet. */
+export function storeLedgerText(f: ReportFigures): string {
+  const l = f.storeLedger;
+  const spend = f.windows[0]?.spend ?? 0;
+  if (!l) return "Store ledger: no store connection for this account; platform attribution stands alone and reads as attribution, not takings.";
+  const lines = [
+    `Store ledger (${l.source}): ${l.orders} orders, ${f.currency} ${l.revenue.toFixed(2)} net revenue in the window.`,
+  ];
+  if (l.profit != null && (l.cogsCoveragePct ?? 0) >= 100 && spend > 0) {
+    lines.push(`Profit ${f.currency} ${l.profit.toFixed(2)} on full COGS coverage; POAS ${(l.profit / spend).toFixed(2)} against ${f.currency} ${spend.toFixed(2)} platform spend${l.oldestCostBasis ? ` (oldest cost basis ${l.oldestCostBasis})` : ""}.`);
+  } else if (l.profit != null) {
+    lines.push(`Profit ${f.currency} ${l.profit.toFixed(2)} over the ${(l.cogsCoveragePct ?? 0).toFixed(1)}% of orders fully costed; POAS is not stated below 100% coverage.`);
+  } else if (l.orders > 0) {
+    lines.push("No COGS sheet loaded, so profit and POAS cannot exist yet; revenue and order count are the ledger truth available.");
+  }
+  return lines.join("\n");
 }
 
 /** The four-window table as plain text, for the draft's figures block. */

@@ -8,6 +8,7 @@
 import { gaqlSearch } from "@/lib/integrations/google-ads";
 import { metaGraphAll } from "@/lib/integrations/meta";
 import type { MetaWeekly } from "@/lib/integrations/meta/weekly";
+import { getStoreLedgerForMetaAccount } from "@/lib/store-ledger";
 import type { ReportFigures, WindowMetrics, EventSource } from "@/lib/report-engine";
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -131,6 +132,15 @@ export async function metaReportFigures(accountId: string, weekly: MetaWeekly): 
     if (!camp.error || camp.rows.length) reachSummed = camp.rows.reduce((s, r) => s + num(r.reach), 0);
   } catch { /* best-effort */ }
 
+  // Store ledger (POAS leg, freeze lifted 2026-09-04): the merchant's own
+  // orders for the same window, with profit where a COGS sheet covers them.
+  // Null means no connected store maps to this ad account; stated, never hidden.
+  const ledger = await getStoreLedgerForMetaAccount(accountId, weekly.period.start, weekly.period.end).catch(() => null);
+  const spend = windows[0]?.spend ?? 0;
+  const poas = ledger && ledger.profit != null && ledger.cogsCoveragePct >= 100 && spend > 0
+    ? ledger.profit / spend
+    : null;
+
   const c = weekly.current;
   return {
     platform: "meta",
@@ -143,9 +153,10 @@ export async function metaReportFigures(accountId: string, weekly: MetaWeekly): 
       ctr: c.ctr || null,
       cpm: c.cpm || null,
       reach: c.reach || null,
+      poas,
     },
     reachSummedAcrossCampaigns: reachSummed,
     eventSources,
-    storeLedger: null, // seam: per-account store connections not wired into this leg yet
+    storeLedger: ledger,
   };
 }

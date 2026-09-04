@@ -13,7 +13,7 @@
 | `PROC_shopify_event` | n8n `y10xtJ3EbGPHHnqr` | ACTIVE (shared processor, one per estate) |
 | `RCV_shopify_TEMPLATE` | n8n `avrKnnAHOJPF75lz` | inactive template |
 | `SHOPIFY_admin_caller_TEMPLATE` | n8n `FcjAlpnAJNl0vpTC` | inactive template |
-| `CAP_commerce_reconcile` | n8n `Z0xzANhFBuVTBuPy` | built, INACTIVE until the first store is connected |
+| `CAP_commerce_reconcile` | n8n `Z0xzANhFBuVTBuPy` | ACTIVE (daily 07:30 London; sweeps every enabled commerce client) |
 | `GHL_contact_caller_TEMPLATE` | n8n `HnplslA8l3jGajg3` | inactive template (non-commerce gap closed in passing) |
 | `commerce_ingest` operators row | conversion plane | inserted by 0004 |
 
