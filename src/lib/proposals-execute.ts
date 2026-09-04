@@ -18,6 +18,8 @@ import {
   campaignCriterionCreateOp, campaignCriterionRemoveOp, campaignBiddingOp,
   type ExecAction,
 } from "@/lib/integrations/google-ads/write";
+import { isMerchantAction } from "@/lib/integrations/google-ads/write";
+import { dryRunMerchant, applyMerchant, rollbackMerchant } from "@/lib/proposals-execute-merchant";
 import { recordWriteAudit } from "@/lib/write-audit";
 import { approvalGate } from "@/lib/norbert-review-rules";
 
@@ -248,6 +250,11 @@ async function prepare(customerId: string, action: ExecAction): Promise<Prep | {
   if (action.kind === "add_shared_negative") {
     return prepareSharedNegative(customerId, action);
   }
+  // Merchant Center actions never reach this preparer (they are routed to
+  // their own leg before it); the check narrows the type for the rest.
+  if (isMerchantAction(action)) {
+    return { error: "Merchant Center actions run on the merchant leg, not the Google Ads preparer." };
+  }
 
   const camp = await resolveCampaign(customerId, action.campaign);
   if ("error" in camp) return camp;
@@ -440,6 +447,14 @@ export async function dryRunProposal(id: string): Promise<Result> {
   const action = parseAction(row.details ?? {});
   if (!action) return { error: "This proposal has no executable action." };
   if ("error" in action) return { error: action.error };
+  // Merchant Center actions run on their own leg: no validateOnly exists there,
+  // so its dry run is a full read pass with the plan stated.
+  if (isMerchantAction(action)) {
+    const r = await dryRunMerchant(action, row.client_id);
+    if ("error" in r) return r;
+    await patch(id, { execution: { ...(row.execution ?? {}), lastValidate: { ...r, at: new Date().toISOString() } } });
+    return r;
+  }
   const customerId = await customerFor(row.client_id);
   if (!customerId) return { error: "No Google Ads account for this client." };
   const g = await guardWrite(customerId, "dry_run", { action: action.kind, clientId: row.client_id });
@@ -471,6 +486,17 @@ export async function applyProposal(id: string, actor: string): Promise<Result> 
   const action = parseAction(row.details ?? {});
   if (!action) return { error: "This proposal has no executable action." };
   if ("error" in action) return { error: action.error };
+  if (isMerchantAction(action)) {
+    const r = await applyMerchant(action, row.client_id, actor);
+    if ("error" in r) {
+      await patch(id, { status: "failed", execution: { ...(row.execution ?? {}), error: r.error } });
+      await logActivity({ clientId: row.client_id, eventType: "proposal_apply_failed", actor: `admin:${actor}`, payload: { id, error: r.error } });
+      return r;
+    }
+    await patch(id, { status: "applied", applied_at: new Date().toISOString(), applied_by: actor, execution: { ...(row.execution ?? {}), ...r, action, appliedAt: new Date().toISOString(), appliedBy: actor } });
+    await alert(`✅ Rexos applied (Merchant Center overlay): *${row.title}* (${row.account_label}) by ${actor}.`);
+    return r;
+  }
   const customerId = await customerFor(row.client_id);
   if (!customerId) return { error: "No Google Ads account for this client." };
   const g = await guardWrite(customerId, "apply", { action: action.kind, approver: actor, clientId: row.client_id });
@@ -520,6 +546,14 @@ export async function rollbackProposal(id: string, actor: string): Promise<Resul
   if (row.status !== "applied") return { error: `Only an applied proposal can be rolled back (is ${row.status}).` };
   const action = parseAction(row.details ?? {});
   if (!action || "error" in action) return { error: "Cannot parse the original action." };
+  if (isMerchantAction(action)) {
+    const r = await rollbackMerchant(action, row.client_id, actor, (row.execution ?? {}) as Record<string, unknown>);
+    if ("error" in r) return r;
+    await patch(id, { status: "rolled_back", rolled_back_at: new Date().toISOString(), rolled_back_by: actor, execution: { ...(row.execution ?? {}), rolledBackAt: new Date().toISOString() } });
+    await logActivity({ clientId: row.client_id, eventType: "proposal_rolled_back", actor: `admin:${actor}`, payload: { id, action: action.kind } });
+    await alert(`↩️ Rexos rolled back (Merchant Center overlay): *${row.title}* (${row.account_label}) by ${actor}.`);
+    return r;
+  }
   const customerId = await customerFor(row.client_id);
   if (!customerId) return { error: "No Google Ads account." };
   // Rollback is a write — it must clear the same MCC boundary + allowlist + kill switch.

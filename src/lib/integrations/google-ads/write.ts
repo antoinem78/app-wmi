@@ -61,7 +61,12 @@ export type ExecAction =
   | { kind: "detach_shared_set"; campaign: string; sharedSet: string }
   | { kind: "add_campaign_criterion"; campaign: string; criterionType: CriterionType; constantId: string }
   | { kind: "remove_campaign_criterion"; campaign: string; criterionType: CriterionType; constantId: string }
-  | { kind: "set_bidding_strategy"; campaign: string; strategy: BiddingStrategy; targetCpa?: number; targetRoas?: number };
+  | { kind: "set_bidding_strategy"; campaign: string; strategy: BiddingStrategy; targetCpa?: number; targetRoas?: number }
+  // ---- Merchant Center feed-layer overlays (founder-ruled 2026-08-26, built
+  // 2026-09-04). One attribute per proposal; reversal is deleting the overlay
+  // input so the primary feed's value returns. NEVER a store write.
+  | { kind: "mc_set_title"; merchantId: string; offerId: string; contentLanguage: string; feedLabel: string; title: string }
+  | { kind: "mc_set_price"; merchantId: string; offerId: string; contentLanguage: string; feedLabel: string; amount: number; currency: string };
 
 /** Parse a proposal's `details.action` into a strict, executable action. Returns
  *  null when the proposal carries no executable action (advisory only). */
@@ -145,9 +150,43 @@ export function parseAction(details: Record<string, unknown>): ExecAction | { er
         return { error: "targetRoas only applies to MAXIMIZE_CONVERSION_VALUE." };
       return { kind: "set_bidding_strategy", campaign, strategy, targetCpa, targetRoas };
     }
+    case "mc_set_title":
+    case "mc_set_price": {
+      const merchantId = str(a.merchantId ?? a.merchant_id).replace(/\D/g, "");
+      const offerId = str(a.offerId ?? a.offer_id);
+      const contentLanguage = str(a.contentLanguage ?? a.content_language);
+      const feedLabel = str(a.feedLabel ?? a.feed_label);
+      if (!merchantId || !offerId || !contentLanguage || !feedLabel)
+        return { error: `${a.kind} needs merchantId, offerId, contentLanguage and feedLabel (exactly as the product carries them; feed labels are not always country codes).` };
+      if (a.kind === "mc_set_title") {
+        const title = str(a.title);
+        if (!title || title.length > 150) return { error: "mc_set_title needs a title of 1-150 characters." };
+        return { kind: "mc_set_title", merchantId, offerId, contentLanguage, feedLabel, title };
+      }
+      const amount = Number(a.amount);
+      const currency = str(a.currency).toUpperCase();
+      if (!Number.isFinite(amount) || amount <= 0) return { error: "mc_set_price needs a positive amount in currency units." };
+      if (!/^[A-Z]{3}$/.test(currency)) return { error: "mc_set_price needs a 3-letter currency code matching the feed." };
+      return { kind: "mc_set_price", merchantId, offerId, contentLanguage, feedLabel, amount, currency };
+    }
     default:
       return { error: `Unknown action kind "${a.kind}".` };
   }
+}
+
+/** Merchant Center writes get their own kill switch and allowlist: a NEW write
+ *  surface class starts narrow and there is deliberately no ALLOW_ALL lift. */
+export function merchantWriteEnabled(): boolean {
+  return (process.env.MERCHANT_WRITE_ENABLED ?? "").trim().toLowerCase() === "true";
+}
+export function guardMerchantAllowlist(merchantId: string): string | null {
+  const allowed = list(process.env.MERCHANT_WRITE_ACCOUNTS);
+  if (!allowed.has(norm(merchantId)))
+    return `Merchant account ${merchantId} is not on MERCHANT_WRITE_ACCOUNTS.`;
+  return null;
+}
+export function isMerchantAction(a: ExecAction): a is Extract<ExecAction, { kind: "mc_set_title" | "mc_set_price" }> {
+  return a.kind === "mc_set_title" || a.kind === "mc_set_price";
 }
 
 // ---- Guardrail checks (return null = ok, or an error string) ----
