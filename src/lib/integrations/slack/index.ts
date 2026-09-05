@@ -174,3 +174,43 @@ export async function inviteTeam(
 export async function postMessage(channelId: string, text: string): Promise<void> {
   await slack("chat.postMessage", { channel: channelId, text });
 }
+
+/**
+ * Upload a file into a channel (report workbooks for people without portal
+ * access, 2026-09-05). Slack's external-upload three-step: get a URL, PUT the
+ * bytes, complete-and-share. Needs the files:write bot scope; without it the
+ * first step returns missing_scope and the caller should fall back to a link
+ * rather than fail the message.
+ */
+export async function uploadFile(
+  channelId: string,
+  filename: string,
+  buffer: Buffer,
+  title?: string,
+): Promise<{ ok: true } | { error: string }> {
+  const token = process.env.SLACK_BOT_TOKEN;
+  if (!token) return { error: "Slack is not configured (SLACK_BOT_TOKEN missing)." };
+  try {
+    const urlRes = await fetch(`${API}/files.getUploadURLExternal`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ filename, length: String(buffer.length) }),
+    });
+    const urlData = (await urlRes.json()) as { ok: boolean; error?: string; upload_url?: string; file_id?: string };
+    if (!urlData.ok || !urlData.upload_url || !urlData.file_id) {
+      return { error: `files.getUploadURLExternal: ${urlData.error ?? "no upload url"}` };
+    }
+    const put = await fetch(urlData.upload_url, { method: "POST", body: new Uint8Array(buffer) });
+    if (!put.ok) return { error: `upload transfer failed: HTTP ${put.status}` };
+    const done = await fetch(`${API}/files.completeUploadExternal`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify({ files: [{ id: urlData.file_id, title: title ?? filename }], channel_id: channelId }),
+    });
+    const doneData = (await done.json()) as { ok: boolean; error?: string };
+    if (!doneData.ok) return { error: `files.completeUploadExternal: ${doneData.error}` };
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}

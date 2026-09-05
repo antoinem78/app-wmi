@@ -165,6 +165,23 @@ export async function GET(request: Request) {
         ].join("\n");
         await postMessage(channel!, draft);
         delivered++;
+        // Attach the workbook FILE for people without portal access (the
+        // freelancer, 2026-09-05). Best-effort: without the files:write scope
+        // the link above still carries the same workbook.
+        try {
+          const { uploadFile } = await import("@/lib/integrations/slack");
+          const { buildMetaReportWorkbook } = await import("@/lib/report-workbook");
+          const { weekRanges } = await import("@/lib/report-figures");
+          const wbk = await buildMetaReportWorkbook(
+            weekly.accountId,
+            weekRanges(weekly.period.start, weekly.period.end),
+            { periodLabel: `Weekly report: ${weekly.period.start} to ${weekly.period.end}`, currencyHint: weekly.currency },
+          );
+          const up = await uploadFile(channel!, `${weekly.accountName.replace(/[^\w &-]/g, "")} - week ${weekly.period.start}.xlsx`, wbk.buffer, `${weekly.accountName} weekly report workbook`);
+          if ("error" in up) console.error(`Workbook attach skipped for ${acc.accountId}: ${up.error}`);
+        } catch (e) {
+          console.error(`Workbook attach failed for ${acc.accountId}:`, e);
+        }
       } catch (e) {
         // A wrong channel id or an uninvited bot must not look like success.
         slackFailed++;

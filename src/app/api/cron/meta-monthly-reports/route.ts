@@ -113,6 +113,16 @@ export async function GET(request: Request) {
         ].join("\n");
         await postMessage(channel!, draft);
         delivered++;
+        // Attach the workbook FILE for people without portal access.
+        try {
+          const { uploadFile } = await import("@/lib/integrations/slack");
+          const { buildMetaReportWorkbook } = await import("@/lib/report-workbook");
+          const wbk = await buildMetaReportWorkbook(acc.accountId.replace(/\D/g, ""), ranges, { periodLabel: `Monthly report: ${month.label}`, currencyHint: acc.currency });
+          const up = await uploadFile(channel!, `${acc.name.replace(/[^\w &-]/g, "")} - ${month.label}.xlsx`, wbk.buffer, `${acc.name} monthly report workbook`);
+          if ("error" in up) console.error(`Workbook attach skipped for ${acc.accountId}: ${up.error}`);
+        } catch (e) {
+          console.error(`Workbook attach failed for ${acc.accountId}:`, e);
+        }
       } catch (e) {
         slackFailed++;
         errors.push(`${acc.name} (slack): ${e instanceof Error ? e.message : String(e)}`);
