@@ -15,14 +15,35 @@ const ymd = (d: Date) => d.toISOString().slice(0, 10);
 const num = (v: unknown) => Number(v ?? 0) || 0;
 const LABELS = ["this week", "last week", "2 weeks ago", "3 weeks ago"];
 
-function weekRanges(currentStart: string, currentEnd: string): { label: string; start: string; end: string }[] {
-  const out: { label: string; start: string; end: string }[] = [];
+export interface PeriodRange { label: string; start: string; end: string }
+
+export function weekRanges(currentStart: string, currentEnd: string): PeriodRange[] {
+  const out: PeriodRange[] = [];
   let start = new Date(currentStart + "T00:00:00Z");
   let end = new Date(currentEnd + "T00:00:00Z");
   for (let i = 0; i < 4; i++) {
     out.push({ label: LABELS[i], start: ymd(start), end: ymd(end) });
     start = new Date(start.getTime() - 7 * 86_400_000);
     end = new Date(end.getTime() - 7 * 86_400_000);
+  }
+  return out;
+}
+
+/** Four calendar months ending with the month containing `anchor` minus one
+ *  month: on 2026-09-05 this is Aug, Jul, Jun, May. Months are the windows for
+ *  the monthly report; the four-window rule applies to months exactly as to
+ *  weeks (a fall and a return to normal look identical over two of anything). */
+export function monthRanges(anchor: Date = new Date()): PeriodRange[] {
+  const out: PeriodRange[] = [];
+  const monthName = (d: Date) => d.toLocaleString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+  let y = anchor.getUTCFullYear();
+  let m = anchor.getUTCMonth(); // 0-based; the report month is m-1
+  for (let i = 0; i < 4; i++) {
+    m -= 1;
+    if (m < 0) { m += 12; y -= 1; }
+    const start = new Date(Date.UTC(y, m, 1));
+    const end = new Date(Date.UTC(y, m + 1, 0));
+    out.push({ label: monthName(start), start: ymd(start), end: ymd(end) });
   }
   return out;
 }
@@ -39,8 +60,8 @@ interface DashLike {
   hasConversionValue: boolean;
 }
 
-export async function googleReportFigures(reportingId: string, dash: DashLike): Promise<ReportFigures> {
-  const ranges = weekRanges(dash.weekly.start, dash.weekly.end);
+export async function googleReportFigures(reportingId: string, dash: DashLike, rangesOverride?: PeriodRange[]): Promise<ReportFigures> {
+  const ranges = rangesOverride ?? weekRanges(dash.weekly.start, dash.weekly.end);
   const windows: WindowMetrics[] = await Promise.all(ranges.map(async (r) => {
     try {
       const rows = await gaqlSearch(
@@ -90,8 +111,16 @@ const firstOf = (list: ActionRow[], keys: string[]): { type: string; count: numb
 };
 
 export async function metaReportFigures(accountId: string, weekly: MetaWeekly): Promise<ReportFigures> {
+  return metaPeriodFigures(accountId, weekRanges(weekly.period.start, weekly.period.end), weekly);
+}
+
+/** Figures over ANY four windows (weekly steps or calendar months). `weekly`
+ *  supplies the stated claims when given (the weekly cron path); without it the
+ *  claims are computed from the current window itself, so a monthly report's
+ *  derived figures are self-consistent by construction and the engine's checks
+ *  verify the arithmetic rather than a second source. */
+export async function metaPeriodFigures(accountId: string, ranges: PeriodRange[], weekly?: MetaWeekly, currencyHint?: string): Promise<ReportFigures> {
   const act = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
-  const ranges = weekRanges(weekly.period.start, weekly.period.end);
   const timeRanges = JSON.stringify(ranges.map((r) => ({ since: r.start, until: r.end })));
   const fields = "spend,impressions,clicks,reach,actions,action_values";
 
@@ -113,7 +142,7 @@ export async function metaReportFigures(accountId: string, weekly: MetaWeekly): 
       conversions: purchase?.count ?? 0, revenue: revenue?.count ?? 0, leads: lead?.count ?? 0,
       reach: row.reach != null ? num(row.reach) : null,
     });
-    if (r.label === "this week") {
+    if (r.label === ranges[0].label) {
       eventSources = [
         ...(purchase ? [{ label: "purchases", actionType: purchase.type, count: purchase.count }] : []),
         ...(lead ? [{ label: "leads", actionType: lead.type, count: lead.count }] : []),
@@ -121,13 +150,15 @@ export async function metaReportFigures(accountId: string, weekly: MetaWeekly): 
     }
   }
 
+  const current = ranges[0];
+
   // Campaign-level reach for the current window, SUMMED: kept only so the
   // summed-reach error is detectable, never reportable as reach.
   let reachSummed: number | null = null;
   try {
     const camp = await metaGraphAll(`${act}/insights`, {
       fields: "reach", level: "campaign",
-      time_range: JSON.stringify({ since: weekly.period.start, until: weekly.period.end }),
+      time_range: JSON.stringify({ since: current.start, until: current.end }),
     }, 200);
     if (!camp.error || camp.rows.length) reachSummed = camp.rows.reduce((s, r) => s + num(r.reach), 0);
   } catch { /* best-effort */ }
@@ -135,26 +166,38 @@ export async function metaReportFigures(accountId: string, weekly: MetaWeekly): 
   // Store ledger (POAS leg, freeze lifted 2026-09-04): the merchant's own
   // orders for the same window, with profit where a COGS sheet covers them.
   // Null means no connected store maps to this ad account; stated, never hidden.
-  const ledger = await getStoreLedgerForMetaAccount(accountId, weekly.period.start, weekly.period.end).catch(() => null);
-  const spend = windows[0]?.spend ?? 0;
+  const ledger = await getStoreLedgerForMetaAccount(accountId, current.start, current.end).catch(() => null);
+  const cur = windows[0];
+  const spend = cur?.spend ?? 0;
   const poas = ledger && ledger.profit != null && ledger.cogsCoveragePct >= 100 && spend > 0
     ? ledger.profit / spend
     : null;
 
-  const c = weekly.current;
+  // Claims: the weekly cron states figures from its own weekly read; a period
+  // report (monthly) states figures derived from the current window itself.
+  const claims = weekly ? {
+    cpa: weekly.current.costPerPurchase,
+    costPerLead: weekly.current.costPerLead,
+    roas: weekly.current.roas,
+    ctr: weekly.current.ctr || null,
+    cpm: weekly.current.cpm || null,
+    reach: weekly.current.reach || null,
+    poas,
+  } : {
+    cpa: cur && cur.conversions > 0 ? cur.spend / cur.conversions : null,
+    costPerLead: cur && cur.leads > 0 ? cur.spend / cur.leads : null,
+    roas: cur && cur.spend > 0 && cur.revenue > 0 ? cur.revenue / cur.spend : null,
+    ctr: cur && cur.impressions > 0 ? (cur.clicks / cur.impressions) * 100 : null,
+    cpm: cur && cur.impressions > 0 ? (cur.spend / cur.impressions) * 1000 : null,
+    reach: cur?.reach ?? null,
+    poas,
+  };
+
   return {
     platform: "meta",
-    currency: weekly.currency,
+    currency: weekly?.currency ?? currencyHint ?? ledger?.currency ?? "",
     windows,
-    claims: {
-      cpa: c.costPerPurchase,
-      costPerLead: c.costPerLead,
-      roas: c.roas,
-      ctr: c.ctr || null,
-      cpm: c.cpm || null,
-      reach: c.reach || null,
-      poas,
-    },
+    claims,
     reachSummedAcrossCampaigns: reachSummed,
     eventSources,
     storeLedger: ledger,

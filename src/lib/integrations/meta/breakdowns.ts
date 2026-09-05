@@ -105,12 +105,22 @@ const demoKey = (r: Row) => `${r.age ?? "?"} ${r.gender ?? "?"}`;
 
 export async function getMetaBreakdowns(
   accountRef: string,
-  opts: { days?: number; campaignIds?: string[] } = {},
+  opts: { days?: number; campaignIds?: string[]; since?: string; until?: string } = {},
 ): Promise<MetaBreakdowns> {
   const { act, digits } = normalizeActId(accountRef);
-  const days = Math.min(90, Math.max(7, Math.round(opts.days ?? 30)));
-  const end = new Date(Date.now() - 86_400_000); // exclude today: intraday is immature
-  const start = new Date(end.getTime() - (days - 1) * 86_400_000);
+  // Exact range wins (weekly/monthly reporting needs Monday-to-Sunday or a
+  // calendar month, and a window that "ends yesterday" can never match one);
+  // days stays as the trailing-window convenience.
+  let start: Date, end: Date, days: number;
+  if (opts.since && opts.until && /^\d{4}-\d{2}-\d{2}$/.test(opts.since) && /^\d{4}-\d{2}-\d{2}$/.test(opts.until)) {
+    start = new Date(opts.since + "T00:00:00Z");
+    end = new Date(opts.until + "T00:00:00Z");
+    days = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+  } else {
+    days = Math.min(90, Math.max(7, Math.round(opts.days ?? 30)));
+    end = new Date(Date.now() - 86_400_000); // exclude today: intraday is immature
+    start = new Date(end.getTime() - (days - 1) * 86_400_000);
+  }
   const range = JSON.stringify({ since: ymd(start), until: ymd(end) });
 
   const campaignIds = (opts.campaignIds ?? []).map((c) => String(c).replace(/\D/g, "")).filter(Boolean);

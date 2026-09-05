@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/meta-weekly-reports",
       "schedule": "0 8 * * 1"
+    },
+    {
+      "path": "/api/cron/meta-monthly-reports",
+      "schedule": "0 9 1 * *"
+    },
+    {
+      "path": "/api/cron/google-monthly-reports",
+      "schedule": "10 9 1 * *"
     }
   ]
 }

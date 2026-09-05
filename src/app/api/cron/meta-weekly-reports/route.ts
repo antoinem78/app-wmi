@@ -160,6 +160,7 @@ export async function GET(request: Request) {
           "```",
           ...g.footer,
           `Full breakdown tables (placement, demographic, creative crosses): https://app.wmiltd.com/api/bernard/breakdowns/${weekly.accountId}?days=7`,
+          `Report workbook (.xlsx, all tabs, this exact week): https://app.wmiltd.com/api/bernard/report/${weekly.accountId}?since=${weekly.period.start}&until=${weekly.period.end}`,
           "_Draft for review, not yet sent to the client._",
         ].join("\n");
         await postMessage(channel!, draft);
